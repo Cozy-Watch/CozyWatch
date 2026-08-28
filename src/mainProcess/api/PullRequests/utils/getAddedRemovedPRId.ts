@@ -1,4 +1,3 @@
-import Logger from "electron-log";
 import { CacheData } from "./getDefaultData";
 
 interface Params {

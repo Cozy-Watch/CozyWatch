@@ -1,9 +1,10 @@
-import { app, ipcMain, shell } from "electron";
+import { app, ipcMain } from "electron";
 import Logger from "electron-log";
 import pLimit from "p-limit";
 import { getNotificationsSettings } from "../../../notifications/getNotificationSettings";
 import { batchNotificationManager } from "../../../notifications/notificationManager";
 import { storeData } from "../../../safeStorage/safeStorage";
+import { tryOpenExternalUrl } from "../../../security/externalUrl";
 import { getGithubClient } from "../../githubClient";
 import { getUser } from "../../User/getUser";
 import { registerListIssuesComments } from "../hooks/registerIssuesListComments";
@@ -24,6 +25,7 @@ import {
 import { getMentions } from "../utils/getMentions";
 import { getRepositoriesData } from "../utils/getRepositoriesData";
 import { getReviewStatusUpdate } from "../utils/getReviewStatusUpdate";
+import type { Repository } from "../../../safeStorage/safeStorage.types";
 import { getIssuesListCommentsQuery } from "./getIssuesListCommentsQuery";
 import { pullActionsQuery } from "./pullActionQuery";
 import { pullsListQuery } from "./pullListQuery";
@@ -34,7 +36,11 @@ const pullListReviewOperationName = "pull-listReview-requests";
 const pullActionsOperationName = "pull-actions-requests";
 const issuesListComments = "issues-list-comments";
 
-export const pullRequestQuery = async (): Promise<any> => {
+export type PullRequestQueryResult = CacheData & {
+  repositories: Repository[];
+};
+
+export const pullRequestQuery = async (): Promise<PullRequestQueryResult> => {
   const startTime = Date.now();
   const { repositoriesByPage, activeRepositories } =
     await getRepositoriesData();
@@ -472,7 +478,7 @@ export const pullRequestQuery = async (): Promise<any> => {
           title: "New Pull Request",
           body: `You have opened "${pr?.title}".`,
           onClick: () => {
-            shell.openExternal(pr.html_url);
+            tryOpenExternalUrl(pr.html_url);
           },
         };
       }
@@ -482,7 +488,7 @@ export const pullRequestQuery = async (): Promise<any> => {
           title: "New Review Request",
           body: `You have been requested to review "${pr?.title}".`,
           onClick: () => {
-            shell.openExternal(pr.html_url);
+            tryOpenExternalUrl(pr.html_url);
           },
         };
       }
@@ -491,7 +497,7 @@ export const pullRequestQuery = async (): Promise<any> => {
         title: "New Pull Request",
         body: `"${pr?.title}" has been assigned to you.`,
         onClick: () => {
-          shell.openExternal(pr.html_url);
+          tryOpenExternalUrl(pr.html_url);
         },
       };
     },
@@ -508,7 +514,7 @@ export const pullRequestQuery = async (): Promise<any> => {
           title: "Review Request Removed",
           body: `You are no longer a reviewer of "${pr?.title}".`,
           onClick: () => {
-            shell.openExternal(pr.html_url);
+            tryOpenExternalUrl(pr.html_url);
           },
         };
       }
@@ -517,7 +523,7 @@ export const pullRequestQuery = async (): Promise<any> => {
         title: "Closed Pull Request",
         body: `Pull Request "${pr?.title}" has been closed.`,
         onClick: () => {
-          shell.openExternal(pr.html_url);
+          tryOpenExternalUrl(pr.html_url);
         },
       };
     },
@@ -540,7 +546,7 @@ export const pullRequestQuery = async (): Promise<any> => {
       title: "New Review",
       body: `${user} reviewed "${title}" and ${humanState}.`,
       onClick: () => {
-        shell.openExternal(review.html_url);
+        tryOpenExternalUrl(review.html_url);
       },
     };
   });
@@ -562,7 +568,7 @@ export const pullRequestQuery = async (): Promise<any> => {
           title: "Updated Review",
           body: `"${title}" is now approved.`,
           onClick: () => {
-            shell.openExternal(review.html_url);
+            tryOpenExternalUrl(review.html_url);
           },
         };
       }
@@ -573,7 +579,7 @@ export const pullRequestQuery = async (): Promise<any> => {
         title: "Updated Review",
         body: `${user} reviewed "${title}" and ${humanState}.`,
         onClick: () => {
-          shell.openExternal(review.html_url);
+          tryOpenExternalUrl(review.html_url);
         },
       };
     },
@@ -609,7 +615,7 @@ export const pullRequestQuery = async (): Promise<any> => {
             title: `CI "${runName}" Status Update`,
             body: `Pull Request "${title}" successfully passed the checks.`,
             onClick: () => {
-              shell.openExternal(repo.htmlUrl);
+              tryOpenExternalUrl(repo.htmlUrl);
             },
           };
         }
@@ -617,7 +623,7 @@ export const pullRequestQuery = async (): Promise<any> => {
           title: `CI "${runName}" Status Update`,
           body: `Pull Request "${title}" status changed from ${initialRun.conclusion} to ${finalRun.conclusion}.`,
           onClick: () => {
-            shell.openExternal(repo.htmlUrl);
+            tryOpenExternalUrl(repo.htmlUrl);
           },
         };
       });
@@ -645,7 +651,7 @@ export const pullRequestQuery = async (): Promise<any> => {
       title: "You have been mentioned",
       body: `${userLogin} mentioned you in "${pullRequestTitle}".`,
       onClick: () => {
-        shell.openExternal(html_url);
+        tryOpenExternalUrl(html_url);
       },
     };
   });

@@ -1,6 +1,5 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { queryKey } from "./useAppearanceQuery";
-import { Appearance } from "./useAppearanceQuery";
+import { Appearance, queryKey } from "./useAppearanceQuery";
 
 export const useAppearanceMutation = () => {
   const queryClient = useQueryClient();

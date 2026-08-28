@@ -2,6 +2,7 @@ import { app, Menu, MenuItemConstructorOptions, shell } from "electron";
 import { batchNotificationManager } from "../notifications/notificationManager";
 import { deleteData } from "../safeStorage/safeStorage";
 import { performSignOut } from "../../main";
+import { tryOpenExternalUrl } from "../security/externalUrl";
 
 export const createMenu = () => {
   const isMac = process.platform === "darwin";
@@ -82,7 +83,7 @@ export const createMenu = () => {
                         title: "CI 'US-EAST-1' Status Update",
                         body: "DNS Automation status changed from success to failure.",
                         onClick: () => {
-                          shell.openExternal(
+                          tryOpenExternalUrl(
                             "https://github.com/test/repo/issues/1"
                           ); // Use a valid test URL
                         },
@@ -140,7 +141,7 @@ export const createMenu = () => {
           {
             label: "Learn More",
             click: () => {
-              shell.openExternal("https://www.cozywatch.com");
+              tryOpenExternalUrl("https://www.cozywatch.com");
             },
           },
           {
@@ -205,7 +206,7 @@ export const createMenu = () => {
         {
           label: "Learn More",
           click: () => {
-            shell.openExternal("https://www.cozywatch.com");
+            tryOpenExternalUrl("https://www.cozywatch.com");
           },
         },
         {

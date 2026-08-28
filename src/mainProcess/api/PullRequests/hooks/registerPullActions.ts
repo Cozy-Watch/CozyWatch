@@ -1,4 +1,3 @@
-import Logger from "electron-log";
 import { Octokit } from "@octokit/rest";
 import { after, before } from "../../hooks/hooksCallback";
 import { Endpoints } from "@octokit/types";

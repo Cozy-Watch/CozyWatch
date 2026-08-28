@@ -1,4 +1,4 @@
-import { Badge, Box, Flex, Tabs } from "@radix-ui/themes";
+import { Badge, Flex, Tabs } from "@radix-ui/themes";
 import { BuyLicenseButton } from "../../components/BuyLicenseButton/BuyLicenseButton";
 import { AppSettings } from "../AppSettings/AppSettings";
 import { Repositories } from "../Repositories/Repositories";

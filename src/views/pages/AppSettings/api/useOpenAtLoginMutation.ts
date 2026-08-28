@@ -10,9 +10,7 @@ export const useOpenAtLoginMutation = () => {
     },
 
     onSuccess: (data, variables) => {
-      queryClient.setQueryData(queryKey, (oldData: boolean | undefined) => {
-        return variables;
-      });
+      queryClient.setQueryData(queryKey, variables);
 
       queryClient.invalidateQueries({
         queryKey: queryKey,

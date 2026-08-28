@@ -1,6 +1,5 @@
 import { ClipboardCopyIcon, ExternalLinkIcon } from "@radix-ui/react-icons";
 import { marked } from "marked";
-import DOMPurify from "dompurify";
 import {
   Avatar,
   Badge,

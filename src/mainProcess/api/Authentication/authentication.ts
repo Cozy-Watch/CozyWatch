@@ -1,9 +1,10 @@
 import { createOAuthDeviceAuth } from "@octokit/auth-oauth-device";
-import { ipcMain, shell, Notification } from "electron";
+import { ipcMain, Notification } from "electron";
 import Logger from "electron-log";
 import { CLIENT_ID, GITHUB_APP_CLIENT_ID } from "../../keys";
 import { getData, storeData } from "../../safeStorage/safeStorage";
 import { Octokit } from "@octokit/rest";
+import { tryOpenExternalUrl } from "../../security/externalUrl";
 
 export const authenticateWithGitHub = async (): Promise<boolean> => {
   try {
@@ -17,7 +18,7 @@ export const authenticateWithGitHub = async (): Promise<boolean> => {
           user_code,
         });
 
-        shell.openExternal(verification_uri); // Open URL for user to enter code
+        tryOpenExternalUrl(verification_uri);
 
         new Notification({
           title: "GitHub Authentication",
@@ -66,12 +67,20 @@ export const authenticateWithPAT = async (pat: string) => {
     ipcMain.emit("dispatch-application-sign-user", null, true);
 
     return { valid: true, reason: "all good" };
-  } catch (error: any) {
-    if (error.status === 401) {
-      return { valid: false, reason: error.message || "unauthorized" };
+  } catch (error: unknown) {
+    const errorDetails =
+      typeof error === "object" && error !== null
+        ? (error as { status?: number; message?: string })
+        : {};
+
+    if (errorDetails.status === 401) {
+      return {
+        valid: false,
+        reason: errorDetails.message || "unauthorized",
+      };
     }
 
-    return { valid: false, reason: error.message || "other-error" };
+    return { valid: false, reason: errorDetails.message || "other-error" };
   }
 };
 
@@ -86,7 +95,7 @@ export const authenticateWithGitHubApp = async (): Promise<boolean> => {
           user_code,
         });
 
-        shell.openExternal(verification_uri);
+        tryOpenExternalUrl(verification_uri);
 
         new Notification({
           title: "GitHub Authentication",

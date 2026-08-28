@@ -29,7 +29,6 @@ export const useFullyApproved = () => {
       flatPullRequests,
       reviewPerRepoPerPullNumber,
       actionsPerRepo,
-      mentions,
     } = pullRequestesQueryInfo.data;
 
     const { activeRepositories } = repositoriesQueryInfo.data || {};

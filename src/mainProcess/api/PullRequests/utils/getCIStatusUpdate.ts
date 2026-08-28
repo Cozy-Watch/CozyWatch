@@ -1,4 +1,3 @@
-import Logger from "electron-log";
 import { CacheData, PullsActions, CIStatus } from "./getDefaultData";
 
 type WorkflowRun = PullsActions[0];

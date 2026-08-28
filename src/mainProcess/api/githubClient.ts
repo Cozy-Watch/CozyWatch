@@ -90,9 +90,11 @@ export async function initGithubClient(): Promise<
         });
 
         // Hook into request errors to handle 401 Bad Credentials globally
-        client.hook.error("request", async (error, options) => {
+        client.hook.error("request", async (error) => {
+          const status = "status" in error ? error.status : undefined;
+
           if (
-            (error as any).status === 401 ||
+            status === 401 ||
             (error.message && error.message.includes("Bad credentials"))
           ) {
             Logger.warn(
@@ -143,7 +145,7 @@ export const getGithubClient = async (): Promise<
     return client;
   } catch (err) {
     Logger.error("[Octokit] Error getting Octokit:", err);
-    throw new Error("Octokit is not initialized.");
+    throw new Error("Octokit is not initialized.", { cause: err });
   }
 };
 

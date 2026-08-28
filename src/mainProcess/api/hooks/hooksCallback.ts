@@ -64,7 +64,7 @@ interface ErrorParams {
 }
 
 export const error =
-  <T>({ name, callback }: ErrorParams) =>
+  ({ name, callback }: ErrorParams) =>
   async (error: RequestError, options: RequestOptions) => {
     const operationName = options.headers?.["x-operation-name"];
 
