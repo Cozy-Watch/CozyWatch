@@ -2,6 +2,7 @@
   "name": "cozywatch",
   "productName": "CozyWatch",
   "version": "0.9.1",
+  "packageManager": "npm@10.9.8",
   "description": "Github notification",
   "main": ".vite/build/main.js",
   "author": {
