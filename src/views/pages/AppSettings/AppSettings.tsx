@@ -98,51 +98,71 @@ export const AppSettings = () => {
   };
 
   return (
-    <Box mt="1" p="4">
-      <Flex direction={"column"} gap="4">
-        <LicenseStatusCard
-          state={licenseState}
-          isPending={isLicenseStatusPending || isLicenseActionPending}
-          error={licenseActionError}
-          onChoosePersonalUse={() =>
-            runLicenseAction(() => window.electronAPI.license.setUsage("personal"))
-          }
-          onStartCommercialTrial={() =>
-            runLicenseAction(() =>
-              window.electronAPI.license.setUsage("commercial"),
+    <Flex direction={"column"} gap="4" height="50%" px="4" py="4">
+      <LicenseStatusCard
+        state={licenseState}
+        isPending={isLicenseStatusPending || isLicenseActionPending}
+        error={licenseActionError}
+        onChoosePersonalUse={() =>
+          runLicenseAction(() =>
+            window.electronAPI.license.setUsage("personal"),
+          )
+        }
+        onStartCommercialTrial={() =>
+          runLicenseAction(() =>
+            window.electronAPI.license.setUsage("commercial"),
+          )
+        }
+        onOpenLicenseModal={() => setIsLicenseModalOpen(true)}
+        onDeactivate={() => {
+          if (
+            window.confirm(
+              "Deactivate this Mac? You can then activate the license on another device.",
             )
+          ) {
+            return runLicenseAction(() =>
+              window.electronAPI.license.deactivate(),
+            );
           }
-          onOpenLicenseModal={() => setIsLicenseModalOpen(true)}
-          onDeactivate={() => {
-            if (
-              window.confirm(
-                "Deactivate this Mac? You can then activate the license on another device.",
-              )
-            ) {
-              return runLicenseAction(() =>
-                window.electronAPI.license.deactivate(),
-              );
-            }
-          }}
-        />
+        }}
+      />
 
+      <Card>
+        <Flex justify={"between"} align={"center"}>
+          <Text weight="medium">Menu Bar compact view:</Text>
+          <Flex gap="2" justify={"between"} align={"center"}>
+            <Switch
+              size="1"
+              checked={isMenubarCompact}
+              onCheckedChange={async (checked) => {
+                try {
+                  await setMenubarDensity(checked ? "compact" : "default");
+                } catch (error) {
+                  Logger.error("[AppSettings] Error toggling MenuBar Density", {
+                    error,
+                  });
+                }
+              }}
+            />
+          </Flex>
+        </Flex>
+      </Card>
+
+      <Grid columns="1fr 1fr" gap="4">
         <Card>
           <Flex justify={"between"} align={"center"}>
-            <Text weight="medium">Menu Bar compact view:</Text>
+            <Text weight="medium">Open at login:</Text>
             <Flex gap="2" justify={"between"} align={"center"}>
               <Switch
                 size="1"
-                checked={isMenubarCompact}
+                checked={hasOpenAtLogin}
                 onCheckedChange={async (checked) => {
                   try {
-                    await setMenubarDensity(checked ? "compact" : "default");
+                    await saveIsOpenAtLogin(checked);
                   } catch (error) {
-                    Logger.error(
-                      "[AppSettings] Error toggling MenuBar Density",
-                      {
-                        error,
-                      },
-                    );
+                    Logger.error("[AppSettings] Error toggling Open At login", {
+                      error,
+                    });
                   }
                 }}
               />
@@ -150,208 +170,182 @@ export const AppSettings = () => {
           </Flex>
         </Card>
 
-        <Grid columns="1fr 1fr" gap="4">
-          <Card>
-            <Flex justify={"between"} align={"center"}>
-              <Text weight="medium">Open at login:</Text>
-              <Flex gap="2" justify={"between"} align={"center"}>
+        <Card>
+          <Flex align="center" justify="between">
+            <Text weight="medium">Appearance:</Text>
+
+            <Flex direction="column">
+              <DropdownMenu.Root>
+                <DropdownMenu.Trigger>
+                  <Button variant="surface" style={{ width: 180 }}>
+                    {appearance === Appearance.Light
+                      ? "Light"
+                      : appearance === Appearance.Dark
+                        ? "Dark"
+                        : "System"}
+                    <DropdownMenu.TriggerIcon />
+                  </Button>
+                </DropdownMenu.Trigger>
+                <DropdownMenu.Content>
+                  <DropdownMenu.Item
+                    onClick={() => {
+                      saveAppearance(Appearance.Light);
+                    }}
+                  >
+                    Light
+                  </DropdownMenu.Item>
+                  <DropdownMenu.Item
+                    onClick={() => {
+                      saveAppearance(Appearance.Dark);
+                    }}
+                  >
+                    Dark
+                  </DropdownMenu.Item>
+
+                  <DropdownMenu.Item
+                    onClick={() => {
+                      saveAppearance(null);
+                    }}
+                  >
+                    System
+                  </DropdownMenu.Item>
+                </DropdownMenu.Content>
+              </DropdownMenu.Root>
+            </Flex>
+          </Flex>
+        </Card>
+      </Grid>
+
+      <Card>
+        <Flex direction="column" justify="between">
+          <Flex>
+            <Flex direction="column" gap="2">
+              <Text weight="medium">Notifications:</Text>
+
+              <Text size="2" weight="light">
+                What notifications do you want to receive?
+              </Text>
+            </Flex>
+          </Flex>
+
+          <Flex justify={"end"}>
+            <Flex direction="column" gap="2" justify={"between"}>
+              <Flex gap="2" justify={"between"}>
+                <Text size="2">Enable All:</Text>
                 <Switch
                   size="1"
-                  checked={hasOpenAtLogin}
+                  checked={areAllNotificationsEnabled}
                   onCheckedChange={async (checked) => {
                     try {
-                      await saveIsOpenAtLogin(checked);
+                      await toggleAllNotifications(checked);
                     } catch (error) {
                       Logger.error(
-                        "[AppSettings] Error toggling Open At login",
-                        {
-                          error,
-                        },
+                        "[AppSettings] Error toggling notification",
+                        { error },
                       );
                     }
                   }}
                 />
               </Flex>
-            </Flex>
-          </Card>
 
-          <Card>
-            <Flex align="center" justify="between">
-              <Text weight="medium">Appearance:</Text>
+              <Flex direction="column" gap="1" justify={"between"}>
+                {Object.entries(notifications || {}).map(
+                  ([key, notification]) => {
+                    return (
+                      <Box key={key}>
+                        <Text as="label" size="2">
+                          <Flex gap="2" justify={"between"}>
+                            <Text>{notification.title}</Text>
 
-              <Flex direction="column">
-                <DropdownMenu.Root>
-                  <DropdownMenu.Trigger>
-                    <Button variant="surface" style={{ width: 180 }}>
-                      {appearance === Appearance.Light
-                        ? "Light"
-                        : appearance === Appearance.Dark
-                          ? "Dark"
-                          : "System"}
-                      <DropdownMenu.TriggerIcon />
-                    </Button>
-                  </DropdownMenu.Trigger>
-                  <DropdownMenu.Content>
-                    <DropdownMenu.Item
-                      onClick={() => {
-                        saveAppearance(Appearance.Light);
-                      }}
-                    >
-                      Light
-                    </DropdownMenu.Item>
-                    <DropdownMenu.Item
-                      onClick={() => {
-                        saveAppearance(Appearance.Dark);
-                      }}
-                    >
-                      Dark
-                    </DropdownMenu.Item>
-
-                    <DropdownMenu.Item
-                      onClick={() => {
-                        saveAppearance(null);
-                      }}
-                    >
-                      System
-                    </DropdownMenu.Item>
-                  </DropdownMenu.Content>
-                </DropdownMenu.Root>
-              </Flex>
-            </Flex>
-          </Card>
-        </Grid>
-
-        <Card>
-          <Flex direction="column" justify="between">
-            <Flex>
-              <Flex direction="column" gap="2">
-                <Text weight="medium">Notifications:</Text>
-
-                <Text size="2" weight="light">
-                  What notifications do you want to receive?
-                </Text>
-              </Flex>
-            </Flex>
-
-            <Flex justify={"end"}>
-              <Flex direction="column" gap="2" justify={"between"}>
-                <Flex gap="2" justify={"between"}>
-                  <Text size="2">Enable All:</Text>
-                  <Switch
-                    size="1"
-                    checked={areAllNotificationsEnabled}
-                    onCheckedChange={async (checked) => {
-                      try {
-                        await toggleAllNotifications(checked);
-                      } catch (error) {
-                        Logger.error(
-                          "[AppSettings] Error toggling notification",
-                          { error },
-                        );
-                      }
-                    }}
-                  />
-                </Flex>
-
-                <Flex direction="column" gap="1" justify={"between"}>
-                  {Object.entries(notifications || {}).map(
-                    ([key, notification]) => {
-                      return (
-                        <Box key={key}>
-                          <Text as="label" size="2">
-                            <Flex gap="2" justify={"between"}>
-                              <Text>{notification.title}</Text>
-
-                              <Box>
-                                <Switch
-                                  size="1"
-                                  checked={notification.value}
-                                  onCheckedChange={async (checked) => {
-                                    try {
-                                      await toggleNotification({
-                                        checked,
-                                        key,
-                                      });
-                                    } catch (error) {
-                                      Logger.error(
-                                        "[AppSettings] Error toggling notification",
-                                        { error },
-                                      );
-                                    }
-                                  }}
-                                  disabled={isPending}
-                                />
-                              </Box>
-                            </Flex>
-                          </Text>
-                        </Box>
-                      );
-                    },
-                  )}
-                </Flex>
+                            <Box>
+                              <Switch
+                                size="1"
+                                checked={notification.value}
+                                onCheckedChange={async (checked) => {
+                                  try {
+                                    await toggleNotification({
+                                      checked,
+                                      key,
+                                    });
+                                  } catch (error) {
+                                    Logger.error(
+                                      "[AppSettings] Error toggling notification",
+                                      { error },
+                                    );
+                                  }
+                                }}
+                                disabled={isPending}
+                              />
+                            </Box>
+                          </Flex>
+                        </Text>
+                      </Box>
+                    );
+                  },
+                )}
               </Flex>
             </Flex>
           </Flex>
+        </Flex>
+      </Card>
+
+      <Grid columns="1fr 1fr" gap="4">
+        <Card>
+          <Flex align="center" justify="between">
+            <Text weight="medium">Feedback:</Text>
+
+            <Button
+              variant="outline"
+              style={{ width: 180 }}
+              onClick={() => {
+                window.electronAPI.openExternalLink(
+                  "mailto:tiago@cozywatch.com",
+                );
+              }}
+            >
+              Let's chat
+              <ChatBubbleIcon />
+            </Button>
+          </Flex>
         </Card>
-
-        <Grid columns="1fr 1fr" gap="4">
-          <Card>
-            <Flex align="center" justify="between">
-              <Text weight="medium">Feedback:</Text>
-
-              <Button
-                variant="outline"
-                style={{ width: 180 }}
-                onClick={() => {
-                  window.electronAPI.openExternalLink(
-                    "mailto:tiago@cozywatch.com",
-                  );
-                }}
-              >
-                Let's chat
-                <ChatBubbleIcon />
-              </Button>
-            </Flex>
-          </Card>
-
-          <Card>
-            <Flex align="center" justify="between">
-              <Text weight="medium">See what's new:</Text>
-
-              <Button
-                onClick={() => {
-                  window.electronAPI.openExternalLink(
-                    "https://www.cozywatch.com/changelog/",
-                  );
-                }}
-                variant="outline"
-              >
-                Open Release Notes
-                <LinkExternalIcon size={12} />
-              </Button>
-            </Flex>
-          </Card>
-        </Grid>
 
         <Card>
           <Flex align="center" justify="between">
-            <Flex align="center" gap="2">
-              <MarkGithubIcon size={16} />
-              <Text weight="medium">GitHub</Text>
-            </Flex>
-            <Flex align="center" gap="3">
-              <Button variant="soft" color="red" size="1" onClick={onSignOut}>
-                <SignOutIcon size={12} />
-                Disconnect
-              </Button>
-            </Flex>
+            <Text weight="medium">See what's new:</Text>
+
+            <Button
+              onClick={() => {
+                window.electronAPI.openExternalLink(
+                  "https://www.cozywatch.com/changelog/",
+                );
+              }}
+              variant="outline"
+            >
+              Open Release Notes
+              <LinkExternalIcon size={12} />
+            </Button>
           </Flex>
         </Card>
-      </Flex>
+      </Grid>
+
+      <Card>
+        <Flex align="center" justify="between">
+          <Flex align="center" gap="2">
+            <MarkGithubIcon size={16} />
+            <Text weight="medium">GitHub</Text>
+          </Flex>
+          <Flex align="center" gap="3">
+            <Button variant="soft" color="red" size="1" onClick={onSignOut}>
+              <SignOutIcon size={12} />
+              Disconnect
+            </Button>
+          </Flex>
+        </Flex>
+      </Card>
       <LicenseModal
         isOpen={isLicenseModalOpen}
         onClose={() => setIsLicenseModalOpen(false)}
       />
-    </Box>
+    </Flex>
   );
 };
