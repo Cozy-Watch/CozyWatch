@@ -8,7 +8,7 @@ export const Settings = () => {
   const { tab } = useSearch({ from: "/settings" });
 
   return (
-    <Flex direction="column" width="100%" height="100%">
+    <Flex direction="column" width="100%" flexGrow="1">
       <Flex px="4" pt="4">
         <Badge
           size="1"
@@ -19,9 +19,9 @@ export const Settings = () => {
         </Badge>
       </Flex>
 
-      <Flex direction="column" width="100%" height="100%">
+      <Flex direction="column" width="100%" flexGrow="1">
         <Tabs.Root defaultValue={tab || "application"} asChild>
-          <Flex direction="column" height="100%">
+          <Flex direction="column" flexGrow="1">
             <Tabs.List>
               <Tabs.Trigger value="application">Application</Tabs.Trigger>
               <Tabs.Trigger value="repositories">Repositories</Tabs.Trigger>
