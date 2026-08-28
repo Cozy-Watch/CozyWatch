@@ -8,9 +8,7 @@ export const useIsAuthenticatedQuery = () => {
 
   useEffect(() => {
     const handleSignOut = (isSigned: boolean) => {
-      queryClient.setQueryData(queryKey, (oldData: boolean) => {
-        return isSigned;
-      });
+      queryClient.setQueryData(queryKey, isSigned);
     };
 
     const handler = window.electronAPI.application.onSignUser(handleSignOut);

@@ -2,11 +2,18 @@
 // https://www.electronjs.org/docs/latest/tutorial/process-model#preload-scripts
 
 import { contextBridge, ipcRenderer } from "electron";
+import type { IpcRendererEvent } from "electron";
 import { CacheData as PullRequest } from "./mainProcess/api/PullRequests/utils/getDefaultData";
 import {
   Appearance,
   RepositoriesCache,
 } from "./mainProcess/safeStorage/safeStorage.types";
+
+type IpcListener<T> = (event: IpcRendererEvent, data: T) => void;
+type AuthenticationCode = {
+  verification_uri: string;
+  user_code: string;
+};
 
 contextBridge.exposeInMainWorld("electronAPI", {
   application: {
@@ -27,11 +34,11 @@ contextBridge.exposeInMainWorld("electronAPI", {
     },
 
     onApplicationAppearanceUpdate: (callback: (data: Appearance) => void) => {
-      const handler = (_event: any, data: Appearance) => callback(data);
+      const handler: IpcListener<Appearance> = (_event, data) => callback(data);
       ipcRenderer.on("pull-application-appearance-update", handler);
       return handler;
     },
-    removeOnApplicationAppearanceUpdate: (handler: any) =>
+    removeOnApplicationAppearanceUpdate: (handler: IpcListener<Appearance>) =>
       ipcRenderer.removeListener("pull-application-appearance-update", handler),
 
     // ----- SIGN IN / SIGN OUT -----
@@ -39,25 +46,25 @@ contextBridge.exposeInMainWorld("electronAPI", {
       return ipcRenderer.invoke("on-application-sign-user", isSignIn);
     },
     onSignUser: (callback: (isSignIn: boolean) => void) => {
-      const handler = (_event: any, data: boolean) => {
+      const handler: IpcListener<boolean> = (_event, data) => {
         callback(data);
       };
       ipcRenderer.on("sign-user", handler);
       return handler;
     },
-    removeOnSignUser: (handler: any) =>
+    removeOnSignUser: (handler: IpcListener<boolean>) =>
       ipcRenderer.removeListener("sign-user", handler),
     // ----------
 
     onSignOut: (callback: (data: boolean) => void) => {
-      const handler = (_event: any, data: boolean) => {
+      const handler: IpcListener<boolean> = (_event, data) => {
         callback(data);
       };
       ipcRenderer.on("app-sign-out", handler);
       return handler;
     },
 
-    removeOnSignOut: (handler: any) =>
+    removeOnSignOut: (handler: IpcListener<boolean>) =>
       ipcRenderer.removeListener("app-sign-out", handler),
 
     getNotificationsSettings: () => {
@@ -101,14 +108,16 @@ contextBridge.exposeInMainWorld("electronAPI", {
     },
 
     onNavigateToRoute: (callback: (route: "settings" | "signIn") => void) => {
-      const handler = (_event: any, data: "settings" | "signIn") => {
+      const handler: IpcListener<"settings" | "signIn"> = (_event, data) => {
         callback(data);
       };
       ipcRenderer.on("navigate-to-route", handler);
       return handler;
     },
 
-    removeOnNavigateToRoute: (handler: any) =>
+    removeOnNavigateToRoute: (
+      handler: IpcListener<"settings" | "signIn">,
+    ) =>
       ipcRenderer.removeListener("navigate-to-route", handler),
   },
 
@@ -131,10 +140,10 @@ contextBridge.exposeInMainWorld("electronAPI", {
       ipcRenderer.invoke("authentication-authenticate-github-app"),
     storePAT: (token: string) =>
       ipcRenderer.invoke("authentication-store-pat", token),
-    removeAuthenticationCode: (handler: any) =>
+    removeAuthenticationCode: (handler: IpcListener<AuthenticationCode>) =>
       ipcRenderer.removeListener("authentication-auth-code", handler),
-    onAuthenticationCode: (callback: (data: any) => void) => {
-      const handler = (_event: any, data: any) => {
+    onAuthenticationCode: (callback: (data: AuthenticationCode) => void) => {
+      const handler: IpcListener<AuthenticationCode> = (_event, data) => {
         callback(data);
       };
       ipcRenderer.on("authentication-auth-code", handler);
@@ -143,14 +152,14 @@ contextBridge.exposeInMainWorld("electronAPI", {
     getUser: () => ipcRenderer.invoke("authentication-get-user"),
 
     onInvalidPATaccess: (callback: (message: string) => void) => {
-      const handler = (_event: any, data: string) => {
+      const handler: IpcListener<string> = (_event, data) => {
         callback(data);
       };
       ipcRenderer.on("authentication-invalid-PAT", handler);
       return handler;
     },
 
-    removeOnInvalidPATaccess: (handler: any) =>
+    removeOnInvalidPATaccess: (handler: IpcListener<string>) =>
       ipcRenderer.removeListener("authentication-invalid-PAT", handler),
   },
 
@@ -179,11 +188,12 @@ contextBridge.exposeInMainWorld("electronAPI", {
   repository: {
     query: () => ipcRenderer.invoke("repositories-query"),
     onUpdate: (callback: (data: RepositoriesCache) => void) => {
-      const handler = (_event: any, data: RepositoriesCache) => callback(data);
+      const handler: IpcListener<RepositoriesCache> = (_event, data) =>
+        callback(data);
       ipcRenderer.on("repository-update", handler);
       return handler;
     },
-    removeOnUpdate: (handler: any) =>
+    removeOnUpdate: (handler: IpcListener<RepositoriesCache>) =>
       ipcRenderer.removeListener("repository-update", handler),
     setEnableState: (activeRepository: Record<number, boolean>) =>
       ipcRenderer.invoke("repository-set-enable-state", activeRepository),
@@ -192,11 +202,11 @@ contextBridge.exposeInMainWorld("electronAPI", {
   pullRequest: {
     query: () => ipcRenderer.invoke("pull-requests-query"),
     onUpdate: (callback: (data: PullRequest) => void) => {
-      const handler = (_event: any, data: PullRequest) => callback(data);
+      const handler: IpcListener<PullRequest> = (_event, data) => callback(data);
       ipcRenderer.on("pull-request-update", handler);
       return handler;
     },
-    removeOnUpdate: (handler: any) =>
+    removeOnUpdate: (handler: IpcListener<PullRequest>) =>
       ipcRenderer.removeListener("pull-request-update", handler),
   },
 });

@@ -7,11 +7,28 @@ const POLLING_INTERVAL = 1000 * 60 * 5; // 5 minutes
 const REFRESH_COOLDOWN = 10000; // 10 seconds minimum between refreshes
 let lastRefreshTime = 0;
 
+type PollError = {
+  status?: number;
+  message?: string;
+  response?: {
+    headers?: Record<string, string | undefined>;
+  };
+};
+
+const getPollErrorDetails = (error: unknown): PollError => {
+  if (typeof error !== "object" || error === null) {
+    return {};
+  }
+
+  return error as PollError;
+};
+
 const poll = async () => {
   try {
     await getPullRequests();
     scheduleNextPoll(POLLING_INTERVAL);
-  } catch (err: any) {
+  } catch (error: unknown) {
+    const err = getPollErrorDetails(error);
     if (
       err.status === 401 ||
       (err.message && err.message.includes("Bad credentials"))
@@ -23,9 +40,9 @@ const poll = async () => {
       stopPolling();
     } else if (
       err.status === 403 &&
-      err.response?.headers["x-ratelimit-remaining"] === "0"
+      err.response?.headers?.["x-ratelimit-remaining"] === "0"
     ) {
-      const reset = err.response.headers["x-ratelimit-reset"];
+      const reset = err.response?.headers?.["x-ratelimit-reset"];
       const delay = reset
         ? +reset * 1000 - Date.now() + 1000
         : POLLING_INTERVAL;

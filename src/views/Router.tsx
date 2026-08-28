@@ -64,7 +64,7 @@ const rootRoute = createRootRouteWithContext<RouterContext>()({
 
 // // --- Github Authentication Route ---
 const githubAuthenticationRoute = createRoute({
-  beforeLoad: async ({ context, location }) => {
+  beforeLoad: async ({ context }) => {
     if (context.auth.isAuthenticated) {
       throw redirect({
         to: "/overview",

@@ -1,5 +1,4 @@
 import { Endpoints } from "@octokit/types";
-import Logger from "electron-log";
 
 export type PullsActions =
   Endpoints["GET /repos/{owner}/{repo}/actions/runs"]["response"]["data"]["workflow_runs"];

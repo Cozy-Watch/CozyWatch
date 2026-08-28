@@ -1,6 +1,5 @@
 import {
   AlertIcon,
-  CheckCircleIcon,
   CheckIcon,
   ClockIcon,
   CommentDiscussionIcon,

@@ -1,9 +1,12 @@
 import Logger from "electron-log";
-import { pullRequestQuery } from "./queries/getPullRequestQuery";
+import {
+  pullRequestQuery,
+  PullRequestQueryResult,
+} from "./queries/getPullRequestQuery";
 
-let inFlightPromiseee: Promise<any> | null = null;
+let inFlightPromiseee: Promise<PullRequestQueryResult> | null = null;
 
-export const getPullRequests = async (): Promise<any> => {
+export const getPullRequests = async (): Promise<PullRequestQueryResult> => {
   Logger.info("[PullRequests] Query starting");
 
   // If cache is empty, proceed with the full query as before

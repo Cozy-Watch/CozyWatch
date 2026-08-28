@@ -1,8 +1,6 @@
-import log from "electron-log";
 import { getData, storeData } from "../safeStorage/safeStorage";
 import { LicenseState, LicenseUsage } from "./licenseState.types";
 import {
-  createLegacyLifetimeLicenseState,
   createUnconfiguredLicenseState,
   isLicenseState,
   resolveTimeBasedLicenseState,
@@ -21,15 +19,9 @@ export const setLicenseState = async (state: LicenseState) => {
 };
 
 export const getLicenseState = async (): Promise<LicenseState> => {
-  const [storedState, legacyLicenseKey] = await Promise.all([
-    getData("licenseState"),
-    getData("licenseKey"),
-  ]);
+  const storedState = await getData("licenseState");
 
-  if (
-    isLicenseState(storedState) &&
-    !(storedState.status === "unconfigured" && legacyLicenseKey)
-  ) {
+  if (isLicenseState(storedState)) {
     const resolvedState = resolveTimeBasedLicenseState(storedState);
 
     if (resolvedState.status !== storedState.status) {
@@ -39,13 +31,7 @@ export const getLicenseState = async (): Promise<LicenseState> => {
     return resolvedState;
   }
 
-  const initialState = legacyLicenseKey
-    ? createLegacyLifetimeLicenseState()
-    : createUnconfiguredLicenseState();
-
-  if (legacyLicenseKey) {
-    log.info("[License] Migrating existing license as a lifetime license");
-  }
+  const initialState = createUnconfiguredLicenseState();
 
   await setLicenseState(initialState);
 

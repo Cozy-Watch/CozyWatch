@@ -1,4 +1,8 @@
-export const WhiteCozyWatch = (props: any) => {
+import type { SVGProps } from "react";
+
+type WhiteCozyWatchProps = SVGProps<SVGSVGElement> & { src?: string };
+
+export const WhiteCozyWatch = (props: WhiteCozyWatchProps) => {
   return (
     <svg
       viewBox="0 0 17 17"

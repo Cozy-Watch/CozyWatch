@@ -28,5 +28,4 @@ export interface LicenseState {
   lastValidatedAt?: string;
   lastValidationError?: string;
   lastExpiryReminderAt?: string;
-  migratedFromLegacyKey?: boolean;
 }

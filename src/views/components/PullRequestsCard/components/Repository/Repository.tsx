@@ -1,5 +1,5 @@
 import { RepoIcon } from "@primer/octicons-react";
-import { Flex, Text, Tooltip } from "@radix-ui/themes";
+import { Flex, Text } from "@radix-ui/themes";
 
 interface Props {
   repositoryName: string;

@@ -100,17 +100,17 @@ describe("Lemon Squeezy license mapping", () => {
     expect(state.status).toBe("lifetime-active");
   });
 
-  it("keeps a migrated existing customer on lifetime status", () => {
+  it("uses the server expiration instead of trusting previous lifetime status", () => {
     const state = createLicenseStateFromLemon({
-      data: createResponse(),
+      data: createResponse({ expires_at: "2027-08-01T00:00:00.000Z" }),
       previousState: {
         schemaVersion: LICENSE_STATE_SCHEMA_VERSION,
         status: "lifetime-active",
-        migratedFromLegacyKey: true,
       },
+      now: new Date("2026-08-27T00:00:00.000Z"),
     });
 
-    expect(state.status).toBe("lifetime-active");
+    expect(state.status).toBe("commercial-active");
   });
 
   it("maps expired and disabled licenses without deleting their identity", () => {

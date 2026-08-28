@@ -4,7 +4,9 @@ import log from "electron-log/renderer";
 import "./index.css";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
-const start = (window as any).__APP_START ?? performance.now();
+const start =
+  (window as Window & { __APP_START?: number }).__APP_START ??
+  performance.now();
 
 const root = ReactDOM.createRoot(document.getElementById("app") as HTMLElement);
 

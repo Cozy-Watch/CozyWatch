@@ -5,7 +5,6 @@ import {
 } from "../licenseState.types";
 import {
   createCommercialTrialLicenseState,
-  createLegacyLifetimeLicenseState,
   createPersonalLicenseState,
   createUnconfiguredLicenseState,
   isLicenseState,
@@ -39,14 +38,6 @@ describe("license state", () => {
       status: "commercial-trial",
       trialStartedAt: "2026-08-27T10:00:00.000Z",
       trialEndsAt: "2026-09-26T10:00:00.000Z",
-    });
-  });
-
-  it("migrates existing licenses as lifetime licenses", () => {
-    expect(createLegacyLifetimeLicenseState()).toEqual({
-      schemaVersion: LICENSE_STATE_SCHEMA_VERSION,
-      status: "lifetime-active",
-      migratedFromLegacyKey: true,
     });
   });
 

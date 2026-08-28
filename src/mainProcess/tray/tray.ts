@@ -1,9 +1,15 @@
-import { Menu, nativeImage, shell, Tray } from "electron";
+import { Menu, nativeImage, Tray } from "electron";
 import path from "node:path";
 import { createWindow, getMainWindow } from "../../main";
 import { getCachedData as getPullRequestsCache } from "../api/PullRequests/utils/getDefaultData";
 import { getCachedData as getRepositoriesCache } from "../api/Repositories/utils/getDefaultData";
 import { getUser } from "../api/User/getUser";
+import { tryOpenExternalUrl } from "../security/externalUrl";
+import type {
+  PullListReview,
+  PullRequestList,
+  PullsActions,
+} from "../api/PullRequests/utils/getDefaultData";
 
 let tray: Tray | null = null;
 
@@ -170,24 +176,21 @@ const getIcon = (listOfStatus: ListOfStatus[]): Electron.NativeImage => {
 // Shared helper — builds menu items for a list of PRs given pre-computed
 // reviews and workflow groups (both computed once per repo, not per PR).
 const buildPRMenuItems = (
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  pullRequests: any[],
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  reviews: Record<number, any[]> | undefined,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  groupWorkflows: Record<number, any[]>
+  pullRequests: PullRequestList,
+  reviews: Record<string, PullListReview> | undefined,
+  groupWorkflows: Record<number, PullsActions>
 ): Electron.MenuItemConstructorOptions[] => {
   return pullRequests.map((pullRequest) => {
     if (!reviews) {
       return {
         label: pullRequest.title,
-        click: () => shell.openExternal(pullRequest.html_url),
+        click: () => tryOpenExternalUrl(pullRequest.html_url),
       };
     }
 
     const reviewsForPR = reviews[pullRequest.number] || [];
 
-    const users = reviewsForPR.reduce((acc: Record<number, number>, review: any) => {
+    const users = reviewsForPR.reduce((acc: Record<number, number>, review) => {
       if (review?.user?.id) {
         return { ...acc, [review.user.id]: review.user.id };
       }
@@ -195,14 +198,12 @@ const buildPRMenuItems = (
     }, {});
 
     const latestStatusPerUser = Object.values(users).map((uid) => {
-      const userReviews = reviewsForPR.filter((r: any) => r?.user?.id === uid);
+      const userReviews = reviewsForPR.filter((r) => r?.user?.id === uid);
       return userReviews[userReviews.length - 1]?.state as ListOfStatus;
     });
 
     const getPullRequestAction = Object.values(groupWorkflows).map((actions) => {
-      const match = actions.find(({ head_sha }: any) =>
-        head_sha === pullRequest.head.sha
-      );
+      const match = actions.find((action) => action.head_sha === pullRequest.head.sha);
       return {
         status: match?.status,
         conclusion: match?.conclusion,
@@ -217,13 +218,13 @@ const buildPRMenuItems = (
       label: `${ci.name || "CI"}: ${ci.status}${ci.conclusion ? ` (${ci.conclusion})` : ""}`,
       toolTip: ci.html_url || "",
       icon: getIcon(ci.conclusion === "failure" ? ["CHANGES_REQUESTED"] : ["APPROVED"]),
-      click: () => shell.openExternal(pullRequest.html_url),
+      click: () => tryOpenExternalUrl(pullRequest.html_url),
     }));
 
     return {
       label: pullRequest.title,
       icon: iconType,
-      click: () => shell.openExternal(pullRequest.html_url),
+      click: () => tryOpenExternalUrl(pullRequest.html_url),
       ...(submenu.length === 0
         ? undefined
         : { submenu: [{ label: "CI Status:" }, ...submenu] }),
@@ -257,14 +258,17 @@ export const updateTrayMenu = async () => {
       )
         .flat()
         .filter(
-          (pr: any) =>
+          (pr) =>
             pr?.user?.id === userId ||
-            pr?.assignees?.some((assignee: any) => assignee.id === userId) ||
-            pr?.requested_reviewers?.some((reviewer: any) => reviewer.id === userId)
+            pr?.assignees?.some((assignee) => assignee.id === userId) ||
+            pr?.requested_reviewers?.some((reviewer) => reviewer.id === userId)
         );
 
-      const parsed = pullRequestInfoList.reduce(
-        (acc: { user: any[]; rest: any[] }, pr: any) => {
+      const parsed = pullRequestInfoList.reduce<{
+        user: PullRequestList;
+        rest: PullRequestList;
+      }>(
+        (acc, pr) => {
           if (pr.user?.id === userId) {
             return { ...acc, user: [...acc.user, pr] };
           }
@@ -274,8 +278,10 @@ export const updateTrayMenu = async () => {
       );
 
       // Build workflow groups once per repo, reused by all PRs below.
-      const groupWorkflows = (actionsPerRepo[repoName] || []).reduce(
-        (acc: Record<number, any[]>, action: any) => ({
+      const groupWorkflows = (actionsPerRepo[repoName] || []).reduce<
+        Record<number, PullsActions>
+      >(
+        (acc, action) => ({
           ...acc,
           [action.workflow_id]: [...(acc[action.workflow_id] || []), action],
         }),

@@ -1,4 +1,8 @@
-export const CozyWatch = (props: any) => {
+import type { SVGProps } from "react";
+
+type CozyWatchProps = SVGProps<SVGSVGElement> & { src?: string };
+
+export const CozyWatch = (props: CozyWatchProps) => {
   return (
     <svg
       id="Layer_1"

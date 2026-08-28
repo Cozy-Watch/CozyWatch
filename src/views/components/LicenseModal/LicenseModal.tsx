@@ -61,7 +61,7 @@ export const LicenseModal = ({ isOpen, onClose }: Props) => {
         }}
       >
         <Dialog.Title className="inverse-accent-text-shadow">
-          Commercial License
+          Official Distribution License
         </Dialog.Title>
 
         {error && (
@@ -72,9 +72,9 @@ export const LicenseModal = ({ isOpen, onClose }: Props) => {
 
         <Flex direction="column" gap="6" mt="4">
           <Text weight="light" size="2" className="inverse-accent-text-shadow">
-            All CozyWatch features are available to everyone. A commercial
-            license is only needed when you use the official app for work,
-            clients, a business, or a nonprofit.
+            Cozy Watch source code is MIT licensed, including for commercial
+            use. This optional license covers the official distribution and
+            its associated licensing service and support.
           </Text>
 
           <Flex direction={"column"} gap="2">
@@ -107,7 +107,7 @@ export const LicenseModal = ({ isOpen, onClose }: Props) => {
             }}
             size="3"
           >
-            Buy a commercial license
+            Buy an official distribution license
             <img
               src={`./images/sofaOnly.png`}
               width="30"

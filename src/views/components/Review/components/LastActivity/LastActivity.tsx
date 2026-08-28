@@ -1,9 +1,8 @@
 import { ChevronDownIcon } from "@primer/octicons-react";
 import { Box, Flex, Text } from "@radix-ui/themes";
 import { AnimatePresence, motion } from "framer-motion";
-import DOMPurify from "dompurify";
-import { marked } from "marked";
 import { useMemo, useRef, useState } from "react";
+import { renderSafeMarkdown } from "../../../../utils/renderSafeMarkdown";
 import { getHumanState } from "../../Review.utils";
 import { State } from "../../Reviews.meta";
 import { ReviewAvatar } from "../ReviewAvatar/ReviewAvatar";
@@ -35,8 +34,8 @@ export const LastActivity = ({ reviewsGroupedbyUser }: Props) => {
   );
 
   const parsedBodies = useMemo(
-    () => feedback.map((r) => DOMPurify.sanitize(marked.parse(r.body || "", { async: false }) as string)),
-    [feedback]
+    () => feedback.map((review) => renderSafeMarkdown(review.body)),
+    [feedback],
   );
 
   if (feedback.length === 0) {

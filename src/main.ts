@@ -3,13 +3,14 @@ import {
   BrowserWindow,
   clipboard,
   ipcMain,
-  shell,
   session,
 } from "electron";
+import type { IpcMainInvokeEvent, WebContents } from "electron";
 import log from "electron-log/main";
 import started from "electron-squirrel-startup";
 import { Menubar } from "menubar";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 import "./background";
 import {
   authenticateWithGitHub,
@@ -26,7 +27,6 @@ import {
   markExpiryReminderShown,
   setLicenseUsage,
 } from "./mainProcess/licensing/licenseState";
-import { LicenseUsage } from "./mainProcess/licensing/licenseState.types";
 import { getPullRequests } from "./mainProcess/api/PullRequests/getPullRequests";
 import { getRepositories } from "./mainProcess/api/Repositories/getRepositories";
 import { setRepositoryEnableState } from "./mainProcess/api/Repositories/setRepositoryEnableState";
@@ -42,7 +42,16 @@ import {
   stopPolling,
 } from "./mainProcess/polling/pollGithub";
 import { getData, storeData } from "./mainProcess/safeStorage/safeStorage";
+import {
+  Appearance,
+  NOTIFICATION_KEYS,
+} from "./mainProcess/safeStorage/safeStorage.types";
 import { setToggleAllNotifications } from "./mainProcess/notifications/setToggleAllNotifications";
+import {
+  isAllowedRendererUrl,
+  openExternalUrl,
+  protectWebContents,
+} from "./mainProcess/security/externalUrl";
 
 log.info("[App] starting");
 
@@ -55,6 +64,78 @@ process.on("unhandledRejection", (reason) => {
 
 let mainWindow: BrowserWindow | null = null;
 let menubar: Menubar | undefined | null = null;
+const isDevelopment = !app.isPackaged;
+
+const getRendererUrl = () =>
+  MAIN_WINDOW_VITE_DEV_SERVER_URL ??
+  pathToFileURL(
+    path.join(
+      __dirname,
+      `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`,
+    ),
+  ).toString();
+
+const getTrustedWebContents = () =>
+  [mainWindow?.webContents, menubar?.window?.webContents].filter(
+    (webContents): webContents is WebContents =>
+      Boolean(webContents && !webContents.isDestroyed()),
+  );
+
+const assertTrustedIpcSender = (event: IpcMainInvokeEvent) => {
+  const isTrustedWebContents = getTrustedWebContents().some(
+    ({ id }) => id === event.sender.id,
+  );
+  const isTrustedUrl = isAllowedRendererUrl(
+    event.sender.getURL(),
+    getRendererUrl(),
+  );
+
+  if (!isTrustedWebContents || !isTrustedUrl) {
+    throw new Error("Untrusted IPC sender.");
+  }
+};
+
+const handleRendererInvoke = <Args extends unknown[], Result>(
+  channel: string,
+  handler: (event: IpcMainInvokeEvent, ...args: Args) => Result,
+) => {
+  ipcMain.handle(channel, (event, ...args: Args) => {
+    assertTrustedIpcSender(event);
+    return handler(event, ...args);
+  });
+};
+
+const NOTIFICATION_KEY_SET = new Set<string>(NOTIFICATION_KEYS);
+
+const isRepositoryEnableState = (
+  data: unknown,
+): data is Record<number, boolean> =>
+  typeof data === "object" &&
+  data !== null &&
+  !Array.isArray(data) &&
+  Object.entries(data).every(
+    ([key, value]) => /^\d+$/.test(key) && typeof value === "boolean",
+  );
+
+const isAppearance = (appearance: unknown): appearance is Appearance | null =>
+  appearance === null ||
+  appearance === Appearance.Light ||
+  appearance === Appearance.Dark;
+
+const isNotificationSetting = (
+  setting: unknown,
+): setting is { checked: boolean; key: string } => {
+  if (typeof setting !== "object" || setting === null) {
+    return false;
+  }
+
+  const { checked, key } = setting as Record<string, unknown>;
+  return (
+    typeof checked === "boolean" &&
+    typeof key === "string" &&
+    NOTIFICATION_KEY_SET.has(key)
+  );
+};
 
 appUpdate();
 
@@ -81,12 +162,17 @@ export const createWindow = () => {
     ...(process.platform !== "darwin" ? { titleBarOverlay: true } : {}),
     resizable: true,
     webPreferences: {
-      preload: path.join(__dirname, "preload.js"),
+      allowRunningInsecureContent: false,
       contextIsolation: true,
       nodeIntegration: false,
+      preload: path.join(__dirname, "preload.js"),
+      sandbox: true,
+      webSecurity: true,
     },
     icon: path.join(__dirname, "images", "icon.png"),
   });
+
+  protectWebContents(mainWindow.webContents, getRendererUrl());
 
   if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
     mainWindow.loadURL(MAIN_WINDOW_VITE_DEV_SERVER_URL);
@@ -101,10 +187,7 @@ export const createWindow = () => {
 
   mainWindow.show();
 
-  log.info("[Menu] IS DEV", process.env.IS_DEV);
-  if (process.env.IS_DEV) {
-    log.info("[Menu] IS DEV TOOLS", process.env.IS_DEV);
-
+  if (isDevelopment) {
     mainWindow.once("ready-to-show", () => {
       mainWindow?.webContents.openDevTools();
     });
@@ -140,7 +223,7 @@ app.whenReady().then(async () => {
       responseHeaders: {
         ...details.responseHeaders,
         "Content-Security-Policy": [
-          process.env.IS_DEV
+          isDevelopment
             ? // Development CSP - allows Vite dev server and hot reload
               "default-src 'self' 'unsafe-inline' 'unsafe-eval' ws: http://localhost:* http://127.0.0.1:*; script-src 'self' 'unsafe-inline' 'unsafe-eval' http://localhost:* http://127.0.0.1:*; connect-src 'self' ws: http://localhost:* http://127.0.0.1:* https://api.github.com https://api.lemonsqueezy.com; img-src 'self' data: https:; style-src 'self' 'unsafe-inline';"
             : // Production CSP - more restrictive
@@ -149,6 +232,11 @@ app.whenReady().then(async () => {
       },
     });
   });
+
+  session.defaultSession.setPermissionRequestHandler(
+    (_webContents, _permission, callback) => callback(false),
+  );
+  session.defaultSession.setPermissionCheckHandler(() => false);
 
   // Only fetch repos if authenticated
   if (await hasLocalAccessToken()) {
@@ -170,7 +258,7 @@ app.whenReady().then(async () => {
   log.info("[Polling] started (deferred)");
 
   mainWindow?.webContents.once("did-finish-load", () => {
-    if (process.env.IS_DEV) {
+    if (isDevelopment) {
       mainWindow?.webContents.openDevTools();
     }
   });
@@ -221,7 +309,11 @@ export const performSignOut = async () => {
   return signOut();
 };
 
-ipcMain.handle("on-application-sign-user", (_, isSignIn) => {
+handleRendererInvoke("on-application-sign-user", (_, isSignIn: unknown) => {
+  if (typeof isSignIn !== "boolean") {
+    throw new Error("Invalid sign-in state.");
+  }
+
   log.info("[IPC] on-application-sign-user", isSignIn);
 
   if (isSignIn === false) {
@@ -244,32 +336,40 @@ ipcMain.on("dispatch-application-sign-user", (_, isSignIn) => {
   }
 });
 
-ipcMain.handle("open-external-url", async (_, url) => {
-  log.info("[IPC] open-external-url", { url });
-  await shell.openExternal(url);
+handleRendererInvoke("open-external-url", async (_, url: unknown) => {
+  log.info("[IPC] open-external-url");
+  await openExternalUrl(url);
 });
 
-ipcMain.handle("copy-to-clipboard", (_, text: string) => {
+handleRendererInvoke("copy-to-clipboard", (_, text: unknown) => {
+  if (typeof text !== "string") {
+    throw new Error("Invalid clipboard text.");
+  }
+
   log.info("[IPC] copy-to-clipboard", { textLength: text.length });
   clipboard.writeText(text);
 });
 
 // Authentication
-ipcMain.handle("authentication-isStored", async () => {
+handleRendererInvoke("authentication-isStored", async () => {
   const authenticated = await hasLocalAccessToken();
   return authenticated;
 });
-ipcMain.handle("authentication-authenticate-github", () => {
+handleRendererInvoke("authentication-authenticate-github", () => {
   log.info("[IPC] authentication-authenticate-github");
   return authenticateWithGitHub();
 });
-ipcMain.handle("authentication-authenticate-github-app", () => {
+handleRendererInvoke("authentication-authenticate-github-app", () => {
   log.info("[IPC] authentication-authenticate-github-app");
   return authenticateWithGitHubApp();
 });
 
 // Store a Personal Access Token (PAT) as the access token
-ipcMain.handle("authentication-store-pat", async (_, token: string) => {
+handleRendererInvoke("authentication-store-pat", async (_, token: unknown) => {
+  if (typeof token !== "string") {
+    throw new Error("Invalid personal access token.");
+  }
+
   const trimmed = token.trim();
 
   // Basic sanity checks to avoid obviously bad values
@@ -317,7 +417,7 @@ ipcMain.on("dispatch-authentication-invalid-PAT", (_, data) => {
   }
 });
 
-ipcMain.handle("authentication-get-user", async () => {
+handleRendererInvoke("authentication-get-user", async () => {
   log.info("[IPC] get-github-user");
   return getUser();
 });
@@ -333,12 +433,16 @@ ipcMain.on("dispatch-authentication-auth-code", (_, data) => {
 });
 
 // ---- Repositories ----
-ipcMain.handle("repositories-query", async () => {
+handleRendererInvoke("repositories-query", async () => {
   log.info("[IPC] repositories-query");
   return getRepositories();
 });
 
-ipcMain.handle("repository-set-enable-state", async (_, data) => {
+handleRendererInvoke("repository-set-enable-state", async (_, data: unknown) => {
+  if (!isRepositoryEnableState(data)) {
+    throw new Error("Invalid repository enable state.");
+  }
+
   log.info("[IPC] repository-set-enable-state");
   return setRepositoryEnableState(data);
 });
@@ -352,7 +456,7 @@ ipcMain.on("dispatch-repository-update", (_, data) => {
 });
 
 // ---- Pull Requests ----
-ipcMain.handle("pull-requests-query", async () => {
+handleRendererInvoke("pull-requests-query", async () => {
   log.info("[IPC] pull-requests-query");
   return getPullRequests();
 });
@@ -370,12 +474,12 @@ ipcMain.on("dispatch-pull-request-update", (_, data) => {
   }
 });
 
-ipcMain.handle("get-github-repositories", async () => {
+handleRendererInvoke("get-github-repositories", async () => {
   log.info("[IPC] get-github-repositories");
   return getRepositories();
 });
 
-ipcMain.handle("get-github-pull-request", async () => {
+handleRendererInvoke("get-github-pull-request", async () => {
   log.info("[IPC] get-github-pull-request");
   return getPullRequests();
 });
@@ -388,29 +492,29 @@ ipcMain.on("send-updated-list", (_, data) => {
 });
 
 // --- License -----
-ipcMain.handle("license-activate", async (_, licenseKey: string) => {
+handleRendererInvoke("license-activate", async (_, licenseKey: unknown) => {
   if (typeof licenseKey !== "string") {
     throw new Error("Invalid license key.");
   }
 
   log.info("[IPC] license-activate", {
-    licenseKey: licenseKey.slice(0, 4) + "****",
+    licenseKeyLength: licenseKey.length,
   });
 
   return activateLicense(licenseKey);
 });
 
-ipcMain.handle("license-get-status", async () => {
+handleRendererInvoke("license-get-status", async () => {
   log.info("[IPC] license-get-status");
   return getLicenseState();
 });
 
-ipcMain.handle("license-validate", async () => {
+handleRendererInvoke("license-validate", async () => {
   log.info("[IPC] license-validate");
   return validateLicense();
 });
 
-ipcMain.handle("license-set-usage", async (_, usage: LicenseUsage) => {
+handleRendererInvoke("license-set-usage", async (_, usage: unknown) => {
   log.info("[IPC] license-set-usage", { usage });
 
   if (usage !== "personal" && usage !== "commercial") {
@@ -420,19 +524,23 @@ ipcMain.handle("license-set-usage", async (_, usage: LicenseUsage) => {
   return setLicenseUsage(usage);
 });
 
-ipcMain.handle("license-deactivate", async () => {
+handleRendererInvoke("license-deactivate", async () => {
   log.info("[IPC] license-deactivate");
   return deactivateLicense();
 });
 
-ipcMain.handle("license-mark-expiry-reminder-shown", async () => {
+handleRendererInvoke("license-mark-expiry-reminder-shown", async () => {
   log.info("[IPC] license-mark-expiry-reminder-shown");
   return markExpiryReminderShown();
 });
 
 // ---- End License ----
 
-ipcMain.handle("set-application-appearance", async (_, appearance) => {
+handleRendererInvoke("set-application-appearance", async (_, appearance) => {
+  if (!isAppearance(appearance)) {
+    throw new Error("Invalid appearance.");
+  }
+
   log.info("[IPC] set-application-appearance", { appearance });
 
   ipcMain.emit("dispatch-application-appearance-update", null, appearance);
@@ -440,7 +548,7 @@ ipcMain.handle("set-application-appearance", async (_, appearance) => {
   return storeData({ name: "appearance", data: appearance });
 });
 
-ipcMain.handle("get-application-appearance", async () => {
+handleRendererInvoke("get-application-appearance", async () => {
   log.info("[IPC] get-application-appearance");
   return getData("appearance");
 });
@@ -453,48 +561,66 @@ ipcMain.on("dispatch-application-appearance-update", (_, data) => {
   }
 });
 
-ipcMain.handle("get-application-notification", async () => {
+handleRendererInvoke("get-application-notification", async () => {
   log.info("[IPC] get-application-notification");
   return getNotificationsSettings();
 });
 
-ipcMain.handle("set-application-toggle-notification", async (_, enable) => {
+handleRendererInvoke("set-application-toggle-notification", async (_, enable) => {
+  if (typeof enable !== "boolean") {
+    throw new Error("Invalid notification setting.");
+  }
+
   log.info("[IPC] set-application-notification");
   return setToggleAllNotifications(enable);
 });
 
-ipcMain.handle("set-application-notification", async (_, notificationKey) => {
+handleRendererInvoke("set-application-notification", async (_, notificationKey) => {
+  if (!isNotificationSetting(notificationKey)) {
+    throw new Error("Invalid notification setting.");
+  }
+
   log.info("[IPC] set-application-notification");
   return setNotificationSettings(notificationKey);
 });
 
-ipcMain.handle("get-application-start-at-login", async () => {
+handleRendererInvoke("get-application-start-at-login", async () => {
   log.info("[IPC] get-application-start-at-login");
 
   return getData("open_at_login");
 });
 
 // ---- Menubar Density ----
-ipcMain.handle("get-menubar-density", async () => {
+handleRendererInvoke("get-menubar-density", async () => {
   log.info("[IPC] get-menubar-density");
   const appSettings = await getData("appSettings");
   // Default to 'default' if not set
   return appSettings?.menubarDensity || "default";
 });
 
-ipcMain.handle("set-menubar-density", async (_, density) => {
-  log.info("[IPC] set-menubar-density", density);
+handleRendererInvoke("set-menubar-density", async (_, density: unknown) => {
+  if (density !== "compact" && density !== "default") {
+    throw new Error("Invalid menubar density.");
+  }
+
+  const validatedDensity = density as "compact" | "default";
+
+  log.info("[IPC] set-menubar-density", validatedDensity);
   const prev = await getData("appSettings");
-  const newSettings = { ...prev, menubarDensity: density };
+  const newSettings = { ...prev, menubarDensity: validatedDensity };
   await storeData({ name: "appSettings", data: newSettings });
-  ipcMain.emit("dispatch-menubar-density-update", null, density);
-  return density;
+  ipcMain.emit("dispatch-menubar-density-update", null, validatedDensity);
+  return validatedDensity;
 });
 // ---- End Menubar Density ----
 
-ipcMain.handle(
+handleRendererInvoke(
   "set-application-start-at-login",
   async (_, isStartingAtLogin) => {
+    if (typeof isStartingAtLogin !== "boolean") {
+      throw new Error("Invalid start-at-login setting.");
+    }
+
     log.info("[IPC] set-application-start-at-login", isStartingAtLogin);
 
     app.setLoginItemSettings({
@@ -506,13 +632,17 @@ ipcMain.handle(
   },
 );
 
-ipcMain.handle("get-application-refresh-pool", () => {
+handleRendererInvoke("get-application-refresh-pool", () => {
   log.info("[IPC] get-application-refresh-pool");
 
   return refreshPoll();
 });
 
-ipcMain.handle("on-application-navigate-to-route", (_, route) => {
+handleRendererInvoke("on-application-navigate-to-route", (_, route) => {
+  if (route !== "settings" && route !== "signIn") {
+    throw new Error("Invalid navigation route.");
+  }
+
   log.info("[IPC] on-application-navigate-to-route", route);
 
   if (!mainWindow || mainWindow.isDestroyed()) {

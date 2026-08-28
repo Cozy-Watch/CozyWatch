@@ -174,7 +174,7 @@ export const My = ({ pullRequests, isCompact }: Props) => {
                             className="accent-shadow-low"
                           />
 
-                          {assignees.map(({ login, name, avatar }, index) => {
+                          {assignees.map(({ login, name, avatar }) => {
                             if (avatar === pr?.user?.avatar_url) {
                               return null;
                             }

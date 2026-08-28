@@ -29,12 +29,6 @@ export const createCommercialTrialLicenseState = (
   ).toISOString(),
 });
 
-export const createLegacyLifetimeLicenseState = (): LicenseState => ({
-  schemaVersion: LICENSE_STATE_SCHEMA_VERSION,
-  status: "lifetime-active",
-  migratedFromLegacyKey: true,
-});
-
 export const isLicenseState = (value: unknown): value is LicenseState => {
   if (!value || typeof value !== "object") {
     return false;

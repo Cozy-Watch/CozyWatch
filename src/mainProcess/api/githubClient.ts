@@ -8,6 +8,17 @@ import Logger from "electron-log";
 // Compose Octokit with the throttling plugin
 const Octokit = OctokitCore.plugin(throttling);
 
+const getSafeErrorMetadata = (error: unknown) => ({
+  name: error instanceof Error ? error.name : "UnknownError",
+  status:
+    typeof error === "object" &&
+    error !== null &&
+    "status" in error &&
+    typeof error.status === "number"
+      ? error.status
+      : undefined,
+});
+
 let octokitInstance: Promise<InstanceType<typeof Octokit>> | null = null;
 
 let currentAuthType: AuthType | null = null;
@@ -65,9 +76,9 @@ export async function initGithubClient(): Promise<
 
           // Retry getting the token
           accessToken = await getData("access_token");
-          Logger.info(
-            `[Octokit] accessToken after github-token-ready: ${accessToken}`,
-          );
+          Logger.info("[Octokit] access token refreshed", {
+            present: Boolean(accessToken),
+          });
         }
 
         Logger.info("[Octokit] Creating Octokit instance with throttling...");
@@ -90,9 +101,11 @@ export async function initGithubClient(): Promise<
         });
 
         // Hook into request errors to handle 401 Bad Credentials globally
-        client.hook.error("request", async (error, options) => {
+        client.hook.error("request", async (error) => {
+          const status = "status" in error ? error.status : undefined;
+
           if (
-            (error as any).status === 401 ||
+            status === 401 ||
             (error.message && error.message.includes("Bad credentials"))
           ) {
             Logger.warn(
@@ -108,7 +121,10 @@ export async function initGithubClient(): Promise<
         Logger.info("[Octokit] Octokit instance created successfully");
         return client;
       } catch (error) {
-        Logger.error("Failed to initGithubClient:", error);
+        Logger.error(
+          "Failed to initGithubClient",
+          getSafeErrorMetadata(error),
+        );
         octokitInstance = null; // Reset so future calls can retry authentication
         throw error;
       }
@@ -142,8 +158,11 @@ export const getGithubClient = async (): Promise<
     Logger.info("[Octokit] getGithubClient success, client obtained");
     return client;
   } catch (err) {
-    Logger.error("[Octokit] Error getting Octokit:", err);
-    throw new Error("Octokit is not initialized.");
+    Logger.error(
+      "[Octokit] Error getting Octokit",
+      getSafeErrorMetadata(err),
+    );
+    throw new Error("Octokit is not initialized.", { cause: err });
   }
 };
 
@@ -171,9 +190,9 @@ export const createGithubClient = async () => {
 
     // Retry getting the token
     accessToken = await getData("access_token");
-    Logger.info(
-      `[Octokit] accessToken after github-token-ready: ${accessToken}`,
-    );
+    Logger.info("[Octokit] access token refreshed", {
+      present: Boolean(accessToken),
+    });
   }
 
   const client = new Octokit({
@@ -215,7 +234,10 @@ export const signOut = async () => {
     Logger.info("[Octokit] Sign out completed, instance reset");
     return true;
   } catch (error) {
-    Logger.error("[Octokit] Error signing out:", error);
+    Logger.error(
+      "[Octokit] Error signing out",
+      getSafeErrorMetadata(error),
+    );
     return false;
   }
 };
@@ -244,7 +266,10 @@ async function validateToken(token: string): Promise<boolean> {
     await tempClient.users.getAuthenticated();
     return true;
   } catch (error) {
-    Logger.error("[Octokit] Token validation failed:", error);
+    Logger.error(
+      "[Octokit] Token validation failed",
+      getSafeErrorMetadata(error),
+    );
     return false;
   }
 }

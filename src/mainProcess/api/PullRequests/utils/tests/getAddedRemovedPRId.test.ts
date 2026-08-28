@@ -1,34 +1,58 @@
-import { finalPullRequestCache } from "./mocks/finalCache.mock";
-import { initialPullRequestCache } from "./mocks/initialCache.mock";
 import { getAddedRemovedPRId } from "../getAddedRemovedPRId";
-import { mockRepositories } from "./mocks/repositories.mock";
+import {
+  createSyntheticCacheFixture,
+  SYNTHETIC_REPOSITORY_NAME,
+  SYNTHETIC_USER_ID,
+} from "./mocks/syntheticCache.mock";
 
 describe("getAddedRemovedPRId", () => {
-  it("should correctly identify added and removed PRs ID", () => {
-    const addedRemoved = mockRepositories.reduce(
-      (acc: { added: number[]; removed: number[] }, repo) => {
-        const addedRemovedPerRepo = getAddedRemovedPRId({
-          repositoryName: repo.name,
-          initialCache: initialPullRequestCache,
-          finalCache: finalPullRequestCache,
-          userId: 776452,
-        });
+  it("preserves the initial/final cache contract for relevant pull requests", () => {
+    const { finalCache, initialCache, pullRequests } =
+      createSyntheticCacheFixture();
 
-        return {
-          ...acc,
-          added: [...acc.added, ...(addedRemovedPerRepo?.added || [])],
-          removed: [...acc.removed, ...(addedRemovedPerRepo?.removed || [])],
-        };
-      },
-      {
-        added: [],
-        removed: [],
-      }
-    );
-
-    expect(addedRemoved).toStrictEqual({
-      added: [2840278842],
+    expect(
+      getAddedRemovedPRId({
+        repositoryName: SYNTHETIC_REPOSITORY_NAME,
+        initialCache,
+        finalCache,
+        userId: SYNTHETIC_USER_ID,
+      }),
+    ).toStrictEqual({
+      added: [pullRequests.added.id],
       removed: [],
     });
+  });
+
+  it("detects removal across pages for assigned and review-requested users", () => {
+    const { finalCache, initialCache, pullRequests } =
+      createSyntheticCacheFixture();
+    finalCache.pullRequestsPerRepo[SYNTHETIC_REPOSITORY_NAME] = {
+      "1": [pullRequests.existing, pullRequests.added],
+    };
+
+    expect(
+      getAddedRemovedPRId({
+        repositoryName: SYNTHETIC_REPOSITORY_NAME,
+        initialCache,
+        finalCache,
+        userId: SYNTHETIC_USER_ID,
+      }),
+    ).toStrictEqual({
+      added: [pullRequests.added.id],
+      removed: [pullRequests.assigned.id, pullRequests.reviewRequested.id],
+    });
+  });
+
+  it("ignores pull requests unrelated to the current user", () => {
+    const { finalCache, initialCache } = createSyntheticCacheFixture();
+
+    expect(
+      getAddedRemovedPRId({
+        repositoryName: SYNTHETIC_REPOSITORY_NAME,
+        initialCache,
+        finalCache,
+        userId: 999,
+      }),
+    ).toStrictEqual({ added: [], removed: [] });
   });
 });

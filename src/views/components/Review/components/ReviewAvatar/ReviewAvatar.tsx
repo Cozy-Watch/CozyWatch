@@ -103,7 +103,10 @@ export const ReviewAvatar = ({
   const humanState = getHumanState(state);
   return (
     <Flex position="relative">
-      <Tooltip side="bottom" content={`${humanState} by ${userName}` || "N/A"}>
+      <Tooltip
+        side="bottom"
+        content={userName ? `${humanState} by ${userName}` : "N/A"}
+      >
         <Avatar
           src={userAvatar}
           fallback={userName || "N/A"}

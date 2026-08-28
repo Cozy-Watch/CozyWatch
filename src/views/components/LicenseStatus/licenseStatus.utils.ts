@@ -8,17 +8,17 @@ export const isCommercialUseLicensed = (state?: LicenseState) =>
 export const getLicenseStatusLabel = (state?: LicenseState) => {
   switch (state?.status) {
     case "commercial-trial":
-      return "Commercial Trial";
+      return "Official Trial";
     case "commercial-active":
-      return "Commercial";
+      return "Official Distribution";
     case "lifetime-active":
-      return "Lifetime Commercial";
+      return "Lifetime Official Distribution";
     case "personal":
     case "expired":
     case "invalid":
     case "unconfigured":
     default:
-      return "Personal Use Only";
+      return "Open-Source Use";
   }
 };
 
