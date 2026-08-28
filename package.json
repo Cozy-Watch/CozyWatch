@@ -83,7 +83,7 @@
     "electron-squirrel-startup": "^1.0.1",
     "marked": "^18.0.5",
     "menubar": "^9.5.2",
-    "motion": "^12.40.0",
+    "motion": "^13.1.1",
     "p-limit": "^7.3.0",
     "react": "^19.2.7",
     "react-confetti": "^6.4.0",
