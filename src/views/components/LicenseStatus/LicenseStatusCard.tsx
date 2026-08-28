@@ -51,7 +51,13 @@ export const LicenseStatusCard = ({
   })();
 
   return (
-    <Card>
+    <Card
+      className="accent-shadow-low"
+      style={{
+        background:
+          "linear-gradient(135deg, var(--accent-1), var(--accent-2), var(--accent-1))",
+      }}
+    >
       <Flex direction="column" gap="3">
         <Flex align="center" justify="between" gap="3">
           <Text weight="medium">License</Text>
