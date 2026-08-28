@@ -1,0 +1,194 @@
+.shadow-low {
+  box-shadow:
+    0px 0.4px 0.4px hsl(from var(--accent-1) h s l / 0.4),
+    0px 0.6px 0.6px -1.7px hsl(from var(--accent-1) h s l / 0.33),
+    0px 1.5px 1.5px -3.5px hsl(from var(--accent-1) h s l / 0.25);
+}
+
+.shadow-medium {
+  box-shadow:
+    0px 0.4px 0.4px hsl(from var(--black-a1) h s l / 0.22),
+    0px 1px 1px -1.2px hsl(from var(--black-a1) h s l / 0.16),
+    -0.1px 2.8px 2.7px -2.3px hsl(from var(--black-a1) h s l / 0.1),
+    -0.2px 7.4px 7.2px -3.5px hsl(from var(--black-a1) h s l / 0.04);
+}
+
+.shadow-high {
+  box-shadow:
+    0px 0.4px 0.4px hsl(from var(--accent-1) h s l / 0.2),
+    0px 1.4px 1.4px -0.5px hsl(from var(--accent-1) h s l / 0.1),
+    -0.1px 2.7px 2.6px -1px hsl(from var(--accent-1) h s l / 0.1),
+    -0.1px 4.8px 4.7px -1.5px hsl(from var(--accent-1) h s l / 0.1),
+    -0.3px 8.4px 8.2px -2px hsl(from var(--accent-1) h s l / 0.1),
+    -0.4px 14px 13.7px -2.5px hsl(from var(--accent-1) h s l / 0.1),
+    -0.7px 22.2px 21.7px -3px hsl(from var(--accent-1) h s l / 0.1),
+    -1px 33.6px 32.8px -3.5px hsl(from var(--accent-1) h s l / 0.1);
+}
+
+.menubar-scroll-shadow {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  padding: 1px;
+}
+
+/* Fade in shadow on scroll when supported */
+@supports (animation-timeline: scroll()) {
+  .menubar-scroll-shadow {
+    animation: scroll-shadow ease both;
+    animation-timeline: scroll();
+    animation-range: 100px 200px;
+    background: transparent;
+  }
+
+  @keyframes scroll-shadow {
+    from {
+      box-shadow: none;
+    }
+    to {
+      box-shadow:
+        0px 0.4px 0.4px hsl(from var(--accent-1) h s l / 0.42),
+        0px 1px 1px -1.2px hsl(from var(--accent-1) h s l / 0.36),
+        -0.1px 2.8px 2.7px -2.3px hsl(from var(--accent-1) h s l / 0.3),
+        -0.2px 7.4px 7.2px -3.5px hsl(from var(--accent-1) h s l / 0.24);
+    }
+  }
+}
+
+:is(.dark, .dark-theme) .accent-shadow-low,
+:is(.dark, .dark-theme) .accent-shadow-medium,
+:is(.dark, .dark-theme) .accent-shadow-high {
+  --accent-shadow: var(--black-a1);
+}
+
+:is(.light, .light-theme) .accent-shadow-low,
+:is(.light, .light-theme) .accent-shadow-medium,
+:is(.light, .light-theme) .accent-shadow-high {
+  --accent-shadow: var(--accent-a10);
+}
+
+.accent-shadow-low {
+  box-shadow:
+    0px 1px 1.1px hsl(from var(--accent-shadow) h s l / 0.3),
+    0px 1.5px 1.6px -1.4px hsl(from var(--accent-shadow) h s l / 0.27),
+    -0.1px 3.5px 3.7px -2.9px hsl(from var(--accent-shadow) h s l / 0.24);
+}
+
+.accent-shadow-medium {
+  box-shadow:
+    0px 0.4px 0.4px hsl(from var(--accent-shadow) h s l / 0.42),
+    0px 1px 1px -1.2px hsl(from var(--accent-shadow) h s l / 0.36),
+    -0.1px 2.8px 2.7px -2.3px hsl(from var(--accent-shadow) h s l / 0.3),
+    -0.2px 7.4px 7.2px -3.5px hsl(from var(--accent-shadow) h s l / 0.24);
+}
+
+.accent-shadow-high {
+  box-shadow:
+    0px 0.4px 0.4px hsl(from var(--accent-shadow) h s l / 0.2),
+    0px 1.4px 1.4px -0.5px hsl(from var(--accent-shadow) h s l / 0.1),
+    -0.1px 2.7px 2.6px -1px hsl(from var(--accent-shadow) h s l / 0.1),
+    -0.1px 4.8px 4.7px -1.5px hsl(from var(--accent-shadow) h s l / 0.1),
+    -0.3px 8.4px 8.2px -2px hsl(from var(--accent-shadow) h s l / 0.1),
+    -0.4px 14px 13.7px -2.5px hsl(from var(--accent-shadow) h s l / 0.1),
+    -0.7px 22.2px 21.7px -3px hsl(from var(--accent-shadow) h s l / 0.1),
+    -1px 33.6px 32.8px -3.5px hsl(from var(--accent-shadow) h s l / 0.1);
+}
+
+/* ------ */
+:is(.dark, .dark-theme) .accent-text-shadow {
+  filter: drop-shadow(0px -1px 0px var(--black-a4));
+}
+
+:is(.light, .light-theme) .accent-text-shadow {
+  filter: drop-shadow(0px 1px 0px var(--accent-12));
+}
+
+:is(.dark, .dark-theme) .inverse-accent-text-shadow {
+  filter: drop-shadow(0px -1px 0px var(--black-a6));
+}
+
+:is(.light, .light-theme) .inverse-accent-text-shadow {
+  filter: drop-shadow(0px 1px 0px var(--white-a2));
+}
+
+/* USE THIS */
+
+:is(.dark, .dark-theme) .bright-background-text-shadow {
+  filter: drop-shadow(0px -1px 0px var(--black-a6));
+}
+
+:is(.light, .light-theme) .bright-background-text-shadow {
+  filter: drop-shadow(0px 1px 0px var(--white-a12));
+}
+
+/* WHITE / BLACK Text */
+
+:is(.dark, .dark-theme) .dynamicColor {
+  color: var(--black-a11);
+  filter: drop-shadow(0px 1px 0px var(--white-a4));
+}
+
+:is(.light, .light-theme) .dynamicColor {
+  color: var(--white-a11);
+  filter: drop-shadow(0px -1px 0px var(--black-a4));
+}
+
+:is(.dark, .dark-theme) .appearance-text {
+  color: var(--black-a12);
+}
+
+:is(.light, .light-theme) .appearance-text {
+  color: var(--white-a12);
+}
+
+:is(.dark, .dark-theme) .imageStroke {
+  filter: drop-shadow(1px 1px 0 var(--white-a12))
+    drop-shadow(-1px 1px 0 var(--white-a12))
+    drop-shadow(1px -1px 0 var(--white-a12))
+    drop-shadow(-1px -1px 0 var(--white-a12));
+}
+
+:is(.light, .light-theme) .imageStroke {
+  filter: drop-shadow(1px 1px 0 var(--accent-1))
+    drop-shadow(-1px 1px 0 var(--accent-1))
+    drop-shadow(1px -1px 0 var(--accent-1))
+    drop-shadow(-1px -1px 0 var(--accent-1));
+}
+
+/* MENU BAR */
+
+:is(.dark, .dark-theme) .menubar-bg {
+  background: var(--black-a5);
+}
+:is(.light, .light-theme) .menubar-bg {
+  background: var(--white-a1);
+}
+
+:is(.dark, .dark-theme) .mb-card-bg {
+  background: var(--black-a3);
+}
+:is(.light, .light-theme) .mb-card-bg {
+  background: var(--white-a5);
+}
+
+/* TEXT */
+:is(.dark, .dark-theme) .mb-text-color-heading {
+  color: var(--white-a11);
+}
+:is(.light, .light-theme) .mb-text-color-heading {
+  color: var(--black-a11);
+}
+
+:is(.dark, .dark-theme) .mb-text-color {
+  color: var(--white-a10);
+}
+:is(.light, .light-theme) .mb-text-color {
+  color: var(--black-a9);
+}
+
+:is(.dark, .dark-theme) .mb-text-color-light {
+  color: var(--white-a6);
+}
+:is(.light, .light-theme) .mb-text-color-light {
+  color: var(--black-a6);
+}

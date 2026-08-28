@@ -1,0 +1,56 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>Cozy Watch!</title>
+    <style>
+      html,
+      body {
+        overflow: hidden;
+        margin: 0;
+        padding: 0;
+      }
+
+      body {
+        font-family:
+          -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica,
+          Arial, sans-serif;
+      }
+
+      #loading-fallback {
+        height: 100vh;
+        background: linear-gradient(#eaebff, #e0e3ff);
+        display: flex;
+        align-items: center;
+        flex-direction: column;
+        justify-content: center;
+      }
+
+      #sofa {
+        animation: fadein 1s infinite alternate;
+      }
+
+      @keyframes fadein {
+        from {
+          opacity: 0;
+        }
+        to {
+          opacity: 1;
+        }
+      }
+
+      #toolbar {
+        app-region: drag;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app">
+      <div id="loading-fallback">
+        <image id="sofa" src="./images/catSitting.png" width="150"></image>
+      </div>
+    </div>
+
+    <script type="module" src="/src/renderer.ts"></script>
+  </body>
+</html>
