@@ -18,13 +18,13 @@ The source code in this repository is licensed under the MIT License. To the ext
 
 These terms are intended to govern the Licensor's proprietary commercial offering, including any commercial authorization, hosted licensing service, support commitments, and Cozy Watch Marks supplied with an official binary. The Cozy Watch Marks are governed separately by [BRANDING.md](BRANDING.md).
 
-## 3. Personal and commercial use
+## 3. Open-source use and the official offering
 
-Personal, noncommercial use of the application may be available without a paid commercial license, subject to the applicable open-source and third-party licenses and the terms presented with the distribution.
+The MIT License permits both personal and commercial use of the source code. No paid Cozy Watch license is required to use, modify, or distribute that code, or a build made from it, within the scope of the MIT License and applicable third-party licenses.
 
-Commercial use means using the official application or commercial offering in connection with a business, employer, paid engagement, client service, revenue-generating activity, or other work performed for commercial benefit. A customer intending commercial use would obtain the license described in its order or checkout record.
+A paid license may be offered for a separately supplied official Cozy Watch distribution and its associated activation service, support, update channel, or other proprietary service. Any checkout flow and final agreement must identify those paid benefits without suggesting that payment is required for rights already granted by the MIT License.
 
-The application may offer a limited commercial trial. The current product behavior describes a 30-day commercial trial, but trial eligibility, duration, and availability would be controlled by the applicable product or checkout terms.
+The official distribution may offer a limited trial of those paid benefits. The current product behavior describes a 30-day trial, but trial eligibility, duration, and availability would be controlled by the applicable product or checkout terms.
 
 ## 4. Commercial license grant
 

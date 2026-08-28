@@ -1,5 +1,4 @@
 import { ClipboardCopyIcon, ExternalLinkIcon } from "@radix-ui/react-icons";
-import { marked } from "marked";
 import {
   Avatar,
   Badge,
@@ -15,6 +14,7 @@ import {
 } from "@radix-ui/themes";
 import { useNavigate } from "@tanstack/react-router";
 import { ErrorMessage } from "../../components/ErrorMessage/ErrorMessage";
+import { renderSafeMarkdown } from "../../utils/renderSafeMarkdown";
 import { usePullRequests } from "./usePullRequests";
 
 export const PullRequests = () => {
@@ -220,10 +220,10 @@ export const PullRequests = () => {
                                             <Flex direction="column" gap="2">
                                               {pullRequest.comments.map(
                                                 (review) => {
-                                                  const mardown = marked.parse(
-                                                    review?.body || "",
-                                                    { async: false }
-                                                  );
+                                                  const markdown =
+                                                    renderSafeMarkdown(
+                                                      review?.body || "",
+                                                    );
 
                                                   return (
                                                     <Flex
@@ -260,7 +260,7 @@ export const PullRequests = () => {
                                                                 <Em
                                                                   dangerouslySetInnerHTML={{
                                                                     __html:
-                                                                      mardown,
+                                                                      markdown,
                                                                   }}
                                                                 />
                                                               </Text>

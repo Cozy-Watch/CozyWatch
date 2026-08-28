@@ -31,22 +31,22 @@ export const LicenseStatusCard = ({
   const description = (() => {
     switch (state?.status) {
       case "commercial-trial":
-        return `${trialDaysRemaining ?? 0} day${trialDaysRemaining === 1 ? "" : "s"} left in your commercial trial.`;
+        return `${trialDaysRemaining ?? 0} day${trialDaysRemaining === 1 ? "" : "s"} left in your official-distribution trial.`;
       case "commercial-active":
         return state.licenseExpiresAt
-          ? `Commercial use is licensed until ${new Date(state.licenseExpiresAt).toLocaleDateString()}.`
-          : "Commercial use is licensed.";
+          ? `Official-distribution benefits are active until ${new Date(state.licenseExpiresAt).toLocaleDateString()}.`
+          : "Official-distribution benefits are active.";
       case "lifetime-active":
-        return "Commercial use is licensed permanently.";
+        return "Official-distribution benefits are active permanently.";
       case "expired":
-        return "Your commercial trial or subscription has ended. All features remain available for personal use.";
+        return "Your official-distribution trial or subscription has ended. MIT-licensed source-code rights are unaffected.";
       case "invalid":
-        return "This license needs attention. All features remain available for personal use.";
+        return "This official-distribution license needs attention. MIT-licensed source-code rights are unaffected.";
       case "personal":
-        return "All features are free for personal use.";
+        return "No official-distribution license is active. MIT-licensed source-code rights are unaffected.";
       case "unconfigured":
       default:
-        return "Choose personal use or start a 30-day commercial trial.";
+        return "Continue without official-distribution benefits or start a 30-day trial.";
     }
   })();
 
@@ -85,7 +85,7 @@ export const LicenseStatusCard = ({
                 disabled={isPending}
                 onClick={onStartCommercialTrial}
               >
-                Start 30-day commercial trial
+                Start 30-day official trial
               </Button>
             </>
           )}
@@ -96,7 +96,7 @@ export const LicenseStatusCard = ({
               disabled={isPending}
               onClick={onStartCommercialTrial}
             >
-              Start 30-day commercial trial
+              Start 30-day official trial
             </Button>
           )}
 
@@ -110,7 +110,7 @@ export const LicenseStatusCard = ({
               disabled={isPending}
               onClick={onOpenLicenseModal}
             >
-              Enter or buy a commercial license
+              Enter or buy an official distribution license
             </Button>
           ) : null}
 

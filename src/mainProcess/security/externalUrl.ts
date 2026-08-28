@@ -2,7 +2,12 @@ import { shell } from "electron";
 import type { WebContents } from "electron";
 import log from "electron-log/main";
 
-const EXTERNAL_URL_PROTOCOL = "https:";
+const ALLOWED_EXTERNAL_HOSTS = new Set([
+  "cozywatch.com",
+  "github.com",
+  "www.cozywatch.com",
+]);
+const SUPPORT_EMAIL = "tiago@cozywatch.com";
 
 export const isSafeExternalUrl = (url: unknown): url is string => {
   if (typeof url !== "string") {
@@ -11,9 +16,16 @@ export const isSafeExternalUrl = (url: unknown): url is string => {
 
   try {
     const parsedUrl = new URL(url);
+
+    if (parsedUrl.protocol === "https:") {
+      return ALLOWED_EXTERNAL_HOSTS.has(parsedUrl.hostname.toLowerCase());
+    }
+
     return (
-      parsedUrl.protocol === EXTERNAL_URL_PROTOCOL &&
-      parsedUrl.hostname.length > 0
+      parsedUrl.protocol === "mailto:" &&
+      parsedUrl.pathname.toLowerCase() === SUPPORT_EMAIL &&
+      parsedUrl.search === "" &&
+      parsedUrl.hash === ""
     );
   } catch {
     return false;
@@ -22,7 +34,7 @@ export const isSafeExternalUrl = (url: unknown): url is string => {
 
 export const openExternalUrl = async (url: unknown) => {
   if (!isSafeExternalUrl(url)) {
-    throw new Error("Only valid HTTPS URLs can be opened externally.");
+    throw new Error("This external destination is not allowed.");
   }
 
   await shell.openExternal(url);
@@ -30,12 +42,14 @@ export const openExternalUrl = async (url: unknown) => {
 
 export const tryOpenExternalUrl = (url: unknown) => {
   if (!isSafeExternalUrl(url)) {
-    log.warn("[Security] blocked unsafe external URL", { url });
+    log.warn("[Security] blocked unsafe external URL");
     return false;
   }
 
   void shell.openExternal(url).catch((error) => {
-    log.warn("[Security] failed to open external URL", { error, url });
+    log.warn("[Security] failed to open external URL", {
+      message: error instanceof Error ? error.message : "Unknown error",
+    });
   });
   return true;
 };

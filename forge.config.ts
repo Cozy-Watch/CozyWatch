@@ -5,10 +5,9 @@ import { MakerDeb } from "@electron-forge/maker-deb";
 import { MakerRpm } from "@electron-forge/maker-rpm";
 import { MakerDMG } from "@electron-forge/maker-dmg";
 import { VitePlugin } from "@electron-forge/plugin-vite";
-import { FusesPlugin } from "@electron-forge/plugin-fuses";
 import { PublisherGithub } from "@electron-forge/publisher-github";
-import { FuseV1Options, FuseVersion } from "@electron/fuses";
 import dotenv from "dotenv";
+import path from "node:path";
 
 dotenv.config();
 
@@ -17,6 +16,19 @@ const appleCredentials = {
   appleId: process.env.APPLE_ID,
   appleIdPassword: process.env.APPLE_PASSWORD,
   teamId: process.env.APPLE_TEAM_ID,
+};
+
+const getElectronExecutablePath = (buildPath: string, platform: string) => {
+  const basePath = path.resolve(buildPath, "../..");
+
+  if (platform === "darwin" || platform === "mas") {
+    return path.join(basePath, "MacOS", "Electron");
+  }
+
+  return path.join(
+    basePath,
+    platform === "win32" ? "electron.exe" : "electron",
+  );
 };
 
 if (
@@ -31,6 +43,42 @@ if (
 }
 
 const config: ForgeConfig = {
+  hooks: {
+    packageAfterCopy: async (
+      resolvedConfig,
+      buildPath,
+      _electronVersion,
+      platform,
+      arch,
+    ) => {
+      const { flipFuses, FuseV1Options, FuseVersion } = await import(
+        "@electron/fuses"
+      );
+      const osxSignConfig = resolvedConfig.packagerConfig.osxSign;
+      const hasOsxSignConfig =
+        (typeof osxSignConfig === "object" &&
+          Boolean(Object.keys(osxSignConfig).length)) ||
+        Boolean(osxSignConfig);
+
+      await flipFuses(getElectronExecutablePath(buildPath, platform), {
+        version: FuseVersion.V1,
+        resetAdHocDarwinSignature:
+          !hasOsxSignConfig &&
+          (platform === "darwin" || platform === "mas") &&
+          arch === "arm64",
+        strictlyRequireAllFuses: true,
+        [FuseV1Options.RunAsNode]: false,
+        [FuseV1Options.EnableCookieEncryption]: true,
+        [FuseV1Options.EnableNodeOptionsEnvironmentVariable]: false,
+        [FuseV1Options.EnableNodeCliInspectArguments]: false,
+        [FuseV1Options.EnableEmbeddedAsarIntegrityValidation]: true,
+        [FuseV1Options.OnlyLoadAppFromAsar]: true,
+        [FuseV1Options.LoadBrowserProcessSpecificV8Snapshot]: true,
+        [FuseV1Options.GrantFileProtocolExtraPrivileges]: false,
+        [FuseV1Options.WasmTrapHandlers]: true,
+      });
+    },
+  },
   packagerConfig: {
     asar: true,
     name: "Cozy Watch",
@@ -94,31 +142,21 @@ const config: ForgeConfig = {
       build: [
         {
           entry: "src/main.ts",
-          config: "vite.main.config.ts",
+          config: "vite.main.config.mts",
           target: "main",
         },
         {
           entry: "src/preload.ts",
-          config: "vite.preload.config.ts",
+          config: "vite.preload.config.mts",
           target: "preload",
         },
       ],
       renderer: [
         {
           name: "main_window",
-          config: "vite.renderer.config.ts",
+          config: "vite.renderer.config.mts",
         },
       ],
-    }),
-    new FusesPlugin({
-      version: FuseVersion.V1,
-      [FuseV1Options.RunAsNode]: false,
-      [FuseV1Options.EnableCookieEncryption]: true,
-      [FuseV1Options.EnableNodeOptionsEnvironmentVariable]: false,
-      [FuseV1Options.EnableNodeCliInspectArguments]: false,
-      [FuseV1Options.EnableEmbeddedAsarIntegrityValidation]: true,
-      [FuseV1Options.OnlyLoadAppFromAsar]: true,
-      [FuseV1Options.GrantFileProtocolExtraPrivileges]: false,
     }),
   ],
 };

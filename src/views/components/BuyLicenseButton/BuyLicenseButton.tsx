@@ -25,7 +25,7 @@ export const BuyLicenseButton = (props: Props) => {
           setIsModalOpen(true);
         }}
       >
-        Commercial license
+        Official distribution license
         {props.showImage && (
           <img src={`./images/armchair.png`} width="20" height="20" />
         )}

@@ -65,11 +65,7 @@ export const createLicenseStateFromLemon = ({
     };
   }
 
-  const isLegacyLifetime =
-    previousState.status === "lifetime-active" &&
-    previousState.migratedFromLegacyKey;
-  const isLifetime =
-    isLegacyLifetime || data.license_key.expires_at === null;
+  const isLifetime = data.license_key.expires_at === null;
 
   return resolveTimeBasedLicenseState(
     {

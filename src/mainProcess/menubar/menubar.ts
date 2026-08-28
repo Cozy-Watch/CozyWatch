@@ -1,4 +1,4 @@
-import { nativeImage } from "electron";
+import { app, nativeImage } from "electron";
 import Logger from "electron-log";
 import { menubar as baseMenubar, Menubar } from "menubar";
 import path from "path";
@@ -39,7 +39,12 @@ export const createMenubar = () => {
       vibrancy: "hud",
       skipTaskbar: true,
       webPreferences: {
+        allowRunningInsecureContent: false,
+        contextIsolation: true,
+        nodeIntegration: false,
         preload: path.join(__dirname, "preload.js"),
+        sandbox: true,
+        webSecurity: true,
       },
     },
   });
@@ -55,7 +60,7 @@ export const createMenubar = () => {
   });
 
   mb.on("show", () => {
-    if (process.env.IS_DEV) {
+    if (!app.isPackaged) {
       mb?.window?.webContents.openDevTools({ mode: "detach" });
     }
   });

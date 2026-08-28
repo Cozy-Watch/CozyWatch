@@ -17,7 +17,7 @@ Cozy Watch uses GitHub's APIs and is not affiliated with or endorsed by GitHub, 
 
 ### Requirements
 
-- Node.js 22
+- Node.js 22.12 or newer (but earlier than Node.js 23)
 - npm
 - A GitHub account for exercising authenticated flows
 
@@ -38,6 +38,17 @@ npm run package     # Create an unpacked packaged application
 npm run make        # Build distributable artifacts
 ```
 
+Before opening a pull request, run the same checks as CI from a clean dependency tree:
+
+```sh
+npm ci
+npm audit --omit=dev --audit-level=moderate
+npm run lint
+npm run types
+npm test -- --runInBand
+npm run package
+```
+
 Copy `.env.example` to `.env` only when you need to configure an official signed and notarized macOS build. Do not commit credentials, signing material, personal access tokens, or license keys.
 
 ## Project layout
@@ -49,11 +60,11 @@ Copy `.env.example` to `.env` only when you need to configure an official signed
 
 ## Licensing
 
-The source code in this repository is available under the MIT License; see [LICENSE](LICENSE).
+The source code in this repository is available under the MIT License; see [LICENSE](LICENSE). The MIT License permits personal and commercial use, including commercial use of your own builds and forks, subject to its notice requirements and applicable third-party licenses.
 
-The official Cozy Watch name, logos, icons, and other brand assets are not granted by the MIT License. See [BRANDING.md](BRANDING.md) before distributing a modified build.
+The official Cozy Watch name, logos, icons, and other brand assets are not granted by the MIT License. See [ASSETS.md](ASSETS.md) and [BRANDING.md](BRANDING.md) before redistributing assets or a modified build.
 
-[COMMERCIAL-BINARY-TERMS-DRAFT.md](COMMERCIAL-BINARY-TERMS-DRAFT.md) contains a discussion draft for terms that may apply to official binaries and commercial use. It is not a final agreement and does not replace the MIT License or any applicable third-party licenses.
+[COMMERCIAL-BINARY-TERMS-DRAFT.md](COMMERCIAL-BINARY-TERMS-DRAFT.md) contains a discussion draft for an optional official distribution, licensing service, and support offering. It is not a final agreement, does not restrict MIT-licensed source code, and does not replace applicable third-party licenses.
 
 Dependencies may have their own license terms. Review the relevant package license notices before redistributing an application bundle.
 
@@ -63,7 +74,7 @@ Please report suspected vulnerabilities privately. The reporting process and loc
 
 ## Contributing
 
-Bug reports, product feedback, documentation improvements, and code contributions are welcome. Please read [CONTRIBUTING.md](CONTRIBUTING.md) first.
+Bug reports, product feedback, documentation improvements, and code contributions are welcome. Please read [CONTRIBUTING.md](CONTRIBUTING.md) and [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) first.
 
 ## Links
 

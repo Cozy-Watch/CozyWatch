@@ -33,7 +33,7 @@ export const createMenu = () => {
               performSignOut();
             },
           },
-          ...(process.env.IS_DEV
+          ...(!app.isPackaged
             ? [
                 {
                   label: "Clear Pull Request Cache",

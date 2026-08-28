@@ -43,6 +43,8 @@ jobs:
 
       - name: Run release checks
         run: |
+          npm audit --omit=dev --audit-level=moderate
+          npm run lint
           npm run types
           npm test -- --runInBand
 

@@ -64,6 +64,7 @@ process.on("unhandledRejection", (reason) => {
 
 let mainWindow: BrowserWindow | null = null;
 let menubar: Menubar | undefined | null = null;
+const isDevelopment = !app.isPackaged;
 
 const getRendererUrl = () =>
   MAIN_WINDOW_VITE_DEV_SERVER_URL ??
@@ -161,7 +162,12 @@ export const createWindow = () => {
     ...(process.platform !== "darwin" ? { titleBarOverlay: true } : {}),
     resizable: true,
     webPreferences: {
+      allowRunningInsecureContent: false,
+      contextIsolation: true,
+      nodeIntegration: false,
       preload: path.join(__dirname, "preload.js"),
+      sandbox: true,
+      webSecurity: true,
     },
     icon: path.join(__dirname, "images", "icon.png"),
   });
@@ -181,10 +187,7 @@ export const createWindow = () => {
 
   mainWindow.show();
 
-  log.info("[Menu] IS DEV", process.env.IS_DEV);
-  if (process.env.IS_DEV) {
-    log.info("[Menu] IS DEV TOOLS", process.env.IS_DEV);
-
+  if (isDevelopment) {
     mainWindow.once("ready-to-show", () => {
       mainWindow?.webContents.openDevTools();
     });
@@ -220,7 +223,7 @@ app.whenReady().then(async () => {
       responseHeaders: {
         ...details.responseHeaders,
         "Content-Security-Policy": [
-          process.env.IS_DEV
+          isDevelopment
             ? // Development CSP - allows Vite dev server and hot reload
               "default-src 'self' 'unsafe-inline' 'unsafe-eval' ws: http://localhost:* http://127.0.0.1:*; script-src 'self' 'unsafe-inline' 'unsafe-eval' http://localhost:* http://127.0.0.1:*; connect-src 'self' ws: http://localhost:* http://127.0.0.1:* https://api.github.com https://api.lemonsqueezy.com; img-src 'self' data: https:; style-src 'self' 'unsafe-inline';"
             : // Production CSP - more restrictive
@@ -255,7 +258,7 @@ app.whenReady().then(async () => {
   log.info("[Polling] started (deferred)");
 
   mainWindow?.webContents.once("did-finish-load", () => {
-    if (process.env.IS_DEV) {
+    if (isDevelopment) {
       mainWindow?.webContents.openDevTools();
     }
   });
@@ -334,7 +337,7 @@ ipcMain.on("dispatch-application-sign-user", (_, isSignIn) => {
 });
 
 handleRendererInvoke("open-external-url", async (_, url: unknown) => {
-  log.info("[IPC] open-external-url", { url });
+  log.info("[IPC] open-external-url");
   await openExternalUrl(url);
 });
 
@@ -495,7 +498,7 @@ handleRendererInvoke("license-activate", async (_, licenseKey: unknown) => {
   }
 
   log.info("[IPC] license-activate", {
-    licenseKey: licenseKey.slice(0, 4) + "****",
+    licenseKeyLength: licenseKey.length,
   });
 
   return activateLicense(licenseKey);

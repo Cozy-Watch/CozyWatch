@@ -8,12 +8,12 @@ For a significant change, open an issue or discussion first so we can agree on t
 
 ## Local setup
 
-1. Install Node.js 22 and npm.
+1. Install Node.js 22.12 or newer (but earlier than Node.js 23) and npm.
 2. Fork and clone the repository.
 3. Install dependencies with `npm ci`.
 4. Start the app with `npm start`.
 
-Do not commit `.env` files, credentials, signing certificates, access tokens, license keys, generated packages, or local storage.
+Do not commit `.env` files, credentials, signing certificates, access tokens, license keys, generated packages, or local storage. Tests and examples must use minimal synthetic data; never copy authenticated API responses, private repository metadata, real review comments, or other user data into the repository.
 
 ## Making changes
 
@@ -29,6 +29,7 @@ Do not commit `.env` files, credentials, signing certificates, access tokens, li
 Run the checks relevant to your change, and ideally all of these:
 
 ```sh
+npm audit --omit=dev --audit-level=moderate
 npm run types
 npm run lint
 npm test -- --runInBand
@@ -45,4 +46,4 @@ By submitting a contribution, you represent that you have the right to submit it
 
 ## Code of conduct
 
-Be respectful, specific, and constructive. Harassment, discrimination, threats, doxxing, and deliberately disruptive behavior are not welcome. If a difficult interaction cannot be resolved in the thread, contact the maintainer at [tiago@cozywatch.com](mailto:tiago@cozywatch.com).
+Participation is governed by [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md). Conduct concerns can be reported privately to [tiago@cozywatch.com](mailto:tiago@cozywatch.com).

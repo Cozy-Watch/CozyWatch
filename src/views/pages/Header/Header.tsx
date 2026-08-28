@@ -118,7 +118,7 @@ export const Header = () => {
                   }}
                 >
                   <WhiteCozyWatch height="16px" />
-                  Commercial license
+                  Official distribution license
                 </DropdownMenu.Item>
               )}
               <DropdownMenu.Item
