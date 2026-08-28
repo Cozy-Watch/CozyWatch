@@ -4,6 +4,7 @@ on:
   push:
     tags:
       - "v*"
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -29,6 +30,7 @@ jobs:
           cache: npm
 
       - name: Verify tag matches package version
+        if: github.event_name == 'push'
         shell: bash
         run: |
           tag_version="${GITHUB_REF_NAME#v}"
@@ -66,13 +68,19 @@ jobs:
           security set-key-partition-list -S apple-tool:,apple: -k "$KEYCHAIN_PASSWORD" "$keychain_path"
           security list-keychains -d user -s "$keychain_path"
 
-      - name: Build, notarize, and publish
+      - name: Build, verify, notarize, and publish or rehearse
         env:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: npm run publish:mac
+        shell: bash
+        run: |
+          if [[ "$GITHUB_EVENT_NAME" == "push" ]]; then
+            npm run publish:mac
+          else
+            npm run make:mac:official
+          fi
 
       - name: Remove temporary signing keychain
         if: always()
