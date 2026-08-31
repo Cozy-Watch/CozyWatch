@@ -14,7 +14,8 @@ import {
 const execFileAsync = promisify(execFile);
 const APP_NAME = "Cozy Watch.app";
 const EXECUTABLE_NAME = "Cozy Watch";
-const STARTUP_GRACE_PERIOD_MS = 5_000;
+const RENDERER_READY_MARKER = "COZYWATCH_RELEASE_SMOKE_RENDERER_READY";
+const RENDERER_STARTUP_TIMEOUT_MS = 15_000;
 const SHUTDOWN_GRACE_PERIOD_MS = 5_000;
 
 const expectedFuseStates = new Map([
@@ -25,7 +26,9 @@ const expectedFuseStates = new Map([
   [FuseV1Options.EnableEmbeddedAsarIntegrityValidation, FuseState.ENABLE],
   [FuseV1Options.OnlyLoadAppFromAsar, FuseState.ENABLE],
   [FuseV1Options.LoadBrowserProcessSpecificV8Snapshot, FuseState.DISABLE],
-  [FuseV1Options.GrantFileProtocolExtraPrivileges, FuseState.DISABLE],
+  // The renderer is loaded from the packaged app's file:// URL. Electron
+  // requires this privilege for file:// resources inside an ASAR archive.
+  [FuseV1Options.GrantFileProtocolExtraPrivileges, FuseState.ENABLE],
   [FuseV1Options.WasmTrapHandlers, FuseState.ENABLE],
 ]);
 
@@ -101,6 +104,10 @@ const verifyStartup = async (appPath) => {
     EXECUTABLE_NAME,
   );
   const output = [];
+  let reportRendererReady;
+  const rendererReady = new Promise((resolve) => {
+    reportRendererReady = resolve;
+  });
   const appProcess = spawn(
     executablePath,
     [`--user-data-dir=${userDataDirectory}`],
@@ -113,38 +120,53 @@ const verifyStartup = async (appPath) => {
     },
   );
 
-  appProcess.stdout.on("data", (chunk) => output.push(chunk.toString()));
+  appProcess.stdout.on("data", (chunk) => {
+    output.push(chunk.toString());
+    if (output.join("").includes(RENDERER_READY_MARKER)) {
+      reportRendererReady({ rendererReady: true });
+    }
+  });
   appProcess.stderr.on("data", (chunk) => output.push(chunk.toString()));
 
-  const earlyExit = await Promise.race([
+  const startupResult = await Promise.race([
     new Promise((resolve) => {
       appProcess.once("error", (error) => resolve({ error }));
       appProcess.once("exit", (code, signal) => resolve({ code, signal }));
     }),
-    delay(STARTUP_GRACE_PERIOD_MS).then(() => null),
+    rendererReady,
+    delay(RENDERER_STARTUP_TIMEOUT_MS).then(() => null),
   ]);
 
   try {
-    if (earlyExit) {
+    if (!startupResult) {
+      throw new Error(
+        `Packaged app did not load its renderer within ${RENDERER_STARTUP_TIMEOUT_MS}ms.\n${output.join("")}`,
+      );
+    }
+
+    if (!("rendererReady" in startupResult)) {
       const detail =
-        "error" in earlyExit
-          ? earlyExit.error.message
-          : `exit code ${earlyExit.code}, signal ${earlyExit.signal}`;
+        "error" in startupResult
+          ? startupResult.error.message
+          : `exit code ${startupResult.code}, signal ${startupResult.signal}`;
       throw new Error(
         `Packaged app terminated during startup (${detail}).\n${output.join("")}`,
       );
     }
 
-    appProcess.kill("SIGTERM");
-    await Promise.race([
-      new Promise((resolve) => appProcess.once("exit", resolve)),
-      delay(SHUTDOWN_GRACE_PERIOD_MS),
-    ]);
-
-    if (appProcess.exitCode === null && appProcess.signalCode === null) {
-      appProcess.kill("SIGKILL");
-    }
   } finally {
+    if (appProcess.exitCode === null && appProcess.signalCode === null) {
+      appProcess.kill("SIGTERM");
+      await Promise.race([
+        new Promise((resolve) => appProcess.once("exit", resolve)),
+        delay(SHUTDOWN_GRACE_PERIOD_MS),
+      ]);
+
+      if (appProcess.exitCode === null && appProcess.signalCode === null) {
+        appProcess.kill("SIGKILL");
+      }
+    }
+
     await rm(userDataDirectory, { force: true, recursive: true });
   }
 };

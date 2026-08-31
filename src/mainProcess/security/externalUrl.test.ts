@@ -5,7 +5,11 @@ jest.mock("electron", () => ({
 }));
 
 import { shell } from "electron";
-import { isSafeExternalUrl, openExternalUrl } from "./externalUrl";
+import {
+  isAllowedRendererUrl,
+  isSafeExternalUrl,
+  openExternalUrl,
+} from "./externalUrl";
 
 const openExternalMock = jest.mocked(shell.openExternal);
 
@@ -16,7 +20,7 @@ describe("external URL security", () => {
   });
 
   it.each([
-    "https://github.com/Cozy-Watch/publicCozyWatch/pull/1",
+    "https://github.com/Cozy-Watch/CozyWatch/pull/1",
     "https://www.cozywatch.com/changelog/",
     "https://cozywatch.com/",
     "mailto:tiago@cozywatch.com",
@@ -25,7 +29,7 @@ describe("external URL security", () => {
   });
 
   it.each([
-    "http://github.com/Cozy-Watch/publicCozyWatch",
+    "http://github.com/Cozy-Watch/CozyWatch",
     "https://github.com.attacker.example/phishing",
     "https://example.com/",
     "javascript:alert(1)",
@@ -41,5 +45,16 @@ describe("external URL security", () => {
       "not allowed",
     );
     expect(openExternalMock).not.toHaveBeenCalled();
+  });
+
+  it("allows only the exact trusted data renderer page", () => {
+    const trustedRendererUrl = "data:text/html,Cozy%20Watch";
+
+    expect(isAllowedRendererUrl(trustedRendererUrl, trustedRendererUrl)).toBe(
+      true,
+    );
+    expect(
+      isAllowedRendererUrl("data:text/html,Unexpected", trustedRendererUrl),
+    ).toBe(false);
   });
 });

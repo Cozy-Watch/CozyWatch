@@ -79,7 +79,7 @@ Bug reports, product feedback, documentation improvements, and code contribution
 ## Links
 
 - Website: <https://www.cozywatch.com>
-- Repository: <https://github.com/Cozy-Watch/publicCozyWatch>
+- Repository: <https://github.com/Cozy-Watch/CozyWatch>
 - Support: <mailto:tiago@cozywatch.com>
 
 ## Status

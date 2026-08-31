@@ -52,8 +52,18 @@ import {
   openExternalUrl,
   protectWebContents,
 } from "./mainProcess/security/externalUrl";
+import { redactDiagnosticValue } from "./mainProcess/security/redactDiagnosticValue";
 
-log.info("[App] starting");
+const RELEASE_SMOKE_READY_MARKER = "COZYWATCH_RELEASE_SMOKE_RENDERER_READY";
+const isReleaseSmokeTest =
+  process.env.COZYWATCH_RELEASE_SMOKE_TEST === "true";
+
+log.info("[App] starting", {
+  architecture: process.arch,
+  packaged: app.isPackaged,
+  platform: process.platform,
+  version: app.getVersion(),
+});
 
 process.on("uncaughtException", (err) => {
   log.error("[Main] uncaughtException", err);
@@ -74,6 +84,42 @@ const getRendererUrl = () =>
       `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`,
     ),
   ).toString();
+
+const rendererFailureUrl = `data:text/html;charset=utf-8,${encodeURIComponent(`
+  <!doctype html>
+  <html lang="en">
+    <head>
+      <meta charset="utf-8" />
+      <meta name="viewport" content="width=device-width, initial-scale=1" />
+      <title>Cozy Watch couldn't load</title>
+      <style>
+        body {
+          align-items: center;
+          background: #f8f7ff;
+          color: #27233a;
+          display: flex;
+          font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+          justify-content: center;
+          margin: 0;
+          min-height: 100vh;
+        }
+        main {
+          max-width: 420px;
+          padding: 32px;
+          text-align: center;
+        }
+        h1 { font-size: 24px; margin: 0 0 12px; }
+        p { color: #625d77; line-height: 1.5; margin: 0; }
+      </style>
+    </head>
+    <body>
+      <main>
+        <h1>Cozy Watch couldn't load</h1>
+        <p>Quit Cozy Watch and open it again. If the problem continues, send the main log to support.</p>
+      </main>
+    </body>
+  </html>
+`)}`;
 
 const getTrustedWebContents = () =>
   [mainWindow?.webContents, menubar?.window?.webContents].filter(
@@ -172,7 +218,90 @@ export const createWindow = () => {
     icon: path.join(__dirname, "images", "icon.png"),
   });
 
-  protectWebContents(mainWindow.webContents, getRendererUrl());
+  protectWebContents(mainWindow.webContents, [
+    getRendererUrl(),
+    rendererFailureUrl,
+  ]);
+
+  let hasShownRendererFailure = false;
+  const showRendererFailure = () => {
+    const currentWindow = mainWindow;
+    if (hasShownRendererFailure || !currentWindow || currentWindow.isDestroyed()) {
+      return;
+    }
+
+    hasShownRendererFailure = true;
+    void currentWindow.loadURL(rendererFailureUrl).catch((error) => {
+      log.error("[Window] failed to show renderer failure page", {
+        message: error instanceof Error ? error.message : "Unknown error",
+      });
+    });
+  };
+
+  mainWindow.webContents.on(
+    "did-fail-load",
+    (_event, errorCode, errorDescription, validatedUrl, isMainFrame) => {
+      if (!isMainFrame || errorCode === -3) {
+        return;
+      }
+
+      log.error("[Window] renderer failed to load", {
+        errorCode,
+        errorDescription: redactDiagnosticValue(errorDescription),
+        url: redactDiagnosticValue(validatedUrl),
+      });
+      showRendererFailure();
+    },
+  );
+
+  mainWindow.webContents.on(
+    "render-process-gone",
+    (_event, details) => {
+      log.error("[Window] renderer process exited", {
+        exitCode: details.exitCode,
+        reason: details.reason,
+      });
+      showRendererFailure();
+    },
+  );
+
+  mainWindow.webContents.on("console-message", (_event, level, message, line, sourceId) => {
+    if (level < 2) {
+      return;
+    }
+
+    log.error("[Renderer] console error", {
+      level,
+      line,
+      message: redactDiagnosticValue(message),
+      sourceId: redactDiagnosticValue(sourceId),
+    });
+  });
+
+  mainWindow.on("unresponsive", () => {
+    log.warn("[Window] renderer became unresponsive");
+  });
+
+  mainWindow.on("responsive", () => {
+    log.info("[Window] renderer became responsive");
+  });
+
+  mainWindow.webContents.once("did-finish-load", () => {
+    const loadedUrl = mainWindow?.webContents.getURL() ?? "";
+    const loadedExpectedRenderer = isAllowedRendererUrl(
+      loadedUrl,
+      getRendererUrl(),
+    );
+
+    log.info("[Window] renderer finished loading", {
+      expectedRenderer: loadedExpectedRenderer,
+      url: redactDiagnosticValue(loadedUrl),
+    });
+
+    if (isReleaseSmokeTest && loadedExpectedRenderer) {
+      process.stdout.write(`${RELEASE_SMOKE_READY_MARKER}\n`);
+    }
+  });
 
   if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
     mainWindow.loadURL(MAIN_WINDOW_VITE_DEV_SERVER_URL);
