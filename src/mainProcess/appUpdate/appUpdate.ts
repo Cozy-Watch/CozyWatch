@@ -16,7 +16,7 @@ export const appUpdate = () => {
     updateInterval: "1 hour",
     updateSource: {
       type: UpdateSourceType.ElectronPublicUpdateService,
-      repo: "Cozy-Watch/publicCozyWatch",
+      repo: "Cozy-Watch/CozyWatch",
     },
   });
 };

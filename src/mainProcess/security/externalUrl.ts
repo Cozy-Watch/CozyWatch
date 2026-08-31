@@ -1,6 +1,7 @@
 import { shell } from "electron";
 import type { WebContents } from "electron";
 import log from "electron-log/main";
+import { redactDiagnosticValue } from "./redactDiagnosticValue";
 
 const ALLOWED_EXTERNAL_HOSTS = new Set([
   "cozywatch.com",
@@ -66,6 +67,10 @@ export const isAllowedRendererUrl = (url: string, rendererUrl: string) => {
       );
     }
 
+    if (allowedUrl.protocol === "data:") {
+      return targetUrl.toString() === allowedUrl.toString();
+    }
+
     return targetUrl.origin === allowedUrl.origin;
   } catch {
     return false;
@@ -74,11 +79,17 @@ export const isAllowedRendererUrl = (url: string, rendererUrl: string) => {
 
 export const protectWebContents = (
   webContents: WebContents,
-  rendererUrl: string,
+  rendererUrl: string | readonly string[],
 ) => {
+  const allowedRendererUrls = Array.isArray(rendererUrl)
+    ? rendererUrl
+    : [rendererUrl];
+
   const preventUnexpectedNavigation = (event: Electron.Event, url: string) => {
-    if (!isAllowedRendererUrl(url, rendererUrl)) {
-      log.warn("[Security] blocked navigation", { url });
+    if (!allowedRendererUrls.some((allowedUrl) => isAllowedRendererUrl(url, allowedUrl))) {
+      log.warn("[Security] blocked navigation", {
+        url: redactDiagnosticValue(url),
+      });
       event.preventDefault();
     }
   };
