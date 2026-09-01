@@ -38,6 +38,10 @@ npm run package     # Create an unpacked packaged application
 npm run make        # Build distributable artifacts
 ```
 
+## macOS release candidates and diagnostics
+
+Manually dispatching the **Release macOS** workflow produces a signed release-candidate artifact with performance diagnostics enabled. It records bounded, redacted startup milestones, renderer responsiveness, GitHub polling durations, and process CPU/memory metrics from launch until exit. In **Settings**, select **Export diagnostics** to save a JSON support bundle; standard production releases do not enable this collection.
+
 Before opening a pull request, run the same checks as CI from a clean dependency tree:
 
 ```sh
@@ -71,6 +75,8 @@ Dependencies may have their own license terms. Review the relevant package licen
 ## Security
 
 Please report suspected vulnerabilities privately. The reporting process and local credential-handling notes are in [SECURITY.md](SECURITY.md).
+
+For this public repository, enable GitHub Secret Scanning, push protection, validity checks, and Dependabot security updates in repository settings. Organization owners should also periodically run GitHub's Secret Risk Assessment and rotate or revoke every credential it identifies.
 
 ## Contributing
 

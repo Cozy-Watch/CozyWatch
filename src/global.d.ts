@@ -22,6 +22,7 @@ type AuthenticationCode = {
 
 declare global {
   const __COZYWATCH_OFFICIAL_BUILD__: boolean;
+  const __COZYWATCH_DIAGNOSTICS_BUILD__: boolean;
 
   interface Window {
     electronAPI: {
@@ -63,6 +64,10 @@ declare global {
         setStartAtLogin: (isOpenAtLogin: boolean) => Promise<boolean>;
 
         refreshPoll: () => void;
+
+        getDiagnosticsStatus: () => Promise<{ enabled: boolean }>;
+        exportDiagnosticsBundle: () => Promise<{ saved: boolean }>;
+        reportRendererReady: () => Promise<void>;
 
         navigateToRoute: (route: "settings" | "signIn") => void;
         onNavigateToRoute: (

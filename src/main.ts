@@ -34,6 +34,7 @@ import { getUser } from "./mainProcess/api/User/getUser";
 import { appUpdate } from "./mainProcess/appUpdate/appUpdate";
 import { createMenu } from "./mainProcess/menu/menu";
 import { createMenubar } from "./mainProcess/menubar/menubar";
+import { performanceDiagnostics } from "./mainProcess/diagnostics/diagnostics";
 import { getNotificationsSettings } from "./mainProcess/notifications/getNotificationSettings";
 import { setNotificationSettings } from "./mainProcess/notifications/setNotificationSettings";
 import {
@@ -57,10 +58,16 @@ import { redactDiagnosticValue } from "./mainProcess/security/redactDiagnosticVa
 const RELEASE_SMOKE_READY_MARKER = "COZYWATCH_RELEASE_SMOKE_RENDERER_READY";
 const isReleaseSmokeTest =
   process.env.COZYWATCH_RELEASE_SMOKE_TEST === "true";
+const diagnostics = performanceDiagnostics;
 
 log.info("[App] starting", {
   architecture: process.arch,
   packaged: app.isPackaged,
+  platform: process.platform,
+  version: app.getVersion(),
+});
+diagnostics.record("app-start", {
+  architecture: process.arch,
   platform: process.platform,
   version: app.getVersion(),
 });
@@ -192,6 +199,7 @@ if (started) {
 
 export const createWindow = () => {
   log.info("[Window] creating");
+  diagnostics.record("main-window-creating");
 
   // Show dock icon on macOS for the main app
   if (process.platform === "darwin") {
@@ -222,6 +230,7 @@ export const createWindow = () => {
     getRendererUrl(),
     rendererFailureUrl,
   ]);
+  diagnostics.attachWebContents(mainWindow.webContents, "main-window");
 
   let hasShownRendererFailure = false;
   const showRendererFailure = () => {
@@ -297,6 +306,9 @@ export const createWindow = () => {
       expectedRenderer: loadedExpectedRenderer,
       url: redactDiagnosticValue(loadedUrl),
     });
+    diagnostics.record("main-window-finished-load", {
+      expectedRenderer: loadedExpectedRenderer,
+    });
 
     if (isReleaseSmokeTest && loadedExpectedRenderer) {
       process.stdout.write(`${RELEASE_SMOKE_READY_MARKER}\n`);
@@ -318,11 +330,13 @@ export const createWindow = () => {
 
   if (isDevelopment) {
     mainWindow.once("ready-to-show", () => {
+      diagnostics.record("main-window-ready-to-show");
       mainWindow?.webContents.openDevTools();
     });
   } else {
     // For production, ensure it shows on ready-to-show
     mainWindow.once("ready-to-show", () => {
+      diagnostics.record("main-window-ready-to-show");
       mainWindow?.show();
     });
   }
@@ -344,6 +358,8 @@ app.on("did-become-active", () => {
 
 app.whenReady().then(async () => {
   log.info("[App] ready");
+  diagnostics.record("app-ready");
+  diagnostics.startMetricsCollection();
   log.info("[App] check for updated and notify");
 
   // Set Content Security Policy
@@ -381,6 +397,9 @@ app.whenReady().then(async () => {
 
   createWindow();
   menubar = createMenubar();
+  if (menubar?.window) {
+    diagnostics.attachWebContents(menubar.window.webContents, "menubar");
+  }
 
   // Delay polling until authenticated
   startPolling(); // Remove or condition this
@@ -767,6 +786,18 @@ handleRendererInvoke("get-application-refresh-pool", () => {
   return refreshPoll();
 });
 
+handleRendererInvoke("diagnostics-get-status", () => ({
+  enabled: diagnostics.isEnabled(),
+}));
+
+handleRendererInvoke("diagnostics-export-bundle", () =>
+  diagnostics.exportBundle(mainWindow),
+);
+
+handleRendererInvoke("diagnostics-renderer-ready", () => {
+  diagnostics.record("renderer-first-paint");
+});
+
 handleRendererInvoke("on-application-navigate-to-route", (_, route) => {
   if (route !== "settings" && route !== "signIn") {
     throw new Error("Invalid navigation route.");
@@ -798,5 +829,7 @@ handleRendererInvoke("on-application-navigate-to-route", (_, route) => {
 
 app.on("before-quit", () => {
   log.info("[App] stopping polling before quit");
+  diagnostics.record("app-before-quit");
+  diagnostics.stopMetricsCollection();
   stopPolling();
 });

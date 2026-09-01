@@ -103,6 +103,12 @@ contextBridge.exposeInMainWorld("electronAPI", {
       return ipcRenderer.invoke("get-application-refresh-pool");
     },
 
+    getDiagnosticsStatus: (): Promise<{ enabled: boolean }> =>
+      ipcRenderer.invoke("diagnostics-get-status"),
+    exportDiagnosticsBundle: (): Promise<{ saved: boolean }> =>
+      ipcRenderer.invoke("diagnostics-export-bundle"),
+    reportRendererReady: () => ipcRenderer.invoke("diagnostics-renderer-ready"),
+
     navigateToRoute: (route: "settings" | "signIn") => {
       return ipcRenderer.invoke("on-application-navigate-to-route", route);
     },
