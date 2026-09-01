@@ -25,21 +25,26 @@ const getPollErrorDetails = (error: unknown): PollError => {
 };
 
 const poll = async () => {
-  const startedAt = performance.now();
+  const diagnosticsEnabled = performanceDiagnostics.isEnabled();
+  const startedAt = diagnosticsEnabled ? performance.now() : 0;
   try {
     await getPullRequests();
-    performanceDiagnostics.record("github-poll-completed", {
-      durationMs: performance.now() - startedAt,
-    });
+    if (diagnosticsEnabled) {
+      performanceDiagnostics.record("github-poll-completed", {
+        durationMs: performance.now() - startedAt,
+      });
+    }
     scheduleNextPoll(POLLING_INTERVAL);
   } catch (error: unknown) {
-    performanceDiagnostics.record("github-poll-failed", {
-      durationMs: performance.now() - startedAt,
-      error:
-        error instanceof Error
-          ? error.message
-          : "Unknown GitHub polling error",
-    });
+    if (diagnosticsEnabled) {
+      performanceDiagnostics.record("github-poll-failed", {
+        durationMs: performance.now() - startedAt,
+        error:
+          error instanceof Error
+            ? error.message
+            : "Unknown GitHub polling error",
+      });
+    }
     const err = getPollErrorDetails(error);
     if (
       err.status === 401 ||

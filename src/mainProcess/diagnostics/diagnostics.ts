@@ -98,6 +98,10 @@ export class PerformanceDiagnostics {
       return { saved: false };
     }
 
+    this.record("diagnostic-bundle-exported", {
+      eventCount: this.events.length + 1,
+    });
+
     await writeFile(
       filePath,
       `${JSON.stringify(
@@ -116,9 +120,6 @@ export class PerformanceDiagnostics {
       )}\n`,
       "utf8",
     );
-    this.record("diagnostic-bundle-exported", {
-      eventCount: this.events.length,
-    });
     return { saved: true };
   };
 
