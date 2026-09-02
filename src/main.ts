@@ -42,7 +42,12 @@ import {
   startPolling,
   stopPolling,
 } from "./mainProcess/polling/pollGithub";
-import { getData, storeData } from "./mainProcess/safeStorage/safeStorage";
+import {
+  disableDerivedCacheWrites,
+  enableDerivedCacheWrites,
+  getData,
+  storeData,
+} from "./mainProcess/safeStorage/safeStorage";
 import {
   Appearance,
   NOTIFICATION_KEYS,
@@ -81,6 +86,10 @@ process.on("unhandledRejection", (reason) => {
 
 let mainWindow: BrowserWindow | null = null;
 let menubar: Menubar | undefined | null = null;
+let backgroundTasksStarted = false;
+let backgroundTasksInitialization: Promise<void> | null = null;
+let licenseValidationStarted = false;
+let rendererReady = false;
 const isDevelopment = !app.isPackaged;
 
 const getRendererUrl = () =>
@@ -188,6 +197,56 @@ const isNotificationSetting = (
     typeof key === "string" &&
     NOTIFICATION_KEY_SET.has(key)
   );
+};
+
+const startBackgroundTasks = () => {
+  if (!rendererReady) {
+    return;
+  }
+
+  if (!licenseValidationStarted) {
+    licenseValidationStarted = true;
+    void validateLicense().catch((error) => {
+      log.error("[License] validation failed", error);
+    });
+  }
+
+  if (backgroundTasksStarted || backgroundTasksInitialization) {
+    return;
+  }
+
+  diagnostics.record("background-tasks-checking-authentication");
+  backgroundTasksInitialization = hasLocalAccessToken()
+    .then((isAuthenticated) => {
+      if (!isAuthenticated) {
+        diagnostics.record("background-tasks-ready", {
+          authenticated: false,
+        });
+        return;
+      }
+
+      startAuthenticatedBackgroundTasks();
+    })
+    .catch((error) => {
+      log.error("[App] failed to initialize authenticated background tasks", {
+        message: error instanceof Error ? error.message : "Unknown error",
+      });
+    })
+    .finally(() => {
+      backgroundTasksInitialization = null;
+    });
+};
+
+const startAuthenticatedBackgroundTasks = () => {
+  if (!rendererReady || backgroundTasksStarted) {
+    return;
+  }
+  backgroundTasksStarted = true;
+  void getRepositories().catch((error) => {
+    log.error("[Repositories] background refresh failed", error);
+  });
+  startPolling();
+  diagnostics.record("background-tasks-ready", { authenticated: true });
 };
 
 appUpdate();
@@ -356,7 +415,7 @@ app.on("did-become-active", () => {
   app.setBadgeCount(0);
 });
 
-app.whenReady().then(async () => {
+app.whenReady().then(() => {
   log.info("[App] ready");
   diagnostics.record("app-ready");
   diagnostics.startMetricsCollection();
@@ -383,27 +442,11 @@ app.whenReady().then(async () => {
   );
   session.defaultSession.setPermissionCheckHandler(() => false);
 
-  // Only fetch repos if authenticated
-  if (await hasLocalAccessToken()) {
-    getRepositories();
-  }
-
-  // Defer license validation to background
-  setTimeout(() => {
-    validateLicense().catch((err) => {
-      log.error("[License] validation failed", err);
-    });
-  }, 0);
-
   createWindow();
   menubar = createMenubar();
   if (menubar?.window) {
     diagnostics.attachWebContents(menubar.window.webContents, "menubar");
   }
-
-  // Delay polling until authenticated
-  startPolling(); // Remove or condition this
-  log.info("[Polling] started (deferred)");
 
   mainWindow?.webContents.once("did-finish-load", () => {
     if (isDevelopment) {
@@ -454,10 +497,16 @@ export const performSignOut = async () => {
   log.info("[IPC] performSignOut");
 
   stopPolling();
-  return signOut();
+  disableDerivedCacheWrites();
+  const signedOut = await signOut();
+  if (!signedOut) {
+    enableDerivedCacheWrites();
+    startPolling();
+  }
+  return signedOut;
 };
 
-handleRendererInvoke("on-application-sign-user", (_, isSignIn: unknown) => {
+handleRendererInvoke("on-application-sign-user", async (_, isSignIn: unknown) => {
   if (typeof isSignIn !== "boolean") {
     throw new Error("Invalid sign-in state.");
   }
@@ -465,7 +514,11 @@ handleRendererInvoke("on-application-sign-user", (_, isSignIn: unknown) => {
   log.info("[IPC] on-application-sign-user", isSignIn);
 
   if (isSignIn === false) {
-    performSignOut();
+    const signedOut = await performSignOut();
+    if (!signedOut) {
+      throw new Error("Failed to sign out. Local credentials were not removed.");
+    }
+    return;
   }
 
   ipcMain.emit("dispatch-application-sign-user", null, isSignIn);
@@ -481,6 +534,10 @@ ipcMain.on("dispatch-application-sign-user", (_, isSignIn) => {
 
   if (menubar?.window && !menubar.window.isDestroyed()) {
     menubar.window.webContents.send("sign-user", isSignIn);
+  }
+
+  if (isSignIn === true) {
+    startAuthenticatedBackgroundTasks();
   }
 });
 
@@ -796,6 +853,8 @@ handleRendererInvoke("diagnostics-export-bundle", () =>
 
 handleRendererInvoke("diagnostics-renderer-ready", () => {
   diagnostics.record("renderer-first-paint");
+  rendererReady = true;
+  startBackgroundTasks();
 });
 
 handleRendererInvoke("on-application-navigate-to-route", (_, route) => {

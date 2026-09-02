@@ -21,7 +21,7 @@ This policy covers the source code and official Cozy Watch application releases 
 
 ## Credential and local-data notes
 
-Cozy Watch communicates with GitHub and, for license operations, Lemon Squeezy. Packaged and development builds encrypt stored credentials with Electron's `safeStorage`; development builds use a separate encrypted storage file. The application refuses to save credentials when operating-system encryption is unavailable.
+Cozy Watch communicates with GitHub and, for license operations, Lemon Squeezy. Packaged and development builds encrypt stored credentials and local GitHub caches with Electron's `safeStorage`; development builds use separate storage files. Persistent files live under Electron's operating-system-specific user-data directory. The application refuses to save credentials when operating-system encryption is unavailable.
 
 Before sharing diagnostic logs or screenshots, inspect them for account identifiers, repository names, URLs, tokens, license information, or other sensitive data. Signing out and removing the app's local data are separate actions; revoke GitHub credentials through GitHub if you believe a token may have been exposed.
 

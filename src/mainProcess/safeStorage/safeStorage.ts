@@ -1,68 +1,284 @@
 import { app, safeStorage } from "electron";
-import fs from "fs";
-import path from "path";
-import os from "os";
 import log from "electron-log";
+import { readFile, stat } from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
+import { APP_NAME } from "../keys";
+import { performanceDiagnostics } from "../diagnostics/diagnostics";
+import { AtomicFileWriter } from "./atomicFileWriter";
 import {
+  type EncryptedStorageObject,
+  getActiveRepositories,
+  isDerivedCacheKey,
+  parseEncryptedStorage,
+  withoutDerivedCaches,
+} from "./storageMigration";
+import { decodeStorageValue, encodeStorageValue } from "./storageEncoding";
+import type {
   StoreDataMap,
   StoreDataName,
   StoreDataParams,
 } from "./safeStorage.types";
-import { APP_NAME } from "../keys";
 
 const isDevelopment = !app.isPackaged;
-
-const STORAGE_DIR = path.join(os.homedir(), `.${APP_NAME}`);
-const STORAGE_PATH = path.join(
-  STORAGE_DIR,
+const PRIMARY_STORAGE_FILE = isDevelopment
+  ? "dev-secure-storage.json"
+  : "secure-storage.json";
+const CACHE_FILES = {
+  pull_requests_cache: isDevelopment
+    ? "dev-pull-requests-cache.json"
+    : "pull-requests-cache.json",
+  repositories_cache: isDevelopment
+    ? "dev-repositories-cache.json"
+    : "repositories-cache.json",
+} as const;
+const LEGACY_STORAGE_PATH = path.join(
+  os.homedir(),
+  `.${APP_NAME}`,
   `${isDevelopment ? "dev-" : ""}storage.json`,
 );
 
-type StorageObject = {
-  [key in StoreDataName]?: string;
-};
+let primaryStoragePromise: Promise<EncryptedStorageObject> | null = null;
+let derivedCacheWriteGeneration = 0;
+let derivedCacheWritesEnabled = true;
+const cacheStoragePromises = new Map<
+  "pull_requests_cache" | "repositories_cache",
+  Promise<EncryptedStorageObject>
+>();
+const atomicFileWriter = new AtomicFileWriter();
+const storageMutationQueues = new Map<string, Promise<void>>();
 
-const ensureStoragePathExists = () => {
-  fs.mkdirSync(STORAGE_DIR, { recursive: true, mode: 0o700 });
-  fs.chmodSync(STORAGE_DIR, 0o700);
-};
+const getStorageDirectory = () => path.join(app.getPath("userData"), "storage");
+const getPrimaryStoragePath = () =>
+  path.join(getStorageDirectory(), PRIMARY_STORAGE_FILE);
+const getCacheStoragePath = (
+  name: "pull_requests_cache" | "repositories_cache",
+) => path.join(getStorageDirectory(), CACHE_FILES[name]);
 
-const readStorage = (): StorageObject => {
-  const start = Date.now();
-  ensureStoragePathExists();
-
-  if (!fs.existsSync(STORAGE_PATH)) {
-    fs.writeFileSync(
-      STORAGE_PATH,
-      JSON.stringify({ access_token: "" }),
-      "utf-8",
-    );
-    fs.chmodSync(STORAGE_PATH, 0o600);
-    log.info(
-      `[Storage] readStorage duration: ${Date.now() - start}ms (created new file)`,
-    );
-    return {};
-  }
-
-  fs.chmodSync(STORAGE_PATH, 0o600);
-  const data = fs.readFileSync(STORAGE_PATH, "utf-8");
+const pathExists = async (filePath: string) => {
   try {
-    const parsed = JSON.parse(data);
-    log.info(`[Storage] readStorage duration: ${Date.now() - start}ms`);
-    return parsed;
-  } catch (e) {
-    log.error("[Storage] storage.json is corrupted or invalid JSON:", e);
-    // Optionally, backup and recreate the file here
-    return {};
+    await stat(filePath);
+    return true;
+  } catch (error) {
+    if (
+      typeof error === "object" &&
+      error !== null &&
+      "code" in error &&
+      error.code === "ENOENT"
+    ) {
+      return false;
+    }
+    throw error;
   }
 };
 
-const writeStorage = (data: string) => {
-  const start = Date.now();
-  ensureStoragePathExists();
-  fs.writeFileSync(STORAGE_PATH, data, { encoding: "utf-8", mode: 0o600 });
-  fs.chmodSync(STORAGE_PATH, 0o600);
-  log.info(`[Storage] writeStorage duration: ${Date.now() - start}ms`);
+const parseStorage = (
+  contents: string,
+  filePath: string,
+): EncryptedStorageObject => {
+  try {
+    return parseEncryptedStorage(contents);
+  } catch {
+    throw new Error(`Invalid storage object in ${path.basename(filePath)}.`);
+  }
+};
+
+const readStorageFile = async (
+  filePath: string,
+  tolerateCorruption: boolean,
+): Promise<EncryptedStorageObject> => {
+  const startedAt = performance.now();
+  try {
+    const contents = await readFile(filePath, "utf8");
+    const storage = parseStorage(contents, filePath);
+    performanceDiagnostics.record("storage-file-loaded", {
+      durationMs: performance.now() - startedAt,
+      file: path.basename(filePath),
+      sizeBytes: Buffer.byteLength(contents),
+    });
+    return storage;
+  } catch (error) {
+    if (
+      typeof error === "object" &&
+      error !== null &&
+      "code" in error &&
+      error.code === "ENOENT"
+    ) {
+      return {};
+    }
+    if (tolerateCorruption) {
+      log.warn("[Storage] Ignoring invalid derived cache; it will be rebuilt", {
+        file: path.basename(filePath),
+        message: error instanceof Error ? error.message : "Unknown error",
+      });
+      return {};
+    }
+    throw error;
+  }
+};
+
+const writeStorageFile = async (
+  filePath: string,
+  storage: EncryptedStorageObject,
+) => {
+  const snapshot = JSON.stringify(storage);
+  const startedAt = performance.now();
+  await atomicFileWriter.write(filePath, snapshot);
+  performanceDiagnostics.record("storage-file-written", {
+    durationMs: performance.now() - startedAt,
+    file: path.basename(filePath),
+    sizeBytes: Buffer.byteLength(snapshot),
+  });
+};
+
+const mutateStorageFile = async <Result>(
+  filePath: string,
+  storage: EncryptedStorageObject,
+  mutate: (draft: EncryptedStorageObject) => Result,
+): Promise<Result> => {
+  const previousMutation =
+    storageMutationQueues.get(filePath) ?? Promise.resolve();
+  let result: Result;
+  const nextMutation = previousMutation
+    .catch(() => undefined)
+    .then(async () => {
+      const draft = { ...storage };
+      result = mutate(draft);
+      await writeStorageFile(filePath, draft);
+      for (const key of Object.keys(storage)) {
+        delete storage[key as StoreDataName];
+      }
+      Object.assign(storage, draft);
+    });
+  storageMutationQueues.set(filePath, nextMutation);
+  try {
+    await nextMutation;
+    return result!;
+  } finally {
+    if (storageMutationQueues.get(filePath) === nextMutation) {
+      storageMutationQueues.delete(filePath);
+    }
+  }
+};
+
+const waitForStorageMutations = async (filePath: string) => {
+  const pendingMutation = storageMutationQueues.get(filePath);
+  if (pendingMutation) {
+    await pendingMutation;
+  }
+};
+
+const migrateLegacyStorage = async (): Promise<EncryptedStorageObject> => {
+  const primaryPath = getPrimaryStoragePath();
+  if (await pathExists(primaryPath)) {
+    return readStorageFile(primaryPath, false);
+  }
+
+  if (!(await pathExists(LEGACY_STORAGE_PATH))) {
+    await writeStorageFile(primaryPath, {});
+    return {};
+  }
+
+  const startedAt = performance.now();
+  const legacyStorage = await readStorageFile(LEGACY_STORAGE_PATH, false);
+  const migratedStorage = withoutDerivedCaches(legacyStorage);
+  const encryptedRepositoryCache = legacyStorage.repositories_cache;
+  if (encryptedRepositoryCache) {
+    try {
+      let serializedRepositoryCache: string;
+      try {
+        serializedRepositoryCache = safeStorage.decryptString(
+          Buffer.from(encryptedRepositoryCache, "base64"),
+        );
+      } catch (error) {
+        if (!isDevelopment) {
+          throw error;
+        }
+        serializedRepositoryCache = encryptedRepositoryCache;
+      }
+      const activeRepositories = getActiveRepositories(
+        JSON.parse(serializedRepositoryCache),
+      );
+      if (activeRepositories) {
+        migratedStorage.active_repositories = safeStorage
+          .encryptString(JSON.stringify(activeRepositories))
+          .toString("base64");
+      }
+    } catch (error) {
+      log.warn(
+        "[Storage] Could not preserve active repository selections during migration",
+        {
+          message: error instanceof Error ? error.message : "Unknown error",
+        },
+      );
+    }
+  }
+  await writeStorageFile(primaryPath, migratedStorage);
+  await writeStorageFile(LEGACY_STORAGE_PATH, migratedStorage).catch((error) => {
+    log.warn("[Storage] Could not update the legacy storage backup", {
+      message: error instanceof Error ? error.message : "Unknown error",
+    });
+  });
+  performanceDiagnostics.record("storage-migration-completed", {
+    discardedCacheCount:
+      Object.keys(legacyStorage).length - Object.keys(migratedStorage).length,
+    durationMs: performance.now() - startedAt,
+    preservedValueCount: Object.keys(migratedStorage).length,
+  });
+  return migratedStorage;
+};
+
+const getPrimaryStorage = () => {
+  primaryStoragePromise ??= migrateLegacyStorage().catch((error) => {
+    primaryStoragePromise = null;
+    throw error;
+  });
+  return primaryStoragePromise;
+};
+
+const getCacheStorage = (
+  name: "pull_requests_cache" | "repositories_cache",
+) => {
+  const existing = cacheStoragePromises.get(name);
+  if (existing) {
+    return existing;
+  }
+  const storagePromise = readStorageFile(getCacheStoragePath(name), true).catch(
+    (error) => {
+      cacheStoragePromises.delete(name);
+      throw error;
+    },
+  );
+  cacheStoragePromises.set(name, storagePromise);
+  return storagePromise;
+};
+
+const getStorageForName = async (name: StoreDataName) => {
+  if (isDerivedCacheKey(name)) {
+    return {
+      filePath: getCacheStoragePath(name),
+      storage: await getCacheStorage(name),
+    };
+  }
+  return {
+    filePath: getPrimaryStoragePath(),
+    storage: await getPrimaryStorage(),
+  };
+};
+
+const assertEncryptionAvailable = () => {
+  if (!safeStorage.isEncryptionAvailable()) {
+    throw new Error("OS-backed encryption is not available.");
+  }
+};
+
+export const disableDerivedCacheWrites = () => {
+  derivedCacheWritesEnabled = false;
+  derivedCacheWriteGeneration += 1;
+};
+
+export const enableDerivedCacheWrites = () => {
+  derivedCacheWritesEnabled = true;
 };
 
 export const storeData = async <T extends keyof StoreDataMap>({
@@ -71,56 +287,52 @@ export const storeData = async <T extends keyof StoreDataMap>({
 }: StoreDataParams<T>): Promise<boolean> => {
   try {
     await app.whenReady();
-
-    if (!safeStorage.isEncryptionAvailable()) {
-      log.error("Encryption is not available on this system.");
+    assertEncryptionAvailable();
+    const isDerivedCache = isDerivedCacheKey(name);
+    const writeGeneration = derivedCacheWriteGeneration;
+    if (isDerivedCache && !derivedCacheWritesEnabled) {
       return false;
     }
-
-    const start = Date.now();
-
-    const dataToSave = JSON.stringify(data);
+    const startedAt = performance.now();
+    const valueToEncrypt = await encodeStorageValue(data, isDerivedCache);
     const encryptedData = safeStorage
-      .encryptString(dataToSave)
+      .encryptString(valueToEncrypt)
       .toString("base64");
-
-    const fileStorage = readStorage();
-    const storage = { ...fileStorage, [name]: encryptedData };
-    writeStorage(JSON.stringify(storage));
-
-    log.info(`[Storage] storeData ${name} duration: ${Date.now() - start}ms`);
+    const { filePath, storage } = await getStorageForName(name);
+    if (
+      isDerivedCache &&
+      (!derivedCacheWritesEnabled ||
+        writeGeneration !== derivedCacheWriteGeneration)
+    ) {
+      return false;
+    }
+    await mutateStorageFile(filePath, storage, (draft) => {
+      draft[name] = encryptedData;
+    });
+    log.info(`[Storage] storeData ${name} duration: ${Math.round(performance.now() - startedAt)}ms`);
     return true;
-  } catch (err) {
-    log.error(`Failed to store ${name}:`, err);
+  } catch (error) {
+    log.error(`Failed to store ${name}:`, error);
     return false;
   }
 };
 
 export const getData = async <T extends StoreDataName>(
-  name: T
+  name: T,
 ): Promise<StoreDataMap[T] | null> => {
   try {
     await app.whenReady();
-
-    if (!safeStorage.isEncryptionAvailable()) {
-      log.error("Encryption is not available on this system.");
-      return null;
-    }
-
-    const start = Date.now();
-
-    const storage = readStorage();
+    assertEncryptionAvailable();
+    const startedAt = performance.now();
+    const { filePath, storage } = await getStorageForName(name);
+    await waitForStorageMutations(filePath);
     const encryptedBase64 = storage[name];
-
     if (!encryptedBase64) {
-      log.warn(
-        `[Storage] No data found for key: ${name} (duration: ${Date.now() - start}ms)`,
-      );
+      log.warn(`[Storage] No data found for key: ${name}`);
       return null;
     }
-
+    const decryptStartedAt = performance.now();
     let decryptedData: string;
-
     try {
       decryptedData = safeStorage.decryptString(
         Buffer.from(encryptedBase64, "base64"),
@@ -129,63 +341,90 @@ export const getData = async <T extends StoreDataName>(
       if (!isDevelopment) {
         throw error;
       }
-
-      // Development builds used to store serialized values as plaintext.
-      // Validate and immediately replace a legacy value with encrypted data.
       JSON.parse(encryptedBase64);
       decryptedData = encryptedBase64;
-      storage[name] = safeStorage
+      const migratedValue = safeStorage
         .encryptString(decryptedData)
         .toString("base64");
-      writeStorage(JSON.stringify(storage));
+      const filePath = isDerivedCacheKey(name)
+        ? getCacheStoragePath(name)
+        : getPrimaryStoragePath();
+      await mutateStorageFile(filePath, storage, (draft) => {
+        draft[name] = migratedValue;
+      });
       log.info(`[Storage] migrated legacy development value for ${name}`);
     }
-
-    log.info(`[Storage] getData ${name} duration: ${Date.now() - start}ms`);
-    return JSON.parse(decryptedData);
-  } catch (err) {
-    log.error(`Failed to get ${name}:`, err);
+    performanceDiagnostics.record("storage-value-decrypted", {
+      durationMs: performance.now() - decryptStartedAt,
+      name,
+      sizeBytes: Buffer.byteLength(decryptedData),
+    });
+    const decodeStartedAt = performance.now();
+    const value = await decodeStorageValue<StoreDataMap[T]>(decryptedData);
+    performanceDiagnostics.record("storage-value-decoded", {
+      durationMs: performance.now() - decodeStartedAt,
+      name,
+    });
+    log.info(`[Storage] getData ${name} duration: ${Math.round(performance.now() - startedAt)}ms`);
+    return value;
+  } catch (error) {
+    log.error(`Failed to get ${name}:`, error);
     return null;
   }
 };
 
-export const deleteData = async (name: StoreDataName) => {
-  try {
-    const start = Date.now();
-    const storage = readStorage();
-
-    if (storage[name]) {
-      delete storage[name];
-      writeStorage(JSON.stringify(storage));
-      log.info(
-        `[Storage] deleteData ${name} duration: ${Date.now() - start}ms`,
-      );
-      return true;
-    } else {
-      log.warn(
-        `[Storage] No data found for key: ${name} (duration: ${Date.now() - start}ms)`,
-      );
+export const deleteDataOrThrow = async (name: StoreDataName) => {
+  await app.whenReady();
+  const { filePath, storage } = await getStorageForName(name);
+  return mutateStorageFile(filePath, storage, (draft) => {
+    if (!draft[name]) {
+      log.warn(`[Storage] No data found for key: ${name}`);
       return false;
     }
-  } catch (err) {
-    log.error("Failed to delete data:", err);
+    delete draft[name];
+    return true;
+  });
+};
+
+export const deleteData = async (name: StoreDataName) => {
+  try {
+    return await deleteDataOrThrow(name);
+  } catch (error) {
+    log.error(`Failed to delete ${name}:`, error);
     return false;
   }
 };
 
 export const deleteAllData = async () => {
   try {
-    const start = Date.now();
-    const storage = readStorage();
-
-    await Promise.all(
-      (Object.keys(storage) as StoreDataName[]).map((name) => deleteData(name))
+    await app.whenReady();
+    const primaryStorage = await getPrimaryStorage();
+    await mutateStorageFile(
+      getPrimaryStoragePath(),
+      primaryStorage,
+      (draft) => {
+        for (const key of Object.keys(draft)) {
+          delete draft[key as StoreDataName];
+        }
+      },
     );
-
-    log.info(`[Storage] deleteAllData duration: ${Date.now() - start}ms`);
+    await Promise.all(
+      (["pull_requests_cache", "repositories_cache"] as const).map(
+        async (name) => {
+          const storage = await getCacheStorage(name);
+          await mutateStorageFile(
+            getCacheStoragePath(name),
+            storage,
+            (draft) => {
+              delete draft[name];
+            },
+          );
+        },
+      ),
+    );
     return true;
-  } catch (err) {
-    log.error("Failed to delete all data:", err);
+  } catch (error) {
+    log.error("Failed to delete all data:", error);
     return false;
   }
 };

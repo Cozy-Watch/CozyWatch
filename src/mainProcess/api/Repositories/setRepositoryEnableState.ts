@@ -22,8 +22,6 @@ export const setRepositoryEnableState = async (
     activeRepositories,
   };
 
-  setLocalCache(data);
-
   const flatPullRequests = Object.values(
     pullRequestsCache.pullRequestsPerRepo || {}
   )
@@ -44,9 +42,17 @@ export const setRepositoryEnableState = async (
     flatPullRequests,
   };
 
+  const selectionSaved = await storeData({
+    name: "active_repositories",
+    data: activeRepositories,
+  });
+  if (!selectionSaved) {
+    throw new Error("Failed to save active repository selections.");
+  }
+
+  setLocalCache(data);
   ipcMain.emit("dispatch-pull-request-update", null, pullRequestsData);
 
-  storeData({ name: "pull_requests_cache", data: pullRequestsData });
-
-  storeData({ name: "repositories_cache", data });
+  void storeData({ name: "pull_requests_cache", data: pullRequestsData });
+  void storeData({ name: "repositories_cache", data });
 };

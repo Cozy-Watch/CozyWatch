@@ -99,7 +99,7 @@ export class PerformanceDiagnostics {
     }
 
     this.record("diagnostic-bundle-exported", {
-      eventCount: this.events.length + 1,
+      eventCount: Math.min(this.events.length + 1, MAX_DIAGNOSTIC_EVENTS),
     });
 
     await writeFile(

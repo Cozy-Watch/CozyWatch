@@ -24,13 +24,24 @@ export const getCachedData = async (): Promise<Required<RepositoriesCache>> => {
     };
   }
 
-  const storageCache = await getData("repositories_cache");
+  const [storageCache, activeRepositories] = await Promise.all([
+    getData("repositories_cache"),
+    getData("active_repositories"),
+  ]);
 
   if (storageCache) {
     Logger.log("[Repositories] using storageCache");
     return {
       ...defaultData,
       ...storageCache,
+      ...(activeRepositories ? { activeRepositories } : {}),
+    };
+  }
+
+  if (activeRepositories) {
+    return {
+      ...defaultData,
+      activeRepositories,
     };
   }
 
