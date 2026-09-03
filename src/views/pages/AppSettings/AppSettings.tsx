@@ -43,6 +43,9 @@ export const AppSettings = () => {
   );
   const [isLicenseActionPending, setIsLicenseActionPending] = useState(false);
   const [diagnosticsEnabled, setDiagnosticsEnabled] = useState(false);
+  const [diagnosticsStatusError, setDiagnosticsStatusError] = useState<
+    string | null
+  >(null);
   const [diagnosticsError, setDiagnosticsError] = useState<string | null>(null);
   const [isExportingDiagnostics, setIsExportingDiagnostics] = useState(false);
 
@@ -74,9 +77,17 @@ export const AppSettings = () => {
   useEffect(() => {
     void window.electronAPI.application
       .getDiagnosticsStatus()
-      .then(({ enabled }) => setDiagnosticsEnabled(enabled))
+      .then(({ enabled }) => {
+        setDiagnosticsEnabled(enabled);
+        setDiagnosticsStatusError(null);
+      })
       .catch((error) => {
         Logger.error("[AppSettings] Failed to load diagnostics status", { error });
+        setDiagnosticsStatusError(
+          error instanceof Error
+            ? error.message
+            : "Unable to load diagnostics status. Please try again.",
+        );
       });
   }, []);
 
@@ -264,7 +275,7 @@ export const AppSettings = () => {
           </Card>
         </Grid>
 
-        {diagnosticsEnabled && (
+        {(diagnosticsEnabled || diagnosticsStatusError) && (
           <Card className="accent-shadow-low">
             <Flex align="center" justify="between" gap="3">
               <Flex direction="column" gap="1">
@@ -273,6 +284,11 @@ export const AppSettings = () => {
                   Export redacted startup, responsiveness, and resource metrics
                   for support.
                 </Text>
+                {diagnosticsStatusError && (
+                  <Text size="2" color="red">
+                    {diagnosticsStatusError}
+                  </Text>
+                )}
                 {diagnosticsError && (
                   <Text size="2" color="red">
                     {diagnosticsError}

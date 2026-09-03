@@ -416,7 +416,9 @@ export const deleteAllData = async () => {
             getCacheStoragePath(name),
             storage,
             (draft) => {
-              delete draft[name];
+              for (const key of Object.keys(draft)) {
+                delete draft[key as StoreDataName];
+              }
             },
           );
         },
