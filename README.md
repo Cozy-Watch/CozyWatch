@@ -1,6 +1,10 @@
 # Cozy Watch
 
+[Visit Cozy Watch](https://www.cozywatch.com)
+
 Cozy Watch is a desktop companion for GitHub. It keeps an eye on the pull requests, reviews, checks, and mentions that matter to you and brings useful updates to your desktop and menu bar.
+
+![Cozy Watch desktop app and menu-bar notification](docs/images/cozy-watch-desktop-light.png)
 
 ## Features
 
