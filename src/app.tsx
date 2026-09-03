@@ -25,4 +25,9 @@ requestAnimationFrame(() => {
     (performance.now() - start).toFixed(0),
     "ms"
   );
+  requestAnimationFrame(() => {
+    void window.electronAPI.application.reportRendererReady().catch((error) => {
+      log.warn("[Startup] Failed to report renderer readiness", { error });
+    });
+  });
 });

@@ -1,7 +1,11 @@
 import { app, ipcMain } from "electron";
 import { Octokit as OctokitCore } from "@octokit/rest";
 import { throttling } from "@octokit/plugin-throttling";
-import { deleteData, getData } from "../safeStorage/safeStorage";
+import {
+  deleteData,
+  deleteDataOrThrow,
+  getData,
+} from "../safeStorage/safeStorage";
 import { AuthType } from "../safeStorage/safeStorage.types";
 import Logger from "electron-log";
 
@@ -223,14 +227,18 @@ export const createGithubClient = async () => {
 export const signOut = async () => {
   try {
     Logger.info("[Octokit] Signing out...");
-    deleteData("access_token");
-    deleteData("pull_requests_cache");
-    deleteData("repositories_cache");
-    deleteData("user");
+    await Promise.all([
+      deleteDataOrThrow("active_repositories"),
+      deleteDataOrThrow("auth_type"),
+      deleteDataOrThrow("pull_requests_cache"),
+      deleteDataOrThrow("repositories_cache"),
+      deleteDataOrThrow("user"),
+    ]);
+    await deleteDataOrThrow("access_token");
 
+    octokitInstance = null;
     app.relaunch();
     app.exit();
-    octokitInstance = null;
     Logger.info("[Octokit] Sign out completed, instance reset");
     return true;
   } catch (error) {

@@ -1,7 +1,7 @@
 import type { Endpoints } from "@octokit/types";
 import { ipcMain } from "electron";
 import Logger from "electron-log";
-import { storeData } from "../../../safeStorage/safeStorage";
+import { getData, storeData } from "../../../safeStorage/safeStorage";
 import {
   RepositoriesCache,
   Repository,
@@ -106,12 +106,15 @@ export const repositoriesQuery = async (): Promise<RepositoriesCache> => {
 
   const allRepos: Repository[] = Object.values(repositoriesByPage).flat();
 
-  const activeRepos: Record<number, boolean> = allRepos.reduce((acc, repo) => {
-    return {
+  const latestActiveRepositories =
+    (await getData("active_repositories")) ?? activeRepositories;
+  const activeRepos: Record<number, boolean> = allRepos.reduce(
+    (acc, repo) => ({
       ...acc,
-      [repo.id]: activeRepositories[repo.id] ?? false,
-    };
-  }, {});
+      [repo.id]: latestActiveRepositories[repo.id] ?? false,
+    }),
+    { ...latestActiveRepositories },
+  );
 
   const data = {
     activeRepositories: activeRepos,
@@ -120,7 +123,7 @@ export const repositoriesQuery = async (): Promise<RepositoriesCache> => {
   };
 
   setLocalCache(data);
-  storeData({ name: "repositories_cache", data });
+  void storeData({ name: "repositories_cache", data });
 
   ipcMain.emit("dispatch-repository-update", null, data);
 

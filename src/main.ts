@@ -34,6 +34,7 @@ import { getUser } from "./mainProcess/api/User/getUser";
 import { appUpdate } from "./mainProcess/appUpdate/appUpdate";
 import { createMenu } from "./mainProcess/menu/menu";
 import { createMenubar } from "./mainProcess/menubar/menubar";
+import { performanceDiagnostics } from "./mainProcess/diagnostics/diagnostics";
 import { getNotificationsSettings } from "./mainProcess/notifications/getNotificationSettings";
 import { setNotificationSettings } from "./mainProcess/notifications/setNotificationSettings";
 import {
@@ -41,7 +42,12 @@ import {
   startPolling,
   stopPolling,
 } from "./mainProcess/polling/pollGithub";
-import { getData, storeData } from "./mainProcess/safeStorage/safeStorage";
+import {
+  disableDerivedCacheWrites,
+  enableDerivedCacheWrites,
+  getData,
+  storeData,
+} from "./mainProcess/safeStorage/safeStorage";
 import {
   Appearance,
   NOTIFICATION_KEYS,
@@ -57,10 +63,16 @@ import { redactDiagnosticValue } from "./mainProcess/security/redactDiagnosticVa
 const RELEASE_SMOKE_READY_MARKER = "COZYWATCH_RELEASE_SMOKE_RENDERER_READY";
 const isReleaseSmokeTest =
   process.env.COZYWATCH_RELEASE_SMOKE_TEST === "true";
+const diagnostics = performanceDiagnostics;
 
 log.info("[App] starting", {
   architecture: process.arch,
   packaged: app.isPackaged,
+  platform: process.platform,
+  version: app.getVersion(),
+});
+diagnostics.record("app-start", {
+  architecture: process.arch,
   platform: process.platform,
   version: app.getVersion(),
 });
@@ -74,6 +86,10 @@ process.on("unhandledRejection", (reason) => {
 
 let mainWindow: BrowserWindow | null = null;
 let menubar: Menubar | undefined | null = null;
+let backgroundTasksStarted = false;
+let backgroundTasksInitialization: Promise<void> | null = null;
+let licenseValidationStarted = false;
+let rendererReady = false;
 const isDevelopment = !app.isPackaged;
 
 const getRendererUrl = () =>
@@ -183,6 +199,56 @@ const isNotificationSetting = (
   );
 };
 
+const startBackgroundTasks = () => {
+  if (!rendererReady) {
+    return;
+  }
+
+  if (!licenseValidationStarted) {
+    licenseValidationStarted = true;
+    void validateLicense().catch((error) => {
+      log.error("[License] validation failed", error);
+    });
+  }
+
+  if (backgroundTasksStarted || backgroundTasksInitialization) {
+    return;
+  }
+
+  diagnostics.record("background-tasks-checking-authentication");
+  backgroundTasksInitialization = hasLocalAccessToken()
+    .then((isAuthenticated) => {
+      if (!isAuthenticated) {
+        diagnostics.record("background-tasks-ready", {
+          authenticated: false,
+        });
+        return;
+      }
+
+      startAuthenticatedBackgroundTasks();
+    })
+    .catch((error) => {
+      log.error("[App] failed to initialize authenticated background tasks", {
+        message: error instanceof Error ? error.message : "Unknown error",
+      });
+    })
+    .finally(() => {
+      backgroundTasksInitialization = null;
+    });
+};
+
+const startAuthenticatedBackgroundTasks = () => {
+  if (!rendererReady || backgroundTasksStarted) {
+    return;
+  }
+  backgroundTasksStarted = true;
+  void getRepositories().catch((error) => {
+    log.error("[Repositories] background refresh failed", error);
+  });
+  startPolling();
+  diagnostics.record("background-tasks-ready", { authenticated: true });
+};
+
 appUpdate();
 
 if (started) {
@@ -192,6 +258,7 @@ if (started) {
 
 export const createWindow = () => {
   log.info("[Window] creating");
+  diagnostics.record("main-window-creating");
 
   // Show dock icon on macOS for the main app
   if (process.platform === "darwin") {
@@ -222,6 +289,7 @@ export const createWindow = () => {
     getRendererUrl(),
     rendererFailureUrl,
   ]);
+  diagnostics.attachWebContents(mainWindow.webContents, "main-window");
 
   let hasShownRendererFailure = false;
   const showRendererFailure = () => {
@@ -297,6 +365,9 @@ export const createWindow = () => {
       expectedRenderer: loadedExpectedRenderer,
       url: redactDiagnosticValue(loadedUrl),
     });
+    diagnostics.record("main-window-finished-load", {
+      expectedRenderer: loadedExpectedRenderer,
+    });
 
     if (isReleaseSmokeTest && loadedExpectedRenderer) {
       process.stdout.write(`${RELEASE_SMOKE_READY_MARKER}\n`);
@@ -318,11 +389,13 @@ export const createWindow = () => {
 
   if (isDevelopment) {
     mainWindow.once("ready-to-show", () => {
+      diagnostics.record("main-window-ready-to-show");
       mainWindow?.webContents.openDevTools();
     });
   } else {
     // For production, ensure it shows on ready-to-show
     mainWindow.once("ready-to-show", () => {
+      diagnostics.record("main-window-ready-to-show");
       mainWindow?.show();
     });
   }
@@ -342,8 +415,10 @@ app.on("did-become-active", () => {
   app.setBadgeCount(0);
 });
 
-app.whenReady().then(async () => {
+app.whenReady().then(() => {
   log.info("[App] ready");
+  diagnostics.record("app-ready");
+  diagnostics.startMetricsCollection();
   log.info("[App] check for updated and notify");
 
   // Set Content Security Policy
@@ -367,24 +442,11 @@ app.whenReady().then(async () => {
   );
   session.defaultSession.setPermissionCheckHandler(() => false);
 
-  // Only fetch repos if authenticated
-  if (await hasLocalAccessToken()) {
-    getRepositories();
-  }
-
-  // Defer license validation to background
-  setTimeout(() => {
-    validateLicense().catch((err) => {
-      log.error("[License] validation failed", err);
-    });
-  }, 0);
-
   createWindow();
   menubar = createMenubar();
-
-  // Delay polling until authenticated
-  startPolling(); // Remove or condition this
-  log.info("[Polling] started (deferred)");
+  if (menubar?.window) {
+    diagnostics.attachWebContents(menubar.window.webContents, "menubar");
+  }
 
   mainWindow?.webContents.once("did-finish-load", () => {
     if (isDevelopment) {
@@ -435,10 +497,16 @@ export const performSignOut = async () => {
   log.info("[IPC] performSignOut");
 
   stopPolling();
-  return signOut();
+  disableDerivedCacheWrites();
+  const signedOut = await signOut();
+  if (!signedOut) {
+    enableDerivedCacheWrites();
+    startPolling();
+  }
+  return signedOut;
 };
 
-handleRendererInvoke("on-application-sign-user", (_, isSignIn: unknown) => {
+handleRendererInvoke("on-application-sign-user", async (_, isSignIn: unknown) => {
   if (typeof isSignIn !== "boolean") {
     throw new Error("Invalid sign-in state.");
   }
@@ -446,7 +514,11 @@ handleRendererInvoke("on-application-sign-user", (_, isSignIn: unknown) => {
   log.info("[IPC] on-application-sign-user", isSignIn);
 
   if (isSignIn === false) {
-    performSignOut();
+    const signedOut = await performSignOut();
+    if (!signedOut) {
+      throw new Error("Failed to sign out. Local credentials were not removed.");
+    }
+    return;
   }
 
   ipcMain.emit("dispatch-application-sign-user", null, isSignIn);
@@ -462,6 +534,10 @@ ipcMain.on("dispatch-application-sign-user", (_, isSignIn) => {
 
   if (menubar?.window && !menubar.window.isDestroyed()) {
     menubar.window.webContents.send("sign-user", isSignIn);
+  }
+
+  if (isSignIn === true) {
+    startAuthenticatedBackgroundTasks();
   }
 });
 
@@ -767,6 +843,20 @@ handleRendererInvoke("get-application-refresh-pool", () => {
   return refreshPoll();
 });
 
+handleRendererInvoke("diagnostics-get-status", () => ({
+  enabled: diagnostics.isEnabled(),
+}));
+
+handleRendererInvoke("diagnostics-export-bundle", () =>
+  diagnostics.exportBundle(mainWindow),
+);
+
+handleRendererInvoke("diagnostics-renderer-ready", () => {
+  diagnostics.record("renderer-first-paint");
+  rendererReady = true;
+  startBackgroundTasks();
+});
+
 handleRendererInvoke("on-application-navigate-to-route", (_, route) => {
   if (route !== "settings" && route !== "signIn") {
     throw new Error("Invalid navigation route.");
@@ -798,5 +888,7 @@ handleRendererInvoke("on-application-navigate-to-route", (_, route) => {
 
 app.on("before-quit", () => {
   log.info("[App] stopping polling before quit");
+  diagnostics.record("app-before-quit");
+  diagnostics.stopMetricsCollection();
   stopPolling();
 });

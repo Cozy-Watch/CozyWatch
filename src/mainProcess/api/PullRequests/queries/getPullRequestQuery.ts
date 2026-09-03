@@ -686,7 +686,7 @@ export const pullRequestQuery = async (): Promise<PullRequestQueryResult> => {
     flatPullRequests,
   };
 
-  storeData({ name: "pull_requests_cache", data });
+  void storeData({ name: "pull_requests_cache", data });
 
   setLocalCache(data);
 

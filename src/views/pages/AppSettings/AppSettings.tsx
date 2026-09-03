@@ -12,7 +12,7 @@ import {
 import Logger from "electron-log";
 import { useNavigate, useRouter } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Appearance } from "../../../state/appState";
 import { LicenseModal } from "../../components/LicenseModal/LicenseModal";
 import { LicenseStatusCard } from "../../components/LicenseStatus/LicenseStatusCard";
@@ -42,6 +42,12 @@ export const AppSettings = () => {
     null,
   );
   const [isLicenseActionPending, setIsLicenseActionPending] = useState(false);
+  const [diagnosticsEnabled, setDiagnosticsEnabled] = useState(false);
+  const [diagnosticsStatusError, setDiagnosticsStatusError] = useState<
+    string | null
+  >(null);
+  const [diagnosticsError, setDiagnosticsError] = useState<string | null>(null);
+  const [isExportingDiagnostics, setIsExportingDiagnostics] = useState(false);
 
   const { data: licenseState, isPending: isLicenseStatusPending } =
     useLicenseStatusQuery();
@@ -67,6 +73,23 @@ export const AppSettings = () => {
   const router = useRouter();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+
+  useEffect(() => {
+    void window.electronAPI.application
+      .getDiagnosticsStatus()
+      .then(({ enabled }) => {
+        setDiagnosticsEnabled(enabled);
+        setDiagnosticsStatusError(null);
+      })
+      .catch((error) => {
+        Logger.error("[AppSettings] Failed to load diagnostics status", { error });
+        setDiagnosticsStatusError(
+          error instanceof Error
+            ? error.message
+            : "Unable to load diagnostics status. Please try again.",
+        );
+      });
+  }, []);
 
   const runLicenseAction = async (action: () => Promise<unknown>) => {
     setLicenseActionError(null);
@@ -94,6 +117,23 @@ export const AppSettings = () => {
       navigate({ to: "/" });
     } catch (error) {
       Logger.error("[AppSettings] Error signing out", { error });
+    }
+  };
+
+  const exportDiagnostics = async () => {
+    setDiagnosticsError(null);
+    setIsExportingDiagnostics(true);
+
+    try {
+      await window.electronAPI.application.exportDiagnosticsBundle();
+    } catch (error) {
+      setDiagnosticsError(
+        error instanceof Error
+          ? error.message
+          : "Unable to export diagnostics. Please try again.",
+      );
+    } finally {
+      setIsExportingDiagnostics(false);
     }
   };
 
@@ -234,6 +274,37 @@ export const AppSettings = () => {
             </Flex>
           </Card>
         </Grid>
+
+        {(diagnosticsEnabled || diagnosticsStatusError) && (
+          <Card className="accent-shadow-low">
+            <Flex align="center" justify="between" gap="3">
+              <Flex direction="column" gap="1">
+                <Text weight="medium">Performance diagnostics</Text>
+                <Text size="2" color="gray">
+                  Export redacted startup, responsiveness, and resource metrics
+                  for support.
+                </Text>
+                {diagnosticsStatusError && (
+                  <Text size="2" color="red">
+                    {diagnosticsStatusError}
+                  </Text>
+                )}
+                {diagnosticsError && (
+                  <Text size="2" color="red">
+                    {diagnosticsError}
+                  </Text>
+                )}
+              </Flex>
+              <Button
+                variant="outline"
+                onClick={() => void exportDiagnostics()}
+                disabled={isExportingDiagnostics}
+              >
+                {isExportingDiagnostics ? "Exporting..." : "Export diagnostics"}
+              </Button>
+            </Flex>
+          </Card>
+        )}
 
         <Card
           className="accent-shadow-low"
