@@ -9,7 +9,7 @@ export const PendingReviews = () => {
   const { error, data, isFetching } = usePendingReviews();
   const location = useLocation();
 
-  if (isFetching) {
+  if (isFetching && !data) {
     return <LoadingPage />;
   }
 

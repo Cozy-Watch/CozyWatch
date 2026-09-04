@@ -11,6 +11,11 @@ export const SYNTHETIC_USER_ID = 7;
 export const SYNTHETIC_USERNAME = "synthetic-user";
 
 type PullRequestContract = {
+  base: {
+    repo: {
+      name: string;
+    };
+  };
   id: number;
   number: number;
   html_url: string;
@@ -66,6 +71,11 @@ const createPullRequest = ({
   requestedReviewerIds?: number[];
 }) => {
   const pullRequest = {
+    base: {
+      repo: {
+        name: SYNTHETIC_REPOSITORY_NAME,
+      },
+    },
     id,
     number,
     html_url: `https://github.com/synthetic-org/${SYNTHETIC_REPOSITORY_NAME}/pull/${number}`,

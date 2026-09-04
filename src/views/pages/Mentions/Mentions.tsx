@@ -9,7 +9,7 @@ export const Mentions = () => {
   const { error, data, isFetching } = useMentions();
   const location = useLocation();
 
-  if (isFetching) {
+  if (isFetching && !data) {
     return <LoadingPage />;
   }
 
