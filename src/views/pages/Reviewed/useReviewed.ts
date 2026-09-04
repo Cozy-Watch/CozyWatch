@@ -5,6 +5,10 @@ import { usePullRequestQuery } from "../../api/usePullRequestQuery";
 import { useLocation } from "@tanstack/react-router";
 import { useRepositoriesQuery } from "../../api/useRepositoriesQuery";
 import { getReviewsGroupedByUser } from "../../hooks/utils/getReviewsGroupedByUser";
+import {
+  getRelevantTeamPullRequests,
+  isMyPullRequest,
+} from "../../hooks/utils/getRelevantTeamPullRequests";
 
 export const useReviewed = () => {
   const headerQueryInfo = useUserQuery();
@@ -23,7 +27,12 @@ export const useReviewed = () => {
       return null;
     }
 
-    const { flatPullRequests, reviewPerRepoPerPullNumber, actionsPerRepo } =
+    const {
+      flatPullRequests,
+      mentions,
+      reviewPerRepoPerPullNumber,
+      actionsPerRepo,
+    } =
       pullRequestesQueryInfo.data;
 
     const { activeRepositories } = repositoriesQueryInfo.data || {};
@@ -32,23 +41,20 @@ export const useReviewed = () => {
       return activeRepositories ? activeRepositories[pr.base.repo.id] : true;
     });
 
-    const pullsList = activeFlatPullRequests
-      .filter(
-        (pr) => pr.requested_reviewers && pr.requested_reviewers.length === 0,
-      )
-      .filter((pr) => {
-        if (isMy) {
-          return (
-            pr?.user?.id === headerQueryInfo.data.id ||
-            pr?.assignees?.some(({ id }) => id === headerQueryInfo.data.id)
-          );
-        }
-
-        return pr?.user?.id !== headerQueryInfo.data.id;
-      });
-
     const reviews = reviewPerRepoPerPullNumber;
     const actionsList = actionsPerRepo;
+    const pullsList = isMy
+      ? activeFlatPullRequests.filter(
+          (pr) =>
+            (pr.requested_reviewers?.length ?? 0) === 0 &&
+            isMyPullRequest(pr, headerQueryInfo.data.id),
+        )
+      : getRelevantTeamPullRequests({
+          comments: mentions,
+          pullRequests: activeFlatPullRequests,
+          reviews,
+          user: headerQueryInfo.data,
+        });
 
     const pullRequeststData = pullsList
       .filter((pr) => {

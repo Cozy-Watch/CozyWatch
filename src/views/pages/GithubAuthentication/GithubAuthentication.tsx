@@ -199,7 +199,7 @@ export const GithubAuthentication = () => {
               <Callout.Root variant="outline" color="gray">
                 <Box width="200px">
                   <Callout.Text weight="bold" size="2">
-                    Classic Token Permissions:
+                    Classic PAT scopes:
                   </Callout.Text>
 
                   <Flex direction="column" gap="1" mt="2">
@@ -211,6 +211,10 @@ export const GithubAuthentication = () => {
                       read:org
                     </Text>
                   </Flex>
+                  <Text size="1" mt="3">
+                    Create an expiring token and revoke it at any time from
+                    GitHub. Cozy Watch stores it securely on this Mac.
+                  </Text>
                 </Box>
               </Callout.Root>
             </Flex>
@@ -316,7 +320,9 @@ export const GithubAuthentication = () => {
                   Authenticate using GitHub PAT
                 </Button>
 
-                <Text size="1">Ideal for private repositories</Text>
+                <Text size="1">
+                  For private repositories you can access
+                </Text>
               </Flex>
             </Card>
 
@@ -335,7 +341,10 @@ export const GithubAuthentication = () => {
                   Authenticate using GitHub App
                 </Button>
 
-                <Text size="1">Ideal for organisation repositories</Text>
+                <Text size="1">
+                  For organization repositories where the app is installed
+                  and granted access
+                </Text>
               </Flex>
             </Card>
           </Flex>

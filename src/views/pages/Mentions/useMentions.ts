@@ -5,6 +5,10 @@ import { usePullRequestQuery } from "../../api/usePullRequestQuery";
 import { useRepositoriesQuery } from "../../api/useRepositoriesQuery";
 import { useLocation } from "@tanstack/react-router";
 import { getReviewsGroupedByUser } from "../../hooks/utils/getReviewsGroupedByUser";
+import {
+  getRelevantTeamPullRequests,
+  isMyPullRequest,
+} from "../../hooks/utils/getRelevantTeamPullRequests";
 
 export const useMentions = () => {
   const headerQueryInfo = useHeader();
@@ -24,6 +28,11 @@ export const useMentions = () => {
       return null;
     }
 
+    const { id: userId, login: username } = headerQueryInfo.data;
+    if (userId === undefined || !username) {
+      return null;
+    }
+
     const {
       flatPullRequests,
       reviewPerRepoPerPullNumber,
@@ -37,18 +46,16 @@ export const useMentions = () => {
       return activeRepositories ? activeRepositories[pr.base.repo.id] : true;
     });
 
-    const pullsList = activeFlatPullRequests.filter((pr) => {
-      if (isMy) {
-        return (
-          pr?.user?.id === headerQueryInfo.data.id ||
-          pr?.assignees?.some(({ id }) => id === headerQueryInfo.data.id)
-        );
-      }
-
-      return pr?.user?.id !== headerQueryInfo.data.id;
-    });
-
-    const username = headerQueryInfo.data.login;
+    const pullsList = isMy
+      ? activeFlatPullRequests.filter((pr) =>
+          isMyPullRequest(pr, userId),
+        )
+      : getRelevantTeamPullRequests({
+          comments: mentions,
+          pullRequests: activeFlatPullRequests,
+          reviews: reviewPerRepoPerPullNumber,
+          user: { id: userId, login: username },
+        });
 
     const myPullRequests = pullsList.filter((pr) => {
       const prMentions = Object.values(
