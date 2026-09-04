@@ -334,7 +334,7 @@ export const createWindow = () => {
   );
 
   mainWindow.webContents.on("console-message", (_event, level, message, line, sourceId) => {
-    if (level < 2) {
+    if (level < 2 || sourceId.includes("electron-log")) {
       return;
     }
 
