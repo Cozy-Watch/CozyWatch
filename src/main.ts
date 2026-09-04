@@ -499,7 +499,10 @@ export const performSignOut = async () => {
   stopPolling();
   disableDerivedCacheWrites();
   const signedOut = await signOut();
-  if (!signedOut) {
+  if (signedOut) {
+    backgroundTasksStarted = false;
+    ipcMain.emit("dispatch-application-sign-user", null, false);
+  } else {
     enableDerivedCacheWrites();
     startPolling();
   }
@@ -537,6 +540,7 @@ ipcMain.on("dispatch-application-sign-user", (_, isSignIn) => {
   }
 
   if (isSignIn === true) {
+    enableDerivedCacheWrites();
     startAuthenticatedBackgroundTasks();
   }
 });
