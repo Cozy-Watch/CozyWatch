@@ -1,10 +1,4 @@
-import {
-  app,
-  BrowserWindow,
-  clipboard,
-  ipcMain,
-  session,
-} from "electron";
+import { app, BrowserWindow, clipboard, ipcMain, session } from "electron";
 import type { IpcMainInvokeEvent, WebContents } from "electron";
 import log from "electron-log/main";
 import started from "electron-squirrel-startup";
@@ -31,6 +25,7 @@ import { getPullRequests } from "./mainProcess/api/PullRequests/getPullRequests"
 import { getRepositories } from "./mainProcess/api/Repositories/getRepositories";
 import { setRepositoryEnableState } from "./mainProcess/api/Repositories/setRepositoryEnableState";
 import { getUser } from "./mainProcess/api/User/getUser";
+import { getPersonalWeeklyRecap } from "./mainProcess/api/WeeklyRecap/personalWeeklyRecap";
 import { appUpdate } from "./mainProcess/appUpdate/appUpdate";
 import { createMenu } from "./mainProcess/menu/menu";
 import { createMenubar } from "./mainProcess/menubar/menubar";
@@ -61,8 +56,7 @@ import {
 import { redactDiagnosticValue } from "./mainProcess/security/redactDiagnosticValue";
 
 const RELEASE_SMOKE_READY_MARKER = "COZYWATCH_RELEASE_SMOKE_RENDERER_READY";
-const isReleaseSmokeTest =
-  process.env.COZYWATCH_RELEASE_SMOKE_TEST === "true";
+const isReleaseSmokeTest = process.env.COZYWATCH_RELEASE_SMOKE_TEST === "true";
 const diagnostics = performanceDiagnostics;
 
 log.info("[App] starting", {
@@ -95,10 +89,7 @@ const isDevelopment = !app.isPackaged;
 const getRendererUrl = () =>
   MAIN_WINDOW_VITE_DEV_SERVER_URL ??
   pathToFileURL(
-    path.join(
-      __dirname,
-      `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`,
-    ),
+    path.join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`),
   ).toString();
 
 const rendererFailureUrl = `data:text/html;charset=utf-8,${encodeURIComponent(`
@@ -294,7 +285,11 @@ export const createWindow = () => {
   let hasShownRendererFailure = false;
   const showRendererFailure = () => {
     const currentWindow = mainWindow;
-    if (hasShownRendererFailure || !currentWindow || currentWindow.isDestroyed()) {
+    if (
+      hasShownRendererFailure ||
+      !currentWindow ||
+      currentWindow.isDestroyed()
+    ) {
       return;
     }
 
@@ -322,29 +317,29 @@ export const createWindow = () => {
     },
   );
 
+  mainWindow.webContents.on("render-process-gone", (_event, details) => {
+    log.error("[Window] renderer process exited", {
+      exitCode: details.exitCode,
+      reason: details.reason,
+    });
+    showRendererFailure();
+  });
+
   mainWindow.webContents.on(
-    "render-process-gone",
-    (_event, details) => {
-      log.error("[Window] renderer process exited", {
-        exitCode: details.exitCode,
-        reason: details.reason,
+    "console-message",
+    (_event, level, message, line, sourceId) => {
+      if (level < 2) {
+        return;
+      }
+
+      log.error("[Renderer] console error", {
+        level,
+        line,
+        message: redactDiagnosticValue(message),
+        sourceId: redactDiagnosticValue(sourceId),
       });
-      showRendererFailure();
     },
   );
-
-  mainWindow.webContents.on("console-message", (_event, level, message, line, sourceId) => {
-    if (level < 2) {
-      return;
-    }
-
-    log.error("[Renderer] console error", {
-      level,
-      line,
-      message: redactDiagnosticValue(message),
-      sourceId: redactDiagnosticValue(sourceId),
-    });
-  });
 
   mainWindow.on("unresponsive", () => {
     log.warn("[Window] renderer became unresponsive");
@@ -429,7 +424,7 @@ app.whenReady().then(() => {
         "Content-Security-Policy": [
           isDevelopment
             ? // Development CSP - allows Vite dev server and hot reload
-              "default-src 'self' 'unsafe-inline' 'unsafe-eval' ws: http://localhost:* http://127.0.0.1:*; script-src 'self' 'unsafe-inline' 'unsafe-eval' http://localhost:* http://127.0.0.1:*; connect-src 'self' ws: http://localhost:* http://127.0.0.1:* https://api.github.com https://api.lemonsqueezy.com; img-src 'self' data: https:; style-src 'self' 'unsafe-inline';"
+              "default-src 'self' 'unsafe-inline' 'unsafe-eval' ws: http://localhost:* http://127.0.0.1:*; script-src 'self' 'unsafe-inline' 'unsafe-eval' http://localhost:* http://127.0.0.1:*; worker-src 'self' blob:; connect-src 'self' ws: http://localhost:* http://127.0.0.1:* https://api.github.com https://api.lemonsquee.com; img-src 'self' data: https:; style-src 'self' 'unsafe-inline';"
             : // Production CSP - more restrictive
               "default-src 'self'; script-src 'self'; connect-src 'self' https://api.github.com https://api.lemonsqueezy.com; img-src 'self' data: https:; style-src 'self' 'unsafe-inline'; font-src 'self';",
         ],
@@ -506,23 +501,28 @@ export const performSignOut = async () => {
   return signedOut;
 };
 
-handleRendererInvoke("on-application-sign-user", async (_, isSignIn: unknown) => {
-  if (typeof isSignIn !== "boolean") {
-    throw new Error("Invalid sign-in state.");
-  }
-
-  log.info("[IPC] on-application-sign-user", isSignIn);
-
-  if (isSignIn === false) {
-    const signedOut = await performSignOut();
-    if (!signedOut) {
-      throw new Error("Failed to sign out. Local credentials were not removed.");
+handleRendererInvoke(
+  "on-application-sign-user",
+  async (_, isSignIn: unknown) => {
+    if (typeof isSignIn !== "boolean") {
+      throw new Error("Invalid sign-in state.");
     }
-    return;
-  }
 
-  ipcMain.emit("dispatch-application-sign-user", null, isSignIn);
-});
+    log.info("[IPC] on-application-sign-user", isSignIn);
+
+    if (isSignIn === false) {
+      const signedOut = await performSignOut();
+      if (!signedOut) {
+        throw new Error(
+          "Failed to sign out. Local credentials were not removed.",
+        );
+      }
+      return;
+    }
+
+    ipcMain.emit("dispatch-application-sign-user", null, isSignIn);
+  },
+);
 
 ipcMain.on("dispatch-application-sign-user", (_, isSignIn) => {
   log.info("[IPC] dispatch-application-sign-user");
@@ -553,6 +553,15 @@ handleRendererInvoke("copy-to-clipboard", (_, text: unknown) => {
 
   log.info("[IPC] copy-to-clipboard", { textLength: text.length });
   clipboard.writeText(text);
+});
+
+handleRendererInvoke("weekly-recap-personal", async (_, weekStart: unknown) => {
+  if (typeof weekStart !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(weekStart)) {
+    throw new Error("Invalid weekly recap week.");
+  }
+
+  log.info("[IPC] weekly-recap-personal");
+  return getPersonalWeeklyRecap(weekStart);
 });
 
 // Authentication
@@ -643,14 +652,17 @@ handleRendererInvoke("repositories-query", async () => {
   return getRepositories();
 });
 
-handleRendererInvoke("repository-set-enable-state", async (_, data: unknown) => {
-  if (!isRepositoryEnableState(data)) {
-    throw new Error("Invalid repository enable state.");
-  }
+handleRendererInvoke(
+  "repository-set-enable-state",
+  async (_, data: unknown) => {
+    if (!isRepositoryEnableState(data)) {
+      throw new Error("Invalid repository enable state.");
+    }
 
-  log.info("[IPC] repository-set-enable-state");
-  return setRepositoryEnableState(data);
-});
+    log.info("[IPC] repository-set-enable-state");
+    return setRepositoryEnableState(data);
+  },
+);
 
 ipcMain.on("dispatch-repository-update", (_, data) => {
   log.info("[IPC] repository-update");
@@ -771,23 +783,29 @@ handleRendererInvoke("get-application-notification", async () => {
   return getNotificationsSettings();
 });
 
-handleRendererInvoke("set-application-toggle-notification", async (_, enable) => {
-  if (typeof enable !== "boolean") {
-    throw new Error("Invalid notification setting.");
-  }
+handleRendererInvoke(
+  "set-application-toggle-notification",
+  async (_, enable) => {
+    if (typeof enable !== "boolean") {
+      throw new Error("Invalid notification setting.");
+    }
 
-  log.info("[IPC] set-application-notification");
-  return setToggleAllNotifications(enable);
-});
+    log.info("[IPC] set-application-notification");
+    return setToggleAllNotifications(enable);
+  },
+);
 
-handleRendererInvoke("set-application-notification", async (_, notificationKey) => {
-  if (!isNotificationSetting(notificationKey)) {
-    throw new Error("Invalid notification setting.");
-  }
+handleRendererInvoke(
+  "set-application-notification",
+  async (_, notificationKey) => {
+    if (!isNotificationSetting(notificationKey)) {
+      throw new Error("Invalid notification setting.");
+    }
 
-  log.info("[IPC] set-application-notification");
-  return setNotificationSettings(notificationKey);
-});
+    log.info("[IPC] set-application-notification");
+    return setNotificationSettings(notificationKey);
+  },
+);
 
 handleRendererInvoke("get-application-start-at-login", async () => {
   log.info("[IPC] get-application-start-at-login");
