@@ -84,7 +84,7 @@
     "marked": "^18.0.5",
     "menubar": "^9.5.2",
     "motion": "^12.40.0",
-    "p-limit": "^7.3.0",
+    "p-limit": "^7.3.2",
     "react": "^19.2.7",
     "react-confetti": "^6.4.0",
     "react-dom": "^19.2.7",
