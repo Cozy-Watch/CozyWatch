@@ -20,7 +20,6 @@ const searchCount = async (query: string) => {
       q: query,
       per_page: PER_PAGE,
       page,
-      advanced_search: "true",
       headers: { "x-operation-name": OPERATION },
     });
 

@@ -35,7 +35,7 @@ const momentum = ({
     return "Steady vs last week";
   }
   if (previousMergedCount === 0) {
-    return mergedCount === 0 ? "Steady vs last week" : "First merges this month";
+    return mergedCount === 0 ? "Steady vs last week" : `+${mergedCount} vs last week`;
   }
   const delta = mergedCount - previousMergedCount;
   return delta > 0
