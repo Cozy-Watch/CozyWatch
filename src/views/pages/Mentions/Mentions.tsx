@@ -58,7 +58,7 @@ export const Mentions = () => {
           color="bronze"
           className="bright-background-text-shadow"
         >
-          {isMy ? "My Pull Requests" : "Team Pull Requests"}
+          {isMy ? "My Pull Requests" : "Relevant Pull Requests"}
         </Badge>
 
         <Heading

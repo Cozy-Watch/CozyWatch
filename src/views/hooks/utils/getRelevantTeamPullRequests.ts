@@ -51,16 +51,20 @@ export const getRelevantTeamPullRequests = ({
       return true;
     }
 
-    const commentsForRepository = Object.values(
+    for (const commentsPage of Object.values(
       comments[repositoryName] ?? {},
-    ).flat();
-    const commentsForPullRequest = commentsForRepository.filter(
-      (comment) => Number(comment.pullNumber) === pullRequest.number,
-    );
+    )) {
+      for (const comment of commentsPage) {
+        if (
+          Number(comment.pullNumber) === pullRequest.number &&
+          (comment.user?.id === user.id ||
+            isMentioned(comment.body, user.login))
+        ) {
+          return true;
+        }
+      }
+    }
 
-    return commentsForPullRequest.some(
-      (comment) =>
-        comment.user?.id === user.id || isMentioned(comment.body, user.login),
-    );
+    return false;
   });
 };

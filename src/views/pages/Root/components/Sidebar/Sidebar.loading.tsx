@@ -78,7 +78,7 @@ export const SidebarLoading = () => {
             <Separator size="4" />
 
             <Text size="1" className="inverse-accent-text-shadow" weight="bold">
-              TEAM'S PULL REQUESTS
+              RELEVANT PULL REQUESTS
             </Text>
 
             <Button variant="soft" disabled>

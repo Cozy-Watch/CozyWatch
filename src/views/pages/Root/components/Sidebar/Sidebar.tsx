@@ -3,11 +3,19 @@ import {
   CheckIcon,
   ClockIcon,
   CommentDiscussionIcon,
+  InfoIcon,
   EyeIcon,
   HomeIcon,
   PersonIcon,
 } from "@primer/octicons-react";
-import { Badge, Button, Flex, Separator, Text } from "@radix-ui/themes";
+import {
+  Badge,
+  Button,
+  Flex,
+  Separator,
+  Text,
+  Tooltip,
+} from "@radix-ui/themes";
 import { useLocation, useNavigate } from "@tanstack/react-router";
 import { useAuth } from "../../../../context/Auth/useAuth";
 import { usePullRequest } from "../../../../hooks/usePullRequests";
@@ -189,9 +197,21 @@ const SidebarContent = () => {
 
             <Separator size="4" />
 
-            <Text size="1" className="inverse-accent-text-shadow" weight="bold">
-              RELEVANT PULL REQUESTS
-            </Text>
+            <Tooltip
+              content="PRs requested for review, reviewed by you, mentioned in, or commented on."
+              side="right"
+            >
+              <Flex align="center" gap="1">
+                <Text
+                  size="1"
+                  className="inverse-accent-text-shadow"
+                  weight="bold"
+                >
+                  RELEVANT PULL REQUESTS
+                </Text>
+                <InfoIcon size={12} />
+              </Flex>
+            </Tooltip>
 
             <Button
               variant={
