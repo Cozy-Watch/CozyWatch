@@ -9,7 +9,7 @@ export const Mentions = () => {
   const { error, data, isFetching } = useMentions();
   const location = useLocation();
 
-  if (isFetching) {
+  if (isFetching && !data) {
     return <LoadingPage />;
   }
 
@@ -58,7 +58,7 @@ export const Mentions = () => {
           color="bronze"
           className="bright-background-text-shadow"
         >
-          {isMy ? "My Pull Requests" : "Team Pull Requests"}
+          {isMy ? "My Pull Requests" : "Relevant Pull Requests"}
         </Badge>
 
         <Heading

@@ -334,7 +334,7 @@ export const createWindow = () => {
   );
 
   mainWindow.webContents.on("console-message", (_event, level, message, line, sourceId) => {
-    if (level < 2) {
+    if (level < 2 || sourceId.includes("electron-log")) {
       return;
     }
 
@@ -499,7 +499,10 @@ export const performSignOut = async () => {
   stopPolling();
   disableDerivedCacheWrites();
   const signedOut = await signOut();
-  if (!signedOut) {
+  if (signedOut) {
+    backgroundTasksStarted = false;
+    ipcMain.emit("dispatch-application-sign-user", null, false);
+  } else {
     enableDerivedCacheWrites();
     startPolling();
   }
@@ -537,6 +540,7 @@ ipcMain.on("dispatch-application-sign-user", (_, isSignIn) => {
   }
 
   if (isSignIn === true) {
+    enableDerivedCacheWrites();
     startAuthenticatedBackgroundTasks();
   }
 });

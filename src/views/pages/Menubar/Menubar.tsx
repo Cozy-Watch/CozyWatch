@@ -148,7 +148,7 @@ export const Menubar = () => {
                   fontWeight: "medium",
                 }}
               >
-                Team's Pull Requests (
+                Relevant Pull Requests (
                 {teamPullRequests.length > 99 ? "99+" : teamPullRequests.length}
                 )
               </Button>

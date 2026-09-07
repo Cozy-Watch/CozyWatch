@@ -39,7 +39,7 @@ export const Overview = () => {
 const OverviewContent = () => {
   const { error, data, isFetching } = useOverView();
 
-  if (isFetching) {
+  if (isFetching && !data) {
     return (
       <Flex direction="column" gap="6" p="4">
         <Flex style={{ color: "var(--accent-12)" }} align="center" gap="3">

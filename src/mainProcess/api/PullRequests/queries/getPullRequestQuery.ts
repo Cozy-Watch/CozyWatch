@@ -166,6 +166,30 @@ export const pullRequestQuery = async (): Promise<PullRequestQueryResult> => {
     Logger.info("[PullRequests] pullsListQuery completed");
   }
 
+  const flatPullRequestsAfterListRefresh = Object.values(
+    cache.pullRequestsPerRepo || {},
+  )
+    .flatMap((value) => Object.values(value).flat())
+    .filter((pr) => activeRepositories?.[pr.base.repo.id])
+    .sort((first, second) => {
+      return (
+        new Date(second.updated_at).getTime() -
+        new Date(first.updated_at).getTime()
+      );
+    });
+
+  // Make new pull requests visible before slower comment, review, and CI requests finish.
+  const pullRequestsAfterListRefresh = {
+    ...cache,
+    flatPullRequests: flatPullRequestsAfterListRefresh,
+  };
+  setLocalCache(pullRequestsAfterListRefresh);
+  ipcMain.emit(
+    "dispatch-pull-request-update",
+    null,
+    pullRequestsAfterListRefresh,
+  );
+
   try {
     const listOfPullRequests = Object.values(cache.pullRequestsPerRepo).flatMap(
       (page) => {
