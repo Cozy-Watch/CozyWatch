@@ -100,9 +100,8 @@ contextBridge.exposeInMainWorld("electronAPI", {
       );
     },
 
-    refreshPoll: () => {
-      return ipcRenderer.invoke("get-application-refresh-pool");
-    },
+    refreshPoll: (): Promise<void> =>
+      ipcRenderer.invoke("get-application-refresh-pool"),
 
     getDiagnosticsStatus: (): Promise<{ enabled: boolean }> =>
       ipcRenderer.invoke("diagnostics-get-status"),

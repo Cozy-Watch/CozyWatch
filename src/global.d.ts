@@ -66,7 +66,7 @@ declare global {
         getStartAtLogin: () => Promise<boolean>;
         setStartAtLogin: (isOpenAtLogin: boolean) => Promise<boolean>;
 
-        refreshPoll: () => void;
+        refreshPoll: () => Promise<void>;
 
         getDiagnosticsStatus: () => Promise<{ enabled: boolean }>;
         exportDiagnosticsBundle: () => Promise<{ saved: boolean }>;

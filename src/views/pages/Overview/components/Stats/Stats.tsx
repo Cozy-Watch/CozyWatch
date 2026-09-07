@@ -1,13 +1,15 @@
 import { AlertIcon, CheckIcon, ClockIcon } from "@primer/octicons-react";
-import { Card, Flex, Grid, Skeleton, Text } from "@radix-ui/themes";
+import { Button, Card, Flex, Grid, Skeleton, Text } from "@radix-ui/themes";
+import { useNavigate } from "@tanstack/react-router";
 import { usePullRequest } from "../../../../hooks/usePullRequests";
 import { useOverView } from "../../useOverview";
 
 export const Stats = () => {
   const { isFetching: isFetchingOverView } = useOverView();
   const { error, data, isFetching } = usePullRequest();
+  const navigate = useNavigate();
 
-  if (isFetching || isFetchingOverView) {
+  if ((isFetching || isFetchingOverView) && !data) {
     return (
       <Grid
         columns="3"
@@ -42,99 +44,120 @@ export const Stats = () => {
         gap="2"
         width="100%"
       >
-        <Card
-          className="accent-shadow-low"
-          style={{
-            background:
-              "linear-gradient(135deg, var(--accent-a1), var(--accent-a4), var(--accent-a1))",
-          }}
+        <Button
+          variant="ghost"
+          style={{ height: "auto", padding: 0, width: "100%" }}
+          onClick={() => navigate({ to: "/teamPullRequest/pendingReviews" })}
         >
-          <Flex
-            justify="between"
-            align="center"
-            style={{ color: "var(--accent-10)" }}
+          <Card
+            className="accent-shadow-low"
+            style={{
+              background:
+                "linear-gradient(135deg, var(--accent-a1), var(--accent-a4), var(--accent-a1))",
+              width: "100%",
+            }}
           >
-            <Flex direction="column">
-              <Text size="1" style={{ color: "var(--gray-11)" }}>
-                Waiting my review
-              </Text>
-              <Text
-                size="5"
-                weight="bold"
-                style={{ color: "var(--accent-12)" }}
-              >
-                {waitingMyReview.length}
-              </Text>
+            <Flex
+              justify="between"
+              align="center"
+              style={{ color: "var(--accent-10)" }}
+            >
+              <Flex direction="column">
+                <Text size="1" style={{ color: "var(--gray-11)" }}>
+                  Waiting my review
+                </Text>
+                <Text
+                  size="5"
+                  weight="bold"
+                  style={{ color: "var(--accent-12)" }}
+                >
+                  {waitingMyReview.length}
+                </Text>
+              </Flex>
+
+              <AlertIcon size={20} />
             </Flex>
+          </Card>
+        </Button>
 
-            <AlertIcon size={20} />
-          </Flex>
-        </Card>
-
-        <Card
-          className="accent-shadow-low"
-          style={{
-            background:
-              "linear-gradient(135deg, var(--accent-a1), var(--accent-a4), var(--accent-a1))",
-          }}
+        <Button
+          variant="ghost"
+          style={{ height: "auto", padding: 0, width: "100%" }}
+          onClick={() => navigate({ to: "/myPullRequests/pendingReviews" })}
         >
-          <Flex
-            justify="between"
-            align="center"
-            style={{ color: "var(--accent-10)" }}
+          <Card
+            className="accent-shadow-low"
+            style={{
+              background:
+                "linear-gradient(135deg, var(--accent-a1), var(--accent-a4), var(--accent-a1))",
+              width: "100%",
+            }}
           >
-            <Flex direction="column">
-              <Text size="1" style={{ color: "var(--gray-11)" }}>
-                Waiting to be reviewed
-              </Text>
-              <Text
-                size="5"
-                weight="bold"
-                style={{ color: "var(--accent-12)" }}
-              >
-                {waitingReview.length}
-              </Text>
+            <Flex
+              justify="between"
+              align="center"
+              style={{ color: "var(--accent-10)" }}
+            >
+              <Flex direction="column">
+                <Text size="1" style={{ color: "var(--gray-11)" }}>
+                  Waiting to be reviewed
+                </Text>
+                <Text
+                  size="5"
+                  weight="bold"
+                  style={{ color: "var(--accent-12)" }}
+                >
+                  {waitingReview.length}
+                </Text>
+              </Flex>
+
+              <ClockIcon size={20} />
             </Flex>
+          </Card>
+        </Button>
 
-            <ClockIcon size={20} />
-          </Flex>
-        </Card>
-
-        <Card
-          className="accent-shadow-low"
-          style={{
-            background: `linear-gradient(135deg, var(--${fullyApproved.length === myPullRequests.length ? "green" : "accent"}-a1), var(--${fullyApproved.length === myPullRequests.length ? "green" : "accent"}-a4), var(--${fullyApproved.length === myPullRequests.length ? "green" : "accent"}-a1))`,
-          }}
+        <Button
+          variant="ghost"
+          style={{ height: "auto", padding: 0, width: "100%" }}
+          onClick={() => navigate({ to: "/myPullRequests/fullyApproved" })}
         >
-          <Flex
-            justify="between"
-            align="center"
-            style={{ color: "var(--accent-10)" }}
+          <Card
+            className="accent-shadow-low"
+            style={{
+              background: `linear-gradient(135deg, var(--${fullyApproved.length === myPullRequests.length ? "green" : "accent"}-a1), var(--${fullyApproved.length === myPullRequests.length ? "green" : "accent"}-a4), var(--${fullyApproved.length === myPullRequests.length ? "green" : "accent"}-a1))`,
+              width: "100%",
+            }}
           >
-            <Flex direction="column">
-              <Text size="1" style={{ color: "var(--gray-11)" }}>
-                Approved Pull Requests
-              </Text>
+            <Flex
+              justify="between"
+              align="center"
+              style={{ color: "var(--accent-10)" }}
+            >
+              <Flex direction="column">
+                <Text size="1" style={{ color: "var(--gray-11)" }}>
+                  Approved Pull Requests
+                </Text>
+                <Text
+                  size="5"
+                  weight="bold"
+                  style={{
+                    color: `var(--${fullyApproved.length === myPullRequests.length ? "green" : "accent"}-12)`,
+                  }}
+                >
+                  {fullyApproved.length} of {myPullRequests.length}
+                </Text>
+              </Flex>
+
               <Text
-                size="5"
-                weight="bold"
                 style={{
                   color: `var(--${fullyApproved.length === myPullRequests.length ? "green" : "accent"}-12)`,
                 }}
               >
-                {fullyApproved.length} of {myPullRequests.length}
+                <CheckIcon size={20} />
               </Text>
             </Flex>
-
-            <Text
-              style={{
-                color: `var(--${fullyApproved.length === myPullRequests.length ? "green" : "accent"}-12)`,
-              }}
-            >
-              <CheckIcon size={20} />
-            </Text>
-          </Flex>
-        </Card>
+          </Card>
+        </Button>
       </Grid>
     </>
   );
