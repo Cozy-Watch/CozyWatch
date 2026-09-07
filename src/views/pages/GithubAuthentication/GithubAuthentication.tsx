@@ -141,7 +141,7 @@ export const GithubAuthentication = () => {
         >
           <Flex direction="column" align="center" gap="3">
             <Flex align="center" gap="2">
-              <img src="./images/icon.png" width="38" />
+              <img src="./images/icon.png" width="38" alt="" />
 
               <CozyWatch
                 style={{ marginBottom: "-4px" }}

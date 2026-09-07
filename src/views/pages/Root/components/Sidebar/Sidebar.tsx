@@ -201,7 +201,7 @@ const SidebarContent = () => {
               content="PRs requested for review, reviewed by you, mentioned in, or commented on."
               side="right"
             >
-              <Flex align="center" gap="1">
+              <Flex align="center" gap="1" tabIndex={0}>
                 <Text
                   size="1"
                   className="inverse-accent-text-shadow"
