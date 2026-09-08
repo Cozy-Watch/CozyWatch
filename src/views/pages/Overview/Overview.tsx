@@ -3,6 +3,7 @@ import { Box, Flex, Text } from "@radix-ui/themes";
 import { PullRequestCard } from "../..//components/PullRequestsCard/PullRequestsCard";
 import { PullRequestLoading } from "../../components/PullRequestsCard/PullRequestsCard.loading";
 import { Stats } from "./components/Stats/Stats";
+import { WeeklyRecap } from "./components/WeeklyRecap/WeeklyRecap";
 import { useOverView } from "./useOverview";
 
 export const Overview = () => {
@@ -31,6 +32,7 @@ export const Overview = () => {
         <Stats />
       </Flex>
 
+      <WeeklyRecap />
       <OverviewContent />
     </Flex>
   );
