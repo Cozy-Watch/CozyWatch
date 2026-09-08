@@ -8,6 +8,7 @@ import type { PersonalWeeklyRecap } from "../../../weeklyRecap/types";
 
 const OPERATION = "weeklyRecapPersonal";
 const PER_PAGE = 100;
+const MAX_PAGES = 10;
 
 const searchCount = async (query: string) => {
   const octokit = await getGithubClient();
@@ -31,7 +32,73 @@ const searchCount = async (query: string) => {
     if (
       response.data.items.length < PER_PAGE ||
       page * PER_PAGE >= total ||
-      page >= 10
+      page >= MAX_PAGES
+    ) {
+      break;
+    }
+    page += 1;
+  }
+
+  return { total, repositories };
+};
+
+const countSubmittedReviews = async (weekStart: string) => {
+  const octokit = await getGithubClient();
+  const { start, end } = getWeekRange(weekStart);
+  const repositories = new Set<string>();
+  let total = 0;
+  let page = 1;
+
+  while (true) {
+    const response = await octokit.rest.search.issuesAndPullRequests({
+      q: "is:pr reviewed-by:@me -author:@me",
+      per_page: PER_PAGE,
+      page,
+      headers: { "x-operation-name": OPERATION },
+    });
+
+    const candidatePulls = response.data.items;
+
+    await Promise.all(
+      candidatePulls.map(async (item) => {
+        if (!item.number || !item.repository_url) {
+          return;
+        }
+
+        const [, , owner, repo] = item.repository_url.split("/");
+        if (!owner || !repo) {
+          return;
+        }
+
+        const reviews = await octokit.rest.pulls.listReviews({
+          owner,
+          repo,
+          pull_number: item.number,
+          per_page: PER_PAGE,
+          headers: { "x-operation-name": OPERATION },
+        });
+
+        const matchedReviews = reviews.data.filter((review) => {
+          const submittedAt = review.submitted_at;
+          if (!submittedAt || review.user?.type !== "User") {
+            return false;
+          }
+
+          const submitted = new Date(submittedAt);
+          return submitted >= start && submitted < end;
+        });
+
+        if (matchedReviews.length > 0) {
+          total += matchedReviews.length;
+          repositories.add(item.repository_url);
+        }
+      }),
+    );
+
+    if (
+      candidatePulls.length < PER_PAGE ||
+      page * PER_PAGE >= response.data.total_count ||
+      page >= MAX_PAGES
     ) {
       break;
     }
@@ -58,9 +125,7 @@ export const getPersonalWeeklyRecap = async (
     searchCount(
       `is:pr is:merged author:@me merged:${current.from}..${current.to}`,
     ),
-    searchCount(
-      `is:pr reviewed-by:@me -author:@me updated:${current.from}..${current.to}`,
-    ),
+    countSubmittedReviews(weekStart),
     searchCount(
       `is:pr is:merged author:@me merged:${previous.from}..${previous.to}`,
     ),
