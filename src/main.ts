@@ -54,6 +54,13 @@ import {
 } from "./mainProcess/safeStorage/safeStorage.types";
 import { setToggleAllNotifications } from "./mainProcess/notifications/setToggleAllNotifications";
 import {
+  clearNotificationHistory,
+  getNotificationHistory,
+  markAllNotificationsRead,
+  markNotificationRead,
+  clearNotificationsOnSignOut,
+} from "./mainProcess/notifications/notificationManager";
+import {
   isAllowedRendererUrl,
   openExternalUrl,
   protectWebContents,
@@ -499,6 +506,9 @@ export const performSignOut = async () => {
   stopPolling();
   disableDerivedCacheWrites();
   const signedOut = await signOut();
+  if (signedOut) {
+    await clearNotificationsOnSignOut();
+  }
   if (!signedOut) {
     enableDerivedCacheWrites();
     startPolling();
@@ -771,6 +781,43 @@ handleRendererInvoke("get-application-notification", async () => {
   return getNotificationsSettings();
 });
 
+handleRendererInvoke("get-notification-history", () => getNotificationHistory());
+handleRendererInvoke("mark-notification-read", async (_, id: unknown) => {
+  if (typeof id !== "string" || id.length === 0) {
+    throw new Error("Invalid notification id.");
+  }
+  return markNotificationRead(id);
+});
+handleRendererInvoke("mark-all-notifications-read", () => markAllNotificationsRead());
+handleRendererInvoke("clear-notification-history", () => clearNotificationHistory());
+
+ipcMain.on("dispatch-notification-update", (_, data) => {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send("notification-update", data);
+  }
+});
+
+ipcMain.on("dispatch-notification-click", (_, notificationId: unknown) => {
+  if (typeof notificationId !== "string") return;
+  const sendNavigation = () => {
+    mainWindow?.webContents.send("navigate-to-route", {
+      route: "notifications",
+      notificationId,
+    });
+  };
+
+  if (!mainWindow || mainWindow.isDestroyed()) {
+    createWindow();
+  }
+  if (mainWindow?.webContents.isLoading()) {
+    mainWindow.webContents.once("did-finish-load", sendNavigation);
+  } else {
+    sendNavigation();
+  }
+  mainWindow?.show();
+  mainWindow?.focus();
+});
+
 handleRendererInvoke("set-application-toggle-notification", async (_, enable) => {
   if (typeof enable !== "boolean") {
     throw new Error("Invalid notification setting.");
@@ -875,10 +922,10 @@ handleRendererInvoke("on-application-navigate-to-route", (_, route) => {
     // Wait for window to be ready before sending route
     if (mainWindow.webContents.isLoading()) {
       mainWindow.webContents.once("did-finish-load", () => {
-        mainWindow?.webContents.send("navigate-to-route", route);
+        mainWindow?.webContents.send("navigate-to-route", { route });
       });
     } else {
-      mainWindow.webContents.send("navigate-to-route", route);
+      mainWindow.webContents.send("navigate-to-route", { route });
     }
 
     mainWindow.show();

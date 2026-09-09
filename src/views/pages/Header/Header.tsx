@@ -1,5 +1,6 @@
 import {
   AlertIcon,
+  BellIcon,
   ChevronDownIcon,
   DeviceDesktopIcon,
   PersonIcon,
@@ -10,6 +11,7 @@ import {
   Avatar,
   Badge,
   Box,
+  Button,
   DropdownMenu,
   Flex,
   Spinner,
@@ -25,6 +27,7 @@ import { isCommercialUseLicensed } from "../../components/LicenseStatus/licenseS
 import { CozyWatch } from "../../components/SVG/CozyWatch";
 import { WhiteCozyWatch } from "../../components/SVG/WhiteCozyWatch";
 import { useHeader } from "./useHeader";
+import { useNotifications } from "../../hooks/useNotifications";
 
 export const Header = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -36,6 +39,8 @@ export const Header = () => {
   } = useHeader();
 
   const navigation = useNavigate();
+  const { data: notifications = [] } = useNotifications();
+  const unreadCount = notifications.filter((notification) => !notification.read).length;
 
   if (isPending) {
     return <Spinner size="2" />;
@@ -66,6 +71,10 @@ export const Header = () => {
           <LicenseStatusBadge state={licenseState} />
         </Flex>
         <Flex gap="4" align="center">
+          <Button variant="ghost" onClick={() => navigation({ to: "/notifications" })} aria-label="Notifications">
+            <BellIcon size={18} />
+            {unreadCount > 0 && <Badge color="red">{unreadCount > 99 ? "99+" : unreadCount}</Badge>}
+          </Button>
           {errors.length === 0 ? null : (
             <DropdownMenu.Root>
               <DropdownMenu.Trigger>

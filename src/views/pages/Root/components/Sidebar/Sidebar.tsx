@@ -1,5 +1,6 @@
 import {
   AlertIcon,
+  BellIcon,
   CheckIcon,
   ClockIcon,
   CommentDiscussionIcon,
@@ -12,6 +13,7 @@ import { useLocation, useNavigate } from "@tanstack/react-router";
 import { useAuth } from "../../../../context/Auth/useAuth";
 import { usePullRequest } from "../../../../hooks/usePullRequests";
 import { SidebarLoading } from "./Sidebar.loading";
+import { useNotifications } from "../../../../hooks/useNotifications";
 
 export const Sidebar = () => {
   const { isAuthenticated } = useAuth();
@@ -24,6 +26,7 @@ export const Sidebar = () => {
 };
 const SidebarContent = () => {
   const { data, isFetching } = usePullRequest();
+  const { data: notifications = [] } = useNotifications();
 
   const location = useLocation();
 
@@ -68,6 +71,21 @@ const SidebarContent = () => {
                   <HomeIcon size={16} />
                   <Text className="inverse-accent-text-shadow">Home</Text>
                 </Flex>
+              </Flex>
+            </Button>
+
+            <Button
+              variant={location.pathname === "/notifications" ? "solid" : "soft"}
+              onClick={() => navigation({ to: "/notifications" })}
+            >
+              <Flex justify="between" align="center" width="100%">
+                <Flex justify="start" gap="2" align="center" width="100%">
+                  <BellIcon size={16} />
+                  <Text className="inverse-accent-text-shadow">Notifications</Text>
+                </Flex>
+                <Badge variant={location.pathname === "/notifications" ? "solid" : "soft"}>
+                  {notifications.filter((notification) => !notification.read).length}
+                </Badge>
               </Flex>
             </Button>
 
