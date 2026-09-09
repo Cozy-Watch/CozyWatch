@@ -46,7 +46,12 @@ export const Stats = () => {
       >
         <Button
           variant="ghost"
-          style={{ height: "auto", padding: 0, width: "100%" }}
+          style={{
+            height: "auto",
+            padding: 0,
+            width: "100%",
+            margin: "auto",
+          }}
           onClick={() => navigate({ to: "/teamPullRequest/pendingReviews" })}
         >
           <Card
@@ -82,7 +87,7 @@ export const Stats = () => {
 
         <Button
           variant="ghost"
-          style={{ height: "auto", padding: 0, width: "100%" }}
+          style={{ height: "auto", padding: 0, width: "100%", margin: "auto" }}
           onClick={() => navigate({ to: "/myPullRequests/pendingReviews" })}
         >
           <Card
@@ -118,7 +123,7 @@ export const Stats = () => {
 
         <Button
           variant="ghost"
-          style={{ height: "auto", padding: 0, width: "100%" }}
+          style={{ height: "auto", padding: 0, width: "100%", margin: "auto" }}
           onClick={() => navigate({ to: "/myPullRequests/fullyApproved" })}
         >
           <Card
