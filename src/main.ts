@@ -332,22 +332,32 @@ export const createWindow = () => {
     showRendererFailure();
   });
 
-  mainWindow.webContents.on(
-    "console-message",
-    (_event, level, message, line, sourceId) => {
-      if (level < 2) {
-        return;
-      }
+  mainWindow.webContents.on("console-message", (_event, level, message, line, sourceId) => {
+    if (level < 2) {
+      return;
+    }
 
-      log.error("[Renderer] console error", {
-        level,
-        line,
-        message: redactDiagnosticValue(message),
-        sourceId: redactDiagnosticValue(sourceId),
-      });
-    },
-  );
+    // electron-log's renderer transport writes to console.* as well as its
+    // main-process transport. Reporting that output here creates a duplicate
+    // log entry whose source is electron-log.js (and object arguments become
+    // "[object Object]").
+    if (sourceId.includes("electron-log")) {
+      return;
+    }
 
+    const details = {
+      level,
+      line,
+      message: redactDiagnosticValue(message),
+      sourceId: redactDiagnosticValue(sourceId),
+    };
+
+    if (level === 3) {
+      log.error("[Renderer] console error", details);
+    } else {
+      log.warn("[Renderer] console warning", details);
+    }
+  });
   mainWindow.on("unresponsive", () => {
     log.warn("[Window] renderer became unresponsive");
   });

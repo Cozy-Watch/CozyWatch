@@ -102,7 +102,7 @@ const OverviewContent = () => {
                 />
               </Box>
             );
-          }
+          },
         )}
       </Flex>
     </Flex>
