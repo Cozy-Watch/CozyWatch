@@ -3,6 +3,10 @@ import { useUserQuery } from "../api/useUserQuery";
 import { usePullRequestQuery } from "../api/usePullRequestQuery";
 import { useRepositoriesQuery } from "../api/useRepositoriesQuery";
 import { getFullyApproved } from "./utils/getFullyApproved";
+import {
+  getRelevantTeamPullRequests,
+  isMyPullRequest,
+} from "./utils/getRelevantTeamPullRequests";
 
 export const usePullRequest = () => {
   const pullRequestesQueryInfo = usePullRequestQuery();
@@ -31,14 +35,14 @@ export const usePullRequest = () => {
     });
 
     const myPullRequests = flatActiveRepositories.filter((pr) => {
-      return (
-        pr?.user?.id === headerQueryInfo.data.id ||
-        pr?.assignees?.some(({ id }) => id === headerQueryInfo.data.id)
-      );
+      return isMyPullRequest(pr, headerQueryInfo.data.id);
     });
 
-    const teamPullRequests = flatActiveRepositories.filter((pr) => {
-      return pr?.user?.id !== headerQueryInfo.data.id;
+    const teamPullRequests = getRelevantTeamPullRequests({
+      comments: mentionsList,
+      pullRequests: flatActiveRepositories,
+      reviews,
+      user: headerQueryInfo.data,
     });
 
     const waitingReview = myPullRequests.filter((pr) => {
@@ -118,7 +122,7 @@ export const usePullRequest = () => {
     });
 
     return {
-      myPullRequests: myPullRequests,
+      myPullRequests,
       teamPullRequests,
       headerData: headerQueryInfo.data,
       waitingReview,

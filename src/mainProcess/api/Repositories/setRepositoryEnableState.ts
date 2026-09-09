@@ -5,7 +5,7 @@ import { getCachedData as pullRequestCachedData } from "../PullRequests/utils/ge
 import { getCachedData, setLocalCache } from "./utils/getDefaultData";
 
 export const setRepositoryEnableState = async (
-  activeRepository: Record<string, boolean>
+  activeRepository: Record<string, boolean>,
 ) => {
   Logger.log("[Repositories] setRepositoryEnableState");
 
@@ -23,7 +23,7 @@ export const setRepositoryEnableState = async (
   };
 
   const flatPullRequests = Object.values(
-    pullRequestsCache.pullRequestsPerRepo || {}
+    pullRequestsCache.pullRequestsPerRepo || {},
   )
     .flatMap((value) => {
       return Object.values(value).flat();
@@ -51,6 +51,7 @@ export const setRepositoryEnableState = async (
   }
 
   setLocalCache(data);
+  ipcMain.emit("dispatch-repository-update", null, data);
   ipcMain.emit("dispatch-pull-request-update", null, pullRequestsData);
 
   void storeData({ name: "pull_requests_cache", data: pullRequestsData });

@@ -12,7 +12,7 @@ export const authenticateWithGitHub = async (): Promise<boolean> => {
     const auth = createOAuthDeviceAuth({
       clientType: "oauth-app",
       clientId: CLIENT_ID,
-      scopes: ["repo", "read:org", "notifications"], // Allows access to private repos
+      scopes: ["repo", "notifications"],
       onVerification: ({ verification_uri, user_code }) => {
         ipcMain.emit("dispatch-authentication-auth-code", null, {
           verification_uri,

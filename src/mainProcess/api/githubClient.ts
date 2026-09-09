@@ -1,4 +1,4 @@
-import { app, ipcMain } from "electron";
+import { ipcMain } from "electron";
 import { Octokit as OctokitCore } from "@octokit/rest";
 import { throttling } from "@octokit/plugin-throttling";
 import {
@@ -237,8 +237,6 @@ export const signOut = async () => {
     await deleteDataOrThrow("access_token");
 
     octokitInstance = null;
-    app.relaunch();
-    app.exit();
     Logger.info("[Octokit] Sign out completed, instance reset");
     return true;
   } catch (error) {

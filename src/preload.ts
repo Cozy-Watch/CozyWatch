@@ -9,6 +9,7 @@ import {
   NotificationRecord,
   RepositoriesCache,
 } from "./mainProcess/safeStorage/safeStorage.types";
+import type { PersonalWeeklyRecap } from "./weeklyRecap/types";
 
 type IpcListener<T> = (event: IpcRendererEvent, data: T) => void;
 type AuthenticationCode = {
@@ -115,9 +116,8 @@ contextBridge.exposeInMainWorld("electronAPI", {
       );
     },
 
-    refreshPoll: () => {
-      return ipcRenderer.invoke("get-application-refresh-pool");
-    },
+    refreshPoll: (): Promise<void> =>
+      ipcRenderer.invoke("get-application-refresh-pool"),
 
     getDiagnosticsStatus: (): Promise<{ enabled: boolean }> =>
       ipcRenderer.invoke("diagnostics-get-status"),
@@ -224,11 +224,17 @@ contextBridge.exposeInMainWorld("electronAPI", {
   pullRequest: {
     query: () => ipcRenderer.invoke("pull-requests-query"),
     onUpdate: (callback: (data: PullRequest) => void) => {
-      const handler: IpcListener<PullRequest> = (_event, data) => callback(data);
+      const handler: IpcListener<PullRequest> = (_event, data) =>
+        callback(data);
       ipcRenderer.on("pull-request-update", handler);
       return handler;
     },
     removeOnUpdate: (handler: IpcListener<PullRequest>) =>
       ipcRenderer.removeListener("pull-request-update", handler),
+  },
+
+  weeklyRecap: {
+    personal: (weekStart: string): Promise<PersonalWeeklyRecap> =>
+      ipcRenderer.invoke("weekly-recap-personal", weekStart),
   },
 });

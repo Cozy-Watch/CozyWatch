@@ -1,6 +1,10 @@
 # Cozy Watch
 
+[Visit Cozy Watch](https://www.cozywatch.com)
+
 Cozy Watch is a desktop companion for GitHub. It keeps an eye on the pull requests, reviews, checks, and mentions that matter to you and brings useful updates to your desktop and menu bar.
+
+![Cozy Watch desktop app and menu-bar notification](docs/images/cozy-watch-desktop-light.png)
 
 ## Features
 
@@ -9,6 +13,7 @@ Cozy Watch is a desktop companion for GitHub. It keeps an eye on the pull reques
 - Repository selection and notification preferences
 - A menu-bar experience for quick access and quiet background polling
 - Light and dark appearance settings
+- A "Your week" widget that celebrates the pull requests you shipped and reviewed last week
 - macOS, Windows, and Linux packaging configuration in the repository
 
 Cozy Watch uses GitHub's APIs and is not affiliated with or endorsed by GitHub, Inc.
@@ -27,6 +32,15 @@ Install dependencies and start the Electron development app:
 npm ci
 npm start
 ```
+
+## Your week
+
+The **Home** screen celebrates your last completed Monday-Sunday week: pull
+requests you authored that were merged, how many repositories they landed in,
+reviews you gave on other people's pull requests, and how that compares with
+the week before. Counts come from GitHub search scoped to your connected
+account, so nothing about other contributors or private project details is
+shown; screenshot and share it if you are proud of it.
 
 Useful checks and build commands:
 

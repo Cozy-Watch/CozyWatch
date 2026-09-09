@@ -11,6 +11,7 @@ import {
   LicenseState,
   LicenseUsage,
 } from "./mainProcess/licensing/licenseState.types";
+import type { PersonalWeeklyRecap } from "./weeklyRecap/types";
 
 export {};
 
@@ -48,7 +49,9 @@ declare global {
         removeOnSignOut: (callback: IpcListener<boolean>) => void;
 
         signUser: (status: boolean) => void;
-        onSignUser: (callback: (status: boolean) => void) => IpcListener<boolean>;
+        onSignUser: (
+          callback: (status: boolean) => void,
+        ) => IpcListener<boolean>;
         removeOnSignUser: (handler: IpcListener<boolean>) => void;
 
         getNotificationsSettings: () => Promise<NotificationSettingsPerKey>;
@@ -74,7 +77,7 @@ declare global {
         getStartAtLogin: () => Promise<boolean>;
         setStartAtLogin: (isOpenAtLogin: boolean) => Promise<boolean>;
 
-        refreshPoll: () => void;
+        refreshPoll: () => Promise<void>;
 
         getDiagnosticsStatus: () => Promise<{ enabled: boolean }>;
         exportDiagnosticsBundle: () => Promise<{ saved: boolean }>;
@@ -141,6 +144,10 @@ declare global {
           callback: (data: PullRequestDTO) => void,
         ) => IpcListener<PullRequestDTO>;
         removeOnUpdate: (callback: IpcListener<PullRequestDTO>) => void;
+      };
+
+      weeklyRecap: {
+        personal: (weekStart: string) => Promise<PersonalWeeklyRecap>;
       };
 
       // License Key
