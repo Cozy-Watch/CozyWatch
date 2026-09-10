@@ -19,6 +19,7 @@ interface Props {
       userName: string;
       body: string;
       date: string;
+      html_url?: string;
     }
   >;
 
@@ -150,7 +151,10 @@ export const PullRequestCard = ({
           </Flex>
         </Flex>
 
-        <LastActivity reviewsGroupedbyUser={reviewsGroupedbyUser} />
+        <LastActivity
+          reviewsGroupedbyUser={reviewsGroupedbyUser}
+          pullRequestUrl={htmlUrl}
+        />
       </Flex>
     </Card>
   );
