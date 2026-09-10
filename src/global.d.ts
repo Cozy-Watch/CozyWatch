@@ -161,7 +161,7 @@ declare global {
       };
 
       // Open external URL
-      openExternalLink: (url: string) => void;
+      openExternalLink: (url: string) => Promise<void>;
       // Copy to Clipboard
       copyToClipboard: (text: string) => void;
     };

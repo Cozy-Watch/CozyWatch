@@ -147,7 +147,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
   signOut: () => ipcRenderer.invoke("signOut"),
 
   openExternalLink: (url: string) => {
-    ipcRenderer.invoke("open-external-url", url);
+    return ipcRenderer.invoke("open-external-url", url);
   },
   copyToClipboard: (text: string) => {
     ipcRenderer.invoke("copy-to-clipboard", text);
