@@ -25,6 +25,7 @@ import { Reviewed } from "./pages/Reviewed/Reviewed";
 import { Root } from "./pages/Root/Root";
 import { Settings } from "./pages/Settings/Settings";
 import { FullyApproved } from "./pages/FullyApproved/FullyApproved";
+import { Notifications } from "./pages/Notifications/Notifications";
 
 const LoadingComponent = () => {
   return (
@@ -149,6 +150,12 @@ const settingsRoute = createRoute({
   component: Settings,
 });
 
+const notificationsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/notifications",
+  component: Notifications,
+});
+
 const menubarRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/menubar",
@@ -158,6 +165,7 @@ const menubarRoute = createRoute({
 // --- Router Setup ---
 const routeTree = rootRoute.addChildren([
   settingsRoute,
+  notificationsRoute,
   githubAuthenticationRoute,
   pullRequestRoute,
   repositoriesRoute,
@@ -210,9 +218,18 @@ const RouterContent = ({ isAuthenticated }: { isAuthenticated: boolean }) => {
   }, [saveAppearance]);
 
   useEffect(() => {
-    const handleNavigateToSettings = (route: "settings" | "signIn") => {
+    const handleNavigateToSettings = (event: {
+      route: "settings" | "signIn" | "notifications";
+      notificationId?: string;
+    }) => {
+      const { route, notificationId } = event;
       if (route === "signIn") {
         router.navigate({ to: "/" });
+      } else if (route === "notifications") {
+        router.navigate({
+          to: "/notifications",
+          search: notificationId ? { notificationId } : {},
+        });
       } else {
         router.navigate({ to: "/settings" });
       }

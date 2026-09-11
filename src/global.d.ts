@@ -5,6 +5,7 @@ import {
   User,
   Appearance,
   NotificationSettingsPerKey,
+  NotificationRecord,
 } from "./mainProcess/safeStorage/safeStorage.types";
 import {
   LicenseState,
@@ -62,6 +63,16 @@ declare global {
           checked: boolean;
           key: string;
         }) => Promise<NotificationSettingsPerKey>;
+        getNotificationHistory: () => Promise<NotificationRecord[]>;
+        markNotificationRead: (id: string) => Promise<void>;
+        markAllNotificationsRead: () => Promise<void>;
+        clearNotificationHistory: () => Promise<void>;
+        onNotificationUpdate: (
+          callback: (data: NotificationRecord[]) => void,
+        ) => IpcListener<NotificationRecord[]>;
+        removeOnNotificationUpdate: (
+          callback: IpcListener<NotificationRecord[]>,
+        ) => void;
 
         getStartAtLogin: () => Promise<boolean>;
         setStartAtLogin: (isOpenAtLogin: boolean) => Promise<boolean>;
@@ -74,10 +85,19 @@ declare global {
 
         navigateToRoute: (route: "settings" | "signIn") => void;
         onNavigateToRoute: (
-          callback: (route: "settings" | "signIn") => void,
-        ) => IpcListener<"settings" | "signIn">;
+          callback: (event: {
+            route: "settings" | "signIn" | "notifications";
+            notificationId?: string;
+          }) => void,
+        ) => IpcListener<{
+          route: "settings" | "signIn" | "notifications";
+          notificationId?: string;
+        }>;
         removeOnNavigateToRoute: (
-          callback: IpcListener<"settings" | "signIn">,
+          callback: IpcListener<{
+            route: "settings" | "signIn" | "notifications";
+            notificationId?: string;
+          }>,
         ) => void;
       };
 
@@ -141,7 +161,7 @@ declare global {
       };
 
       // Open external URL
-      openExternalLink: (url: string) => void;
+      openExternalLink: (url: string) => Promise<void>;
       // Copy to Clipboard
       copyToClipboard: (text: string) => void;
     };

@@ -3,14 +3,13 @@ import Logger from "electron-log";
 import pLimit from "p-limit";
 import { getNotificationsSettings } from "../../../notifications/getNotificationSettings";
 import { batchNotificationManager } from "../../../notifications/notificationManager";
+import type { ManagedNotification } from "../../../notifications/notificationManager";
 import { storeData } from "../../../safeStorage/safeStorage";
-import { tryOpenExternalUrl } from "../../../security/externalUrl";
 import { getGithubClient } from "../../githubClient";
 import { getUser } from "../../User/getUser";
 import { registerListIssuesComments } from "../hooks/registerIssuesListComments";
 import { registerPullActions } from "../hooks/registerPullActions";
 import { registerPullList } from "../hooks/registerPullList";
-import { registerPullListReviews } from "../hooks/registerPullListReviews";
 import { getAddedRemovedPRId } from "../utils/getAddedRemovedPRId";
 import { getCIStatusUpdate } from "../utils/getCIStatusUpdate";
 import {
@@ -29,7 +28,9 @@ import type { Repository } from "../../../safeStorage/safeStorage.types";
 import { getIssuesListCommentsQuery } from "./getIssuesListCommentsQuery";
 import { pullActionsQuery } from "./pullActionQuery";
 import { pullsListQuery } from "./pullListQuery";
-import { pullsListReviewsQuery } from "./pullListReviewQuery";
+import { pullsListReviewsQuery, retainOpenReviewPages } from "./pullListReviewQuery";
+import { settleRefreshWork } from "../../../polling/refreshCoordinator";
+import { getReviewNotifications } from "../utils/getReviewNotifications";
 
 const pullListOperationName = "pull-list-requests";
 const pullListReviewOperationName = "pull-listReview-requests";
@@ -40,7 +41,8 @@ export type PullRequestQueryResult = CacheData & {
   repositories: Repository[];
 };
 
-export const pullRequestQuery = async (): Promise<PullRequestQueryResult> => {
+export const pullRequestQuery = async (isCurrent = () => true): Promise<PullRequestQueryResult> => {
+  const assertCurrent = () => { if (!isCurrent()) throw new Error("Refresh cancelled"); };
   const startTime = Date.now();
   const { repositoriesByPage, activeRepositories } =
     await getRepositoriesData();
@@ -56,7 +58,12 @@ export const pullRequestQuery = async (): Promise<PullRequestQueryResult> => {
     .flat()
     .filter((repo) => (activeRepositories || [])[repo.id]);
 
-  const limit = pLimit(15); // Only 15 concurrent requests
+  // Keep each request type bounded, while allowing independent GitHub
+  // endpoints to make progress at the same time.
+  const pullListLimit = pLimit(15);
+  const commentsLimit = pLimit(15);
+  const reviewsLimit = pLimit(15);
+  const actionsLimit = pLimit(15);
 
   const octokit = await getGithubClient();
 
@@ -82,6 +89,7 @@ export const pullRequestQuery = async (): Promise<PullRequestQueryResult> => {
         {
           title: "GitHub Rate Limit Reached",
           body: `Pull request updates are paused due to low rate limit. Resets in approximately ${waitMinutes} minutes.`,
+          type: "system",
         },
       ]);
 
@@ -107,6 +115,7 @@ export const pullRequestQuery = async (): Promise<PullRequestQueryResult> => {
         flatPullRequests,
       };
 
+      assertCurrent();
       ipcMain.emit("dispatch-pull-request-update", null, cachedData);
 
       const endTime = Date.now();
@@ -122,16 +131,11 @@ export const pullRequestQuery = async (): Promise<PullRequestQueryResult> => {
     // Continue with requests if rate limit check fails
   }
 
+  assertCurrent();
   registerPullList({
     cache,
     octokit,
     operationName: pullListOperationName,
-  });
-
-  registerPullListReviews({
-    cache,
-    octokit,
-    operationName: pullListReviewOperationName,
   });
 
   registerPullActions({
@@ -147,9 +151,9 @@ export const pullRequestQuery = async (): Promise<PullRequestQueryResult> => {
   });
 
   try {
-    await Promise.all(
+    await settleRefreshWork(
       repositories.map((repo) =>
-        limit(async () => {
+        pullListLimit(async () => {
           return await pullsListQuery({
             name: repo.name,
             octokit,
@@ -179,6 +183,7 @@ export const pullRequestQuery = async (): Promise<PullRequestQueryResult> => {
     });
 
   // Make new pull requests visible before slower comment, review, and CI requests finish.
+  assertCurrent();
   const pullRequestsAfterListRefresh = {
     ...cache,
     flatPullRequests: flatPullRequestsAfterListRefresh,
@@ -190,126 +195,132 @@ export const pullRequestQuery = async (): Promise<PullRequestQueryResult> => {
     pullRequestsAfterListRefresh,
   );
 
-  try {
-    const listOfPullRequests = Object.values(cache.pullRequestsPerRepo).flatMap(
-      (page) => {
-        const pullRequest = Object.values(page).flat();
+  const listOfPullRequests = Object.values(cache.pullRequestsPerRepo).flatMap(
+    (page) => {
+      const pullRequest = Object.values(page).flat();
 
-        return pullRequest.map((pr) => ({
-          pullNumber: pr.number,
-          owner: pr.base.repo.owner.login,
-          repoName: pr.base.repo.name,
-        }));
+      return pullRequest.map((pr) => ({
+        pullNumber: pr.number,
+        owner: pr.base.repo.owner.login,
+        repoName: pr.base.repo.name,
+      }));
+    },
+  );
+
+  const repositoriesWithPullRequestsList = Object.keys(
+    cache.pullRequestsPerRepo,
+  );
+
+  const pullRequestNumberByRepoName: Record<string, string[]> =
+    Object.entries(cache.pullRequestsPerRepo).reduce(
+      (acc, [repoName, page]) => {
+        const pullRequestsList = Object.values(page).flat();
+        const pullNumberList = pullRequestsList.map(({ number }) => number);
+
+        return {
+          ...acc,
+          [repoName]: pullNumberList,
+        };
       },
+      {},
     );
 
-    await Promise.allSettled(
-      Object.values(listOfPullRequests).map(
-        ({ owner, pullNumber, repoName }) => {
-          return limit(async () => {
-            return await getIssuesListCommentsQuery({
+  const repositoriesWithPullRequests = repositories.reduce<
+    { owner: string; repoName: string; pullNumber: string }[]
+  >((acc, repo) => {
+    const hasPRs = repositoriesWithPullRequestsList.includes(repo.name);
+    if (!hasPRs) {
+      return acc;
+    }
+
+    const pullNumbersList = pullRequestNumberByRepoName[repo.name] || [];
+    const requestParams = pullNumbersList.map((pullNumber) => ({
+      owner: repo.owner,
+      repoName: repo.name,
+      pullNumber,
+    }));
+
+    return [...acc, ...requestParams];
+  }, []);
+
+  retainOpenReviewPages(octokit, repositoriesWithPullRequests);
+
+  const commentsTask = async () => {
+    try {
+      await Promise.allSettled(
+        listOfPullRequests.map(({ owner, pullNumber, repoName }) =>
+          commentsLimit(() =>
+            getIssuesListCommentsQuery({
               name: repoName,
               octokit,
               operationName: issuesListComments,
               pullNumber: `${pullNumber}`,
-              owner: owner,
-            });
-          });
-        },
-      ),
-    );
-  } catch (error) {
-    Logger.error(
-      "[PullRequests] Error during pullsListCommentsQuery request",
-      error,
-    );
-  } finally {
-    Logger.info("[PullRequests] pullsListCommentsQuery  completed");
-  }
-
-  try {
-    const repositoriesWithPullRequestsList = Object.keys(
-      cache.pullRequestsPerRepo,
-    );
-
-    const pullRequestNumberByRepoName: Record<string, string[]> =
-      Object.entries(cache.pullRequestsPerRepo).reduce(
-        (acc, [repoName, page]) => {
-          const pullRequestsList = Object.values(page).flat();
-
-          const pullNumberList = pullRequestsList.map(({ number }) => number);
-
-          return {
-            ...acc,
-            [repoName]: pullNumberList,
-          };
-        },
-        {},
+              owner,
+            }),
+          ),
+        ),
       );
+    } catch (error) {
+      Logger.error(
+        "[PullRequests] Error during pullsListCommentsQuery request",
+        error,
+      );
+    } finally {
+      Logger.info("[PullRequests] pullsListCommentsQuery completed");
+    }
+  };
 
-    const repositoriesWithPullRequests = repositories.reduce<
-      { owner: string; repoName: string; pullNumber: string }[]
-    >((acc, repo) => {
-      const hasPRs = repositoriesWithPullRequestsList.includes(repo.name);
-      if (!hasPRs) {
-        return acc;
-      }
+  const reviewsTask = async () => {
+    try {
+      await settleRefreshWork(
+        repositoriesWithPullRequests.map(({ owner, pullNumber, repoName }) =>
+          reviewsLimit(() =>
+            pullsListReviewsQuery({
+              cache,
+              name: repoName,
+              octokit,
+              operationName: pullListReviewOperationName,
+              owner,
+              pullNumber,
+            }),
+          ),
+        ),
+      );
+    } catch (error) {
+      Logger.error(
+        "[PullRequests] Error during pullsListReviewsQuery request",
+        error,
+      );
+      throw error;
+    } finally {
+      Logger.info("[PullRequests] pullsListReviewsQuery completed");
+    }
+  };
 
-      const pullNumbersList = pullRequestNumberByRepoName[repo.name] || [];
+  const actionsTask = async () => {
+    try {
+      await settleRefreshWork(
+        repositories.map((repo) =>
+          actionsLimit(() =>
+            pullActionsQuery({
+              name: repo.name,
+              octokit,
+              operationName: pullActionsOperationName,
+              owner: repo.owner,
+            }),
+          ),
+        ),
+      );
+    } catch (error) {
+      Logger.error("[PullRequests] Error during pullActionsQuery", error);
+      throw error;
+    } finally {
+      Logger.info("[PullRequests] pullActionsQuery completed");
+    }
+  };
 
-      const requestParams = pullNumbersList.map((pullNumber) => ({
-        owner: repo.owner,
-        repoName: repo.name,
-        pullNumber,
-      }));
-
-      return [...acc, ...requestParams];
-    }, []);
-
-    await Promise.all(
-      repositoriesWithPullRequests.map(({ owner, pullNumber, repoName }) => {
-        return limit(async () => {
-          await pullsListReviewsQuery({
-            name: repoName,
-            octokit,
-            operationName: pullListReviewOperationName,
-            owner,
-            pullNumber,
-          });
-        });
-      }),
-    );
-  } catch (error) {
-    Logger.error(
-      "[PullRequests] Error during pullsListReviewsQuery request",
-      error,
-    );
-    throw error;
-  } finally {
-    Logger.info(
-      "[PullRequests] pullsListReviewsQuery and pullsListlistCommentsQuery completed",
-    );
-  }
-
-  try {
-    await Promise.all(
-      repositories.map((repo) =>
-        limit(async () => {
-          return await pullActionsQuery({
-            name: repo.name,
-            octokit,
-            operationName: pullActionsOperationName,
-            owner: repo.owner,
-          });
-        }),
-      ),
-    );
-  } catch (error) {
-    Logger.error("[PullRequests] Error during pullActionsQuery", error);
-    throw error;
-  } finally {
-    Logger.info("[PullRequests] pullActionsQuery completed");
-  }
+  await settleRefreshWork([commentsTask(), reviewsTask(), actionsTask()]);
+  assertCurrent();
 
   // -----------------------------------------------
   // ------- PULL REQUEST ADDED OR REMOVED  -------
@@ -374,7 +385,7 @@ export const pullRequestQuery = async (): Promise<PullRequestQueryResult> => {
   // -----------------------------------------------
 
   const hasReviewUpdateNotificationEnabled =
-    notificationsSettings.reviewsUpdateNotification.value;
+    notificationsSettings.reviewsUpdateNotification.value || notificationsSettings.newReviewsNotification.value;
 
   const reviewUpdateList = (
     hasReviewUpdateNotificationEnabled ? repositories : []
@@ -391,8 +402,8 @@ export const pullRequestQuery = async (): Promise<PullRequestQueryResult> => {
 
       return {
         ...acc,
-        newReview: [...acc.newReview, ...newReview],
-        reviewChanged: [...acc.reviewChanged, ...reviewChanged],
+        newReview: [...acc.newReview, ...(notificationsSettings.newReviewsNotification.value ? newReview : [])],
+        reviewChanged: [...acc.reviewChanged, ...(notificationsSettings.reviewsUpdateNotification.value ? reviewChanged : [])],
       };
     },
     { newReview: [], reviewChanged: [] },
@@ -501,9 +512,8 @@ export const pullRequestQuery = async (): Promise<PullRequestQueryResult> => {
         return {
           title: "New Pull Request",
           body: `You have opened "${pr?.title}".`,
-          onClick: () => {
-            tryOpenExternalUrl(pr.html_url);
-          },
+          type: "pullRequest",
+          url: pr.html_url,
         };
       }
 
@@ -511,18 +521,16 @@ export const pullRequestQuery = async (): Promise<PullRequestQueryResult> => {
         return {
           title: "New Review Request",
           body: `You have been requested to review "${pr?.title}".`,
-          onClick: () => {
-            tryOpenExternalUrl(pr.html_url);
-          },
+          type: "pullRequest",
+          url: pr.html_url,
         };
       }
 
       return {
         title: "New Pull Request",
         body: `"${pr?.title}" has been assigned to you.`,
-        onClick: () => {
-          tryOpenExternalUrl(pr.html_url);
-        },
+        type: "pullRequest",
+        url: pr.html_url,
       };
     },
   );
@@ -537,77 +545,21 @@ export const pullRequestQuery = async (): Promise<PullRequestQueryResult> => {
         return {
           title: "Review Request Removed",
           body: `You are no longer a reviewer of "${pr?.title}".`,
-          onClick: () => {
-            tryOpenExternalUrl(pr.html_url);
-          },
+          type: "pullRequest",
+          url: pr.html_url,
         };
       }
 
       return {
         title: "Closed Pull Request",
         body: `Pull Request "${pr?.title}" has been closed.`,
-        onClick: () => {
-          tryOpenExternalUrl(pr.html_url);
-        },
+        type: "pullRequest",
+        url: pr.html_url,
       };
     },
   );
 
-  const newReviewsNotification = reviewUpdateList.newReview.map((review) => {
-    const { pullRequestData, login, state, userType } = review;
-    const { title } = pullRequestData || {};
-
-    const humanState =
-      state === "APPROVED"
-        ? "approved it"
-        : state === "COMMENTED"
-          ? "left a comment"
-          : "requested some changes";
-
-    const user = userType === "Bot" ? "bot" : login;
-
-    return {
-      title: "New Review",
-      body: `${user} reviewed "${title}" and ${humanState}.`,
-      onClick: () => {
-        tryOpenExternalUrl(review.html_url);
-      },
-    };
-  });
-
-  const reviewsUpdateNotification = reviewUpdateList.reviewChanged.map(
-    (review) => {
-      const { pullRequestData, login, state, userType } = review;
-      const { title } = pullRequestData || {};
-
-      const humanState =
-        state === "APPROVED"
-          ? "approved it"
-          : state === "COMMENTED"
-            ? "left a comment"
-            : "requested some changes";
-
-      if (state === "APPROVED") {
-        return {
-          title: "Updated Review",
-          body: `"${title}" is now approved.`,
-          onClick: () => {
-            tryOpenExternalUrl(review.html_url);
-          },
-        };
-      }
-
-      const user = userType === "Bot" ? "bot" : login;
-
-      return {
-        title: "Updated Review",
-        body: `${user} reviewed "${title}" and ${humanState}.`,
-        onClick: () => {
-          tryOpenExternalUrl(review.html_url);
-        },
-      };
-    },
-  );
+  const reviewNotifications = getReviewNotifications(reviewUpdateList);
 
   const ciStatusNotification = repositories
     .map((repo) => {
@@ -638,17 +590,15 @@ export const pullRequestQuery = async (): Promise<PullRequestQueryResult> => {
           return {
             title: `CI "${runName}" Status Update`,
             body: `Pull Request "${title}" successfully passed the checks.`,
-            onClick: () => {
-              tryOpenExternalUrl(repo.htmlUrl);
-            },
+            type: "ci",
+            url: repo.htmlUrl,
           };
         }
         return {
           title: `CI "${runName}" Status Update`,
           body: `Pull Request "${title}" status changed from ${initialRun.conclusion} to ${finalRun.conclusion}.`,
-          onClick: () => {
-            tryOpenExternalUrl(repo.htmlUrl);
-          },
+          type: "ci",
+          url: repo.htmlUrl,
         };
       });
 
@@ -674,20 +624,18 @@ export const pullRequestQuery = async (): Promise<PullRequestQueryResult> => {
     return {
       title: "You have been mentioned",
       body: `${userLogin} mentioned you in "${pullRequestTitle}".`,
-      onClick: () => {
-        tryOpenExternalUrl(html_url);
-      },
+      type: "mention",
+      url: html_url,
     };
   });
 
   batchNotificationManager([
     ...pullRequestsAddedNotification,
     ...pullRequestsRemovedNotification,
-    ...newReviewsNotification,
-    ...reviewsUpdateNotification,
+    ...reviewNotifications,
     ...ciStatusNotification,
     ...mentionNotifications,
-  ]);
+  ] as ManagedNotification[]);
 
   const flatPullRequests = Object.values(cache.pullRequestsPerRepo || {})
     .flatMap((value) => {
@@ -710,7 +658,8 @@ export const pullRequestQuery = async (): Promise<PullRequestQueryResult> => {
     flatPullRequests,
   };
 
-  void storeData({ name: "pull_requests_cache", data });
+  await storeData({ name: "pull_requests_cache", data });
+  assertCurrent();
 
   setLocalCache(data);
 

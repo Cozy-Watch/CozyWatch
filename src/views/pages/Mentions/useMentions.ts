@@ -119,12 +119,13 @@ export const useMentions = () => {
       );
 
       const discussionForThisPR = prMentions.reduce(
-        (acc, { body, user, updated_at }) => {
+        (acc, { body, user, updated_at, html_url }) => {
           return {
             ...acc,
             [user?.login || user?.id.toString() || "NA"]: {
               state: "COMMENTED",
               body: body || "",
+              html_url,
               userAvatar: user?.avatar_url || "",
               userName: user?.login || "",
               date: updated_at,

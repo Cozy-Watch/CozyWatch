@@ -21,7 +21,10 @@ import {
   markExpiryReminderShown,
   setLicenseUsage,
 } from "./mainProcess/licensing/licenseState";
-import { getPullRequests } from "./mainProcess/api/PullRequests/getPullRequests";
+import {
+  getPullRequests,
+  getPullRequestSnapshot,
+} from "./mainProcess/api/PullRequests/getPullRequests";
 import { getRepositories } from "./mainProcess/api/Repositories/getRepositories";
 import { setRepositoryEnableState } from "./mainProcess/api/Repositories/setRepositoryEnableState";
 import { getUser } from "./mainProcess/api/User/getUser";
@@ -48,6 +51,13 @@ import {
   NOTIFICATION_KEYS,
 } from "./mainProcess/safeStorage/safeStorage.types";
 import { setToggleAllNotifications } from "./mainProcess/notifications/setToggleAllNotifications";
+import {
+  clearNotificationHistory,
+  getNotificationHistory,
+  markAllNotificationsRead,
+  markNotificationRead,
+  clearNotificationsOnSignOut,
+} from "./mainProcess/notifications/notificationManager";
 import {
   isAllowedRendererUrl,
   openExternalUrl,
@@ -325,22 +335,32 @@ export const createWindow = () => {
     showRendererFailure();
   });
 
-  mainWindow.webContents.on(
-    "console-message",
-    (_event, level, message, line, sourceId) => {
-      if (level < 2) {
-        return;
-      }
+  mainWindow.webContents.on("console-message", (_event, level, message, line, sourceId) => {
+    if (level < 2) {
+      return;
+    }
 
-      log.error("[Renderer] console error", {
-        level,
-        line,
-        message: redactDiagnosticValue(message),
-        sourceId: redactDiagnosticValue(sourceId),
-      });
-    },
-  );
+    // electron-log's renderer transport writes to console.* as well as its
+    // main-process transport. Reporting that output here creates a duplicate
+    // log entry whose source is electron-log.js (and object arguments become
+    // "[object Object]").
+    if (sourceId.includes("electron-log")) {
+      return;
+    }
 
+    const details = {
+      level,
+      line,
+      message: redactDiagnosticValue(message),
+      sourceId: redactDiagnosticValue(sourceId),
+    };
+
+    if (level === 3) {
+      log.error("[Renderer] console error", details);
+    } else {
+      log.warn("[Renderer] console warning", details);
+    }
+  });
   mainWindow.on("unresponsive", () => {
     log.warn("[Window] renderer became unresponsive");
   });
@@ -495,9 +515,9 @@ export const performSignOut = async () => {
   disableDerivedCacheWrites();
   const signedOut = await signOut();
   if (signedOut) {
-    backgroundTasksStarted = false;
-    ipcMain.emit("dispatch-application-sign-user", null, false);
-  } else {
+    await clearNotificationsOnSignOut();
+  }
+  if (!signedOut) {
     enableDerivedCacheWrites();
     startPolling();
   }
@@ -678,8 +698,8 @@ ipcMain.on("dispatch-repository-update", (_, data) => {
 
 // ---- Pull Requests ----
 handleRendererInvoke("pull-requests-query", async () => {
-  log.info("[IPC] pull-requests-query");
-  return getPullRequests();
+  log.info("[IPC] pull-requests-query cached snapshot");
+  return getPullRequestSnapshot();
 });
 
 ipcMain.on("dispatch-pull-request-update", (_, data) => {
@@ -787,12 +807,47 @@ handleRendererInvoke("get-application-notification", async () => {
   return getNotificationsSettings();
 });
 
-handleRendererInvoke(
-  "set-application-toggle-notification",
-  async (_, enable) => {
-    if (typeof enable !== "boolean") {
-      throw new Error("Invalid notification setting.");
-    }
+handleRendererInvoke("get-notification-history", () => getNotificationHistory());
+handleRendererInvoke("mark-notification-read", async (_, id: unknown) => {
+  if (typeof id !== "string" || id.length === 0) {
+    throw new Error("Invalid notification id.");
+  }
+  return markNotificationRead(id);
+});
+handleRendererInvoke("mark-all-notifications-read", () => markAllNotificationsRead());
+handleRendererInvoke("clear-notification-history", () => clearNotificationHistory());
+
+ipcMain.on("dispatch-notification-update", (_, data) => {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send("notification-update", data);
+  }
+});
+
+ipcMain.on("dispatch-notification-click", (_, notificationId: unknown) => {
+  if (typeof notificationId !== "string") return;
+  const sendNavigation = () => {
+    mainWindow?.webContents.send("navigate-to-route", {
+      route: "notifications",
+      notificationId,
+    });
+  };
+
+  if (!mainWindow || mainWindow.isDestroyed()) {
+    createWindow();
+  }
+  if (mainWindow?.webContents.isLoading()) {
+    mainWindow.webContents.once("did-finish-load", sendNavigation);
+  } else {
+    sendNavigation();
+  }
+  mainWindow?.show();
+  mainWindow?.focus();
+});
+
+handleRendererInvoke("set-application-toggle-notification", async (_, enable) => {
+  if (typeof enable !== "boolean") {
+    throw new Error("Invalid notification setting.");
+  }
 
     log.info("[IPC] set-application-notification");
     return setToggleAllNotifications(enable);
@@ -897,10 +952,10 @@ handleRendererInvoke("on-application-navigate-to-route", (_, route) => {
     // Wait for window to be ready before sending route
     if (mainWindow.webContents.isLoading()) {
       mainWindow.webContents.once("did-finish-load", () => {
-        mainWindow?.webContents.send("navigate-to-route", route);
+        mainWindow?.webContents.send("navigate-to-route", { route });
       });
     } else {
-      mainWindow.webContents.send("navigate-to-route", route);
+      mainWindow.webContents.send("navigate-to-route", { route });
     }
 
     mainWindow.show();
