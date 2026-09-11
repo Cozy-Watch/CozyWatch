@@ -6,6 +6,7 @@ import type { IpcRendererEvent } from "electron";
 import { CacheData as PullRequest } from "./mainProcess/api/PullRequests/utils/getDefaultData";
 import {
   Appearance,
+  NotificationRecord,
   RepositoriesCache,
 } from "./mainProcess/safeStorage/safeStorage.types";
 import type { PersonalWeeklyRecap } from "./weeklyRecap/types";
@@ -88,6 +89,21 @@ contextBridge.exposeInMainWorld("electronAPI", {
         key,
       });
     },
+    getNotificationHistory: (): Promise<NotificationRecord[]> =>
+      ipcRenderer.invoke("get-notification-history"),
+    markNotificationRead: (id: string): Promise<void> =>
+      ipcRenderer.invoke("mark-notification-read", id),
+    markAllNotificationsRead: (): Promise<void> =>
+      ipcRenderer.invoke("mark-all-notifications-read"),
+    clearNotificationHistory: (): Promise<void> =>
+      ipcRenderer.invoke("clear-notification-history"),
+    onNotificationUpdate: (callback: (data: NotificationRecord[]) => void) => {
+      const handler: IpcListener<NotificationRecord[]> = (_event, data) => callback(data);
+      ipcRenderer.on("notification-update", handler);
+      return handler;
+    },
+    removeOnNotificationUpdate: (handler: IpcListener<NotificationRecord[]>) =>
+      ipcRenderer.removeListener("notification-update", handler),
 
     getStartAtLogin: () => {
       return ipcRenderer.invoke("get-application-start-at-login");
@@ -113,15 +129,17 @@ contextBridge.exposeInMainWorld("electronAPI", {
       return ipcRenderer.invoke("on-application-navigate-to-route", route);
     },
 
-    onNavigateToRoute: (callback: (route: "settings" | "signIn") => void) => {
-      const handler: IpcListener<"settings" | "signIn"> = (_event, data) => {
+    onNavigateToRoute: (callback: (event: { route: "settings" | "signIn" | "notifications"; notificationId?: string }) => void) => {
+      const handler: IpcListener<{ route: "settings" | "signIn" | "notifications"; notificationId?: string }> = (_event, data) => {
         callback(data);
       };
       ipcRenderer.on("navigate-to-route", handler);
       return handler;
     },
 
-    removeOnNavigateToRoute: (handler: IpcListener<"settings" | "signIn">) =>
+    removeOnNavigateToRoute: (
+      handler: IpcListener<{ route: "settings" | "signIn" | "notifications"; notificationId?: string }>,
+    ) =>
       ipcRenderer.removeListener("navigate-to-route", handler),
   },
 
@@ -129,7 +147,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
   signOut: () => ipcRenderer.invoke("signOut"),
 
   openExternalLink: (url: string) => {
-    ipcRenderer.invoke("open-external-url", url);
+    return ipcRenderer.invoke("open-external-url", url);
   },
   copyToClipboard: (text: string) => {
     ipcRenderer.invoke("copy-to-clipboard", text);

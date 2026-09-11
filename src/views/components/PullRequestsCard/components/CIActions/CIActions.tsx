@@ -6,10 +6,11 @@ import {
   XCircleFillIcon,
   ZapIcon,
 } from "@primer/octicons-react";
-import { Box, Button, Flex, Popover, Text } from "@radix-ui/themes";
+import { Box, Flex, Popover, Text } from "@radix-ui/themes";
 import dayjs from "dayjs";
 import duration from "dayjs/plugin/duration";
 import { PullsActions } from "src/mainProcess/api/PullRequests/utils/getDefaultData";
+import { GitHubLink } from "../../../ActivityContent/GitHubLink";
 import { COLOR_MAP } from "./CIActions.meta";
 
 dayjs.extend(duration);
@@ -80,114 +81,98 @@ export const CIActions = ({
             </Flex>
 
             <Flex gap="3" direction="column">
-              {actionKeyList.map((actionName, index) => {
+              {actionKeyList.map((actionName) => {
                 const action = actionsByName[actionName][0];
 
                 const conclusion = actionsByName[actionName][0].conclusion;
                 const status = actionsByName[actionName][0].status;
 
                 return (
-                  <Flex key={index} align="center" justify="between" gap="1">
-                    <Box>
-                      <Flex
-                        width="20px"
-                        height="20px"
-                        align="center"
-                        justify="center"
-                        style={{
-                          color:
-                            status === "completed"
-                              ? conclusion === "success"
-                                ? COLOR_MAP.success
-                                : COLOR_MAP.failure
-                              : COLOR_MAP.pending,
-                          border: "2px solid var(--gray-1)",
-                          boxShadow: "inset 0px 0px 0px 2px var(--gray-1)",
-                          background: "var(--gray-1)",
-                          borderRadius: "50%",
-                          overflow: "hidden",
-                        }}
-                      >
-                        {status === "completed" ? (
-                          conclusion === "success" ? (
-                            <CheckCircleFillIcon size={20} />
+                  <GitHubLink
+                    key={action.id}
+                    href={action.html_url || pullRequestLink}
+                    className="ci-run-link"
+                  >
+                    <Flex align="center" justify="between" gap="1">
+                      <Box>
+                        <Flex
+                          width="20px"
+                          height="20px"
+                          align="center"
+                          justify="center"
+                          style={{
+                            color:
+                              status === "completed"
+                                ? conclusion === "success"
+                                  ? COLOR_MAP.success
+                                  : COLOR_MAP.failure
+                                : COLOR_MAP.pending,
+                            border: "2px solid var(--gray-1)",
+                            boxShadow: "inset 0px 0px 0px 2px var(--gray-1)",
+                            background: "var(--gray-1)",
+                            borderRadius: "50%",
+                            overflow: "hidden",
+                          }}
+                        >
+                          {status === "completed" ? (
+                            conclusion === "success" ? (
+                              <CheckCircleFillIcon size={20} />
+                            ) : (
+                              <XCircleFillIcon size={20} />
+                            )
                           ) : (
-                            <XCircleFillIcon size={20} />
-                          )
-                        ) : (
-                          <ClockFillIcon size={20} />
-                        )}
-                      </Flex>
-                    </Box>
+                            <ClockFillIcon size={20} />
+                          )}
+                        </Flex>
+                      </Box>
 
-                    <Flex
-                      direction="column"
-                      gap="1"
-                      align="start"
-                      justify="center"
-                      width="100%"
-                    >
-                      <Text
-                        size="1"
-                        weight="bold"
-                        className="bright-background-text-shadow"
-                        style={{
-                          color: "var(--gray-a11)",
-                        }}
+                      <Flex
+                        direction="column"
+                        gap="1"
+                        align="start"
+                        justify="center"
+                        width="100%"
                       >
-                        {action.name}
-                      </Text>
-
-                      {status === "completed" && (
                         <Text
+                          size="1"
+                          weight="bold"
                           className="bright-background-text-shadow"
                           style={{
-                            fontSize: "10px",
                             color: "var(--gray-a11)",
                           }}
                         >
-                          Completed in{" "}
-                          {dayjs
-                            .duration(
-                              dayjs(action.updated_at).diff(
-                                dayjs(action.run_started_at),
-                              ),
-                            )
-                            .format("m[m] s[s]")}
+                          {action.name}
                         </Text>
-                      )}
+
+                        {status === "completed" && (
+                          <Text
+                            className="bright-background-text-shadow"
+                            style={{
+                              fontSize: "10px",
+                              color: "var(--gray-a11)",
+                            }}
+                          >
+                            Completed in{" "}
+                            {dayjs
+                              .duration(
+                                dayjs(action.updated_at).diff(
+                                  dayjs(action.run_started_at),
+                                ),
+                              )
+                              .format("m[m] s[s]")}
+                          </Text>
+                        )}
+                      </Flex>
                     </Flex>
-                  </Flex>
+                  </GitHubLink>
                 );
               })}
 
-              <Button
-                variant="ghost"
-                asChild
-                onClick={() => {
-                  window.electronAPI.openExternalLink(pullRequestLink);
-                }}
-              >
-                <Flex
-                  justify="start"
-                  width="100%"
-                  align="center"
-                  gap="2"
-                  style={{ color: "var(--accent-a9)" }}
-                >
-                  <Text
-                    size="1"
-                    className="bright-background-text-shadow"
-                    style={{
-                      color: "var(--accent-a9)",
-                    }}
-                  >
-                    View all checks on Github
-                  </Text>
-
-                  <LinkExternalIcon size={12} />
-                </Flex>
-              </Button>
+              <GitHubLink href={pullRequestLink}>
+                <Text size="1">
+                  View pull request on GitHub <LinkExternalIcon size={12} />
+                </Text>
+              </GitHubLink>
             </Flex>
           </Popover.Content>
         </Popover.Root>
@@ -267,114 +252,98 @@ export const CIActions = ({
           </Flex>
 
           <Flex gap="3" direction="column">
-            {actionKeyList.map((actionName, index) => {
+            {actionKeyList.map((actionName) => {
               const action = actionsByName[actionName][0];
 
               const conclusion = actionsByName[actionName][0].conclusion;
               const status = actionsByName[actionName][0].status;
 
               return (
-                <Flex key={index} align="center" justify="between" gap="1">
-                  <Box>
-                    <Flex
-                      width="20px"
-                      height="20px"
-                      align="center"
-                      justify="center"
-                      style={{
-                        color:
-                          status === "completed"
-                            ? conclusion === "success"
-                              ? COLOR_MAP.success
-                              : COLOR_MAP.failure
-                            : COLOR_MAP.pending,
-                        border: "2px solid var(--gray-1)",
-                        boxShadow: "inset 0px 0px 0px 2px var(--gray-1)",
-                        background: "var(--gray-1)",
-                        borderRadius: "50%",
-                        overflow: "hidden",
-                      }}
-                    >
-                      {status === "completed" ? (
-                        conclusion === "success" ? (
-                          <CheckCircleFillIcon size={20} />
+                <GitHubLink
+                  key={action.id}
+                  href={action.html_url || pullRequestLink}
+                  className="ci-run-link"
+                >
+                  <Flex align="center" justify="between" gap="1">
+                    <Box>
+                      <Flex
+                        width="20px"
+                        height="20px"
+                        align="center"
+                        justify="center"
+                        style={{
+                          color:
+                            status === "completed"
+                              ? conclusion === "success"
+                                ? COLOR_MAP.success
+                                : COLOR_MAP.failure
+                              : COLOR_MAP.pending,
+                          border: "2px solid var(--gray-1)",
+                          boxShadow: "inset 0px 0px 0px 2px var(--gray-1)",
+                          background: "var(--gray-1)",
+                          borderRadius: "50%",
+                          overflow: "hidden",
+                        }}
+                      >
+                        {status === "completed" ? (
+                          conclusion === "success" ? (
+                            <CheckCircleFillIcon size={20} />
+                          ) : (
+                            <XCircleFillIcon size={20} />
+                          )
                         ) : (
-                          <XCircleFillIcon size={20} />
-                        )
-                      ) : (
-                        <ClockFillIcon size={20} />
-                      )}
-                    </Flex>
-                  </Box>
+                          <ClockFillIcon size={20} />
+                        )}
+                      </Flex>
+                    </Box>
 
-                  <Flex
-                    direction="column"
-                    gap="1"
-                    align="start"
-                    justify="center"
-                    width="100%"
-                  >
-                    <Text
-                      size="1"
-                      weight="bold"
-                      className="bright-background-text-shadow"
-                      style={{
-                        color: "var(--gray-a11)",
-                      }}
+                    <Flex
+                      direction="column"
+                      gap="1"
+                      align="start"
+                      justify="center"
+                      width="100%"
                     >
-                      {action.name}
-                    </Text>
-
-                    {status === "completed" && (
                       <Text
+                        size="1"
+                        weight="bold"
                         className="bright-background-text-shadow"
                         style={{
-                          fontSize: "10px",
                           color: "var(--gray-a11)",
                         }}
                       >
-                        Completed in{" "}
-                        {dayjs
-                          .duration(
-                            dayjs(action.updated_at).diff(
-                              dayjs(action.run_started_at),
-                            ),
-                          )
-                          .format("m[m] s[s]")}
+                        {action.name}
                       </Text>
-                    )}
+
+                      {status === "completed" && (
+                        <Text
+                          className="bright-background-text-shadow"
+                          style={{
+                            fontSize: "10px",
+                            color: "var(--gray-a11)",
+                          }}
+                        >
+                          Completed in{" "}
+                          {dayjs
+                            .duration(
+                              dayjs(action.updated_at).diff(
+                                dayjs(action.run_started_at),
+                              ),
+                            )
+                            .format("m[m] s[s]")}
+                        </Text>
+                      )}
+                    </Flex>
                   </Flex>
-                </Flex>
+                </GitHubLink>
               );
             })}
 
-            <Button
-              variant="ghost"
-              asChild
-              onClick={() => {
-                window.electronAPI.openExternalLink(pullRequestLink);
-              }}
-            >
-              <Flex
-                justify="start"
-                width="100%"
-                align="center"
-                gap="2"
-                style={{ color: "var(--accent-a9)" }}
-              >
-                <Text
-                  size="1"
-                  className="bright-background-text-shadow"
-                  style={{
-                    color: "var(--accent-a9)",
-                  }}
-                >
-                  View all checks on Github
-                </Text>
-
-                <LinkExternalIcon size={12} />
-              </Flex>
-            </Button>
+            <GitHubLink href={pullRequestLink}>
+              <Text size="1">
+                View pull request on GitHub <LinkExternalIcon size={12} />
+              </Text>
+            </GitHubLink>
           </Flex>
         </Popover.Content>
       </Popover.Root>

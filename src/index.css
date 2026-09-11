@@ -192,3 +192,147 @@
 :is(.light, .light-theme) .mb-text-color-light {
   color: var(--black-a6);
 }
+.activity-panel {
+  border-radius: 10px;
+  background: var(--gray-a2);
+  min-width: 0;
+}
+.activity-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 4px 0;
+  border: 0;
+  background: transparent;
+  color: var(--gray-12);
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+}
+.activity-toggle:hover {
+  color: var(--accent-11);
+}
+.activity-toggle:focus-visible,
+.activity-link:focus-visible,
+.ci-run-link:focus-visible {
+  outline: 2px solid var(--accent-9);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+.activity-entry + .activity-entry {
+  border-top: 1px solid var(--gray-a4);
+  padding-top: 16px;
+}
+.activity-markdown {
+  min-width: 0;
+  font-size: 14px;
+  line-height: 1.65;
+  color: var(--gray-12);
+  overflow-wrap: anywhere;
+}
+.activity-markdown > :first-child {
+  margin-top: 0;
+}
+.activity-markdown > :last-child {
+  margin-bottom: 0;
+}
+.activity-markdown p,
+.activity-markdown ul,
+.activity-markdown ol,
+.activity-markdown pre,
+.activity-markdown blockquote {
+  margin: 10px 0;
+}
+.activity-markdown ul,
+.activity-markdown ol {
+  padding-left: 24px;
+}
+.activity-markdown h1,
+.activity-markdown h2,
+.activity-markdown h3 {
+  font-size: 1.1em;
+  line-height: 1.4;
+  margin: 16px 0 8px;
+}
+.activity-markdown a,
+.activity-link {
+  color: var(--accent-11);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+.activity-link {
+  font-size: 12px;
+  align-self: flex-start;
+}
+.activity-markdown a:hover,
+.activity-link:hover {
+  color: var(--accent-12);
+}
+.activity-markdown blockquote {
+  margin-left: 0;
+  padding-left: 12px;
+  border-left: 3px solid var(--gray-a6);
+  color: var(--gray-11);
+}
+.activity-markdown code {
+  font-family: var(--code-font-family, monospace);
+  font-size: 0.9em;
+  padding: 2px 4px;
+  border-radius: 4px;
+  background: var(--gray-a3);
+}
+.activity-markdown pre {
+  max-width: 100%;
+  overflow-x: auto;
+  padding: 12px;
+  border: 1px solid var(--gray-a5);
+  border-radius: 6px;
+  background: var(--gray-a2);
+}
+.activity-markdown pre code {
+  padding: 0;
+  background: none;
+  white-space: pre;
+  overflow-wrap: normal;
+}
+.activity-markdown img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 4px;
+  vertical-align: middle;
+}
+.activity-markdown table {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+  border-collapse: collapse;
+}
+.activity-markdown th,
+.activity-markdown td {
+  padding: 6px 10px;
+  border: 1px solid var(--gray-a5);
+}
+.activity-image-fallback {
+  display: inline-block;
+  padding: 8px 12px;
+  border: 1px dashed var(--gray-a6);
+  border-radius: 4px;
+  color: var(--gray-11);
+  font-size: 13px;
+}
+.ci-run-link {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 6px;
+  border-radius: 6px;
+  color: inherit;
+  text-decoration: none;
+  cursor: pointer;
+}
+.ci-run-link:hover {
+  background: var(--gray-a3);
+}

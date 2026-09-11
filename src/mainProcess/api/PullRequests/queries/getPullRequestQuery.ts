@@ -3,8 +3,8 @@ import Logger from "electron-log";
 import pLimit from "p-limit";
 import { getNotificationsSettings } from "../../../notifications/getNotificationSettings";
 import { batchNotificationManager } from "../../../notifications/notificationManager";
+import type { ManagedNotification } from "../../../notifications/notificationManager";
 import { storeData } from "../../../safeStorage/safeStorage";
-import { tryOpenExternalUrl } from "../../../security/externalUrl";
 import { getGithubClient } from "../../githubClient";
 import { getUser } from "../../User/getUser";
 import { registerListIssuesComments } from "../hooks/registerIssuesListComments";
@@ -89,6 +89,7 @@ export const pullRequestQuery = async (isCurrent = () => true): Promise<PullRequ
         {
           title: "GitHub Rate Limit Reached",
           body: `Pull request updates are paused due to low rate limit. Resets in approximately ${waitMinutes} minutes.`,
+          type: "system",
         },
       ]);
 
@@ -511,9 +512,8 @@ export const pullRequestQuery = async (isCurrent = () => true): Promise<PullRequ
         return {
           title: "New Pull Request",
           body: `You have opened "${pr?.title}".`,
-          onClick: () => {
-            tryOpenExternalUrl(pr.html_url);
-          },
+          type: "pullRequest",
+          url: pr.html_url,
         };
       }
 
@@ -521,18 +521,16 @@ export const pullRequestQuery = async (isCurrent = () => true): Promise<PullRequ
         return {
           title: "New Review Request",
           body: `You have been requested to review "${pr?.title}".`,
-          onClick: () => {
-            tryOpenExternalUrl(pr.html_url);
-          },
+          type: "pullRequest",
+          url: pr.html_url,
         };
       }
 
       return {
         title: "New Pull Request",
         body: `"${pr?.title}" has been assigned to you.`,
-        onClick: () => {
-          tryOpenExternalUrl(pr.html_url);
-        },
+        type: "pullRequest",
+        url: pr.html_url,
       };
     },
   );
@@ -547,18 +545,16 @@ export const pullRequestQuery = async (isCurrent = () => true): Promise<PullRequ
         return {
           title: "Review Request Removed",
           body: `You are no longer a reviewer of "${pr?.title}".`,
-          onClick: () => {
-            tryOpenExternalUrl(pr.html_url);
-          },
+          type: "pullRequest",
+          url: pr.html_url,
         };
       }
 
       return {
         title: "Closed Pull Request",
         body: `Pull Request "${pr?.title}" has been closed.`,
-        onClick: () => {
-          tryOpenExternalUrl(pr.html_url);
-        },
+        type: "pullRequest",
+        url: pr.html_url,
       };
     },
   );
@@ -594,17 +590,15 @@ export const pullRequestQuery = async (isCurrent = () => true): Promise<PullRequ
           return {
             title: `CI "${runName}" Status Update`,
             body: `Pull Request "${title}" successfully passed the checks.`,
-            onClick: () => {
-              tryOpenExternalUrl(repo.htmlUrl);
-            },
+            type: "ci",
+            url: repo.htmlUrl,
           };
         }
         return {
           title: `CI "${runName}" Status Update`,
           body: `Pull Request "${title}" status changed from ${initialRun.conclusion} to ${finalRun.conclusion}.`,
-          onClick: () => {
-            tryOpenExternalUrl(repo.htmlUrl);
-          },
+          type: "ci",
+          url: repo.htmlUrl,
         };
       });
 
@@ -630,9 +624,8 @@ export const pullRequestQuery = async (isCurrent = () => true): Promise<PullRequ
     return {
       title: "You have been mentioned",
       body: `${userLogin} mentioned you in "${pullRequestTitle}".`,
-      onClick: () => {
-        tryOpenExternalUrl(html_url);
-      },
+      type: "mention",
+      url: html_url,
     };
   });
 
@@ -642,7 +635,7 @@ export const pullRequestQuery = async (isCurrent = () => true): Promise<PullRequ
     ...reviewNotifications,
     ...ciStatusNotification,
     ...mentionNotifications,
-  ]);
+  ] as ManagedNotification[]);
 
   const flatPullRequests = Object.values(cache.pullRequestsPerRepo || {})
     .flatMap((value) => {

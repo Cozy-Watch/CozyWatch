@@ -40,6 +40,23 @@ export interface NotificationSetting {
   value: boolean;
 }
 
+export type NotificationType =
+  | "pullRequest"
+  | "review"
+  | "ci"
+  | "mention"
+  | "system";
+
+export interface NotificationRecord {
+  id: string;
+  type: NotificationType;
+  title: string;
+  body: string;
+  createdAt: string;
+  url?: string;
+  read: boolean;
+}
+
 export const NOTIFICATION_KEYS = [
   "pullRequestsAddedNotification",
   "pullRequestsRemovedNotification",
@@ -74,6 +91,7 @@ export type StoreDataMap = {
   repositories_cache: RepositoriesCache | null;
   user: User | null;
   notifications: NotificationSettingsPerKey;
+  notification_history: NotificationRecord[];
   open_at_login: boolean;
   appSettings: {
     menubarDensity: "compact" | "default";
