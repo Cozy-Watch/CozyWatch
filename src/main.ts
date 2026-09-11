@@ -21,7 +21,10 @@ import {
   markExpiryReminderShown,
   setLicenseUsage,
 } from "./mainProcess/licensing/licenseState";
-import { getPullRequests } from "./mainProcess/api/PullRequests/getPullRequests";
+import {
+  getPullRequests,
+  getPullRequestSnapshot,
+} from "./mainProcess/api/PullRequests/getPullRequests";
 import { getRepositories } from "./mainProcess/api/Repositories/getRepositories";
 import { setRepositoryEnableState } from "./mainProcess/api/Repositories/setRepositoryEnableState";
 import { getUser } from "./mainProcess/api/User/getUser";
@@ -678,8 +681,8 @@ ipcMain.on("dispatch-repository-update", (_, data) => {
 
 // ---- Pull Requests ----
 handleRendererInvoke("pull-requests-query", async () => {
-  log.info("[IPC] pull-requests-query");
-  return getPullRequests();
+  log.info("[IPC] pull-requests-query cached snapshot");
+  return getPullRequestSnapshot();
 });
 
 ipcMain.on("dispatch-pull-request-update", (_, data) => {

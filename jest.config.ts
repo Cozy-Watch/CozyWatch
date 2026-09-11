@@ -1,6 +1,7 @@
 export default {
   preset: "ts-jest",
   testEnvironment: "node",
+  testPathIgnorePatterns: ["/node_modules/", "/tests/refresh/"],
   transform: {
     "^.+\\.tsx?$": "ts-jest",
   },
