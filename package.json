@@ -21,7 +21,8 @@
     "publish:mac": "COZYWATCH_OFFICIAL_BUILD=true electron-forge publish --platform=darwin --arch=universal",
     "lint": "eslint .",
     "types": "tsc --noEmit",
-    "test": "jest --no-watchman"
+    "test": "jest --no-watchman",
+    "test:refresh": "jest --config jest.refresh.config.cjs --no-watchman --runInBand"
   },
   "repository": {
     "type": "git",
