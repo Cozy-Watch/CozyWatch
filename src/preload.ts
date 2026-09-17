@@ -10,6 +10,15 @@ import {
   RepositoriesCache,
 } from "./mainProcess/safeStorage/safeStorage.types";
 import type { PersonalWeeklyRecap } from "./weeklyRecap/types";
+import type {
+  MergeOptions,
+  MergePullRequestInput,
+  MergeResult,
+  MergeStatusInput,
+  MergeStatusResult,
+  PullRequestIdentity,
+} from "./mainProcess/api/PullRequests/mergePullRequest.types";
+import { PULL_REQUEST_MERGE_CHANNELS } from "./mainProcess/api/PullRequests/mergePullRequest.types";
 
 type IpcListener<T> = (event: IpcRendererEvent, data: T) => void;
 type AuthenticationCode = {
@@ -26,6 +35,8 @@ contextBridge.exposeInMainWorld("electronAPI", {
     getApplicationAppearance: (): Promise<Appearance | null> => {
       return ipcRenderer.invoke("get-application-appearance");
     },
+    getVersion: (): Promise<string> =>
+      ipcRenderer.invoke("get-application-version"),
 
     // Menubar Density
     getMenubarDensity: (): Promise<"compact" | "default"> => {
@@ -231,6 +242,14 @@ contextBridge.exposeInMainWorld("electronAPI", {
     },
     removeOnUpdate: (handler: IpcListener<PullRequest>) =>
       ipcRenderer.removeListener("pull-request-update", handler),
+    getMergeOptions: (
+      identity: PullRequestIdentity,
+    ): Promise<MergeOptions | MergeResult> =>
+      ipcRenderer.invoke(PULL_REQUEST_MERGE_CHANNELS.options, identity),
+    merge: (input: MergePullRequestInput): Promise<MergeResult> =>
+      ipcRenderer.invoke(PULL_REQUEST_MERGE_CHANNELS.merge, input),
+    getMergeStatus: (input: MergeStatusInput): Promise<MergeStatusResult> =>
+      ipcRenderer.invoke(PULL_REQUEST_MERGE_CHANNELS.status, input),
   },
 
   weeklyRecap: {

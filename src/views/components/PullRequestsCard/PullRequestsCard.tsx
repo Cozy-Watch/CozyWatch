@@ -8,8 +8,11 @@ import { Labels } from "./components/Labels/Labels";
 import { LastUpdate } from "./components/LastUpdate/LastUpdate";
 import { MergeInfo } from "./components/MergeInfo/MergeInfo";
 import { Repository } from "./components/Repository/Repository";
+import { MergePullRequestAction } from "../MergePullRequestAction/MergePullRequestAction";
+import type { PullRequestList } from "../../../mainProcess/api/PullRequests/utils/getDefaultData";
 
 interface Props {
+  pullRequest: PullRequestList[0];
   waitingReviews: number;
   reviewsGroupedbyUser?: Record<
     string,
@@ -56,6 +59,7 @@ interface Props {
 }
 
 export const PullRequestCard = ({
+  pullRequest,
   waitingReviews,
   reviewsGroupedbyUser,
   avatarUrl,
@@ -147,6 +151,10 @@ export const PullRequestCard = ({
               </Flex>
 
               <LastUpdate updatedAt={updatedAt} />
+            </Flex>
+
+            <Flex justify="end">
+              <MergePullRequestAction pullRequest={pullRequest} />
             </Flex>
           </Flex>
         </Flex>

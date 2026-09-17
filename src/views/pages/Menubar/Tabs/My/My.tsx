@@ -1,13 +1,4 @@
-import {
-  Avatar,
-  Box,
-  Card,
-  Flex,
-  Spinner,
-  Switch,
-  Text,
-  Tooltip,
-} from "@radix-ui/themes";
+import { Box, Card, Flex, Spinner, Switch, Text } from "@radix-ui/themes";
 
 import { useState } from "react";
 import { PullRequestList } from "src/mainProcess/api/PullRequests/utils/getDefaultData";
@@ -17,6 +8,7 @@ import { LastUpdate } from "../../../../components/PullRequestsCard/components/L
 import { MergeInfo } from "../../../../components/PullRequestsCard/components/MergeInfo/MergeInfo";
 import { Repository } from "../../../../components/PullRequestsCard/components/Repository/Repository";
 import { Review } from "../../../../components/Review/Review";
+import { MergePullRequestAction } from "../../../../components/MergePullRequestAction/MergePullRequestAction";
 import { useTabs } from "../useTabs";
 import { Empty } from "../../components/Empty/Empty";
 
@@ -58,10 +50,10 @@ export const My = ({ pullRequests, isCompact }: Props) => {
 
   return (
     <Flex
-      gap="4"
+      gap="2"
       direction="column"
       width="100%"
-      height="100%"
+      minHeight="100%"
       px={isCompact ? "2" : "3"}
       pb={isCompact ? "2" : "3"}
       pt={isCompact ? "2" : "3"}
@@ -96,7 +88,6 @@ export const My = ({ pullRequests, isCompact }: Props) => {
           actionByName,
           pullRequestUrl,
           waitingReviews,
-          assignees,
         }) => {
           if (isCompact) {
             return (
@@ -112,7 +103,10 @@ export const My = ({ pullRequests, isCompact }: Props) => {
                   direction="column"
                   gap="3"
                 >
-                  <Repository repositoryName={pr.head.repo.name} isCompact />
+                  <Flex gap="2" justify="between">
+                    <Repository repositoryName={pr.head.repo.name} isCompact />
+                    <LastUpdate updatedAt={pr.updated_at} isCompact />
+                  </Flex>
 
                   <BranchTitle
                     title={pr.title}
@@ -140,8 +134,7 @@ export const My = ({ pullRequests, isCompact }: Props) => {
                         isCompact
                       />
                     </Flex>
-
-                    <LastUpdate updatedAt={pr.updated_at} isCompact />
+                    <MergePullRequestAction pullRequest={pr} />
                   </Flex>
                 </Flex>
               </Box>
@@ -152,50 +145,18 @@ export const My = ({ pullRequests, isCompact }: Props) => {
             <Box width="100%" key={pr.id}>
               <Card className="shadow-medium">
                 <Flex direction="column" gap="4" flexGrow="1">
-                  <Review
-                    reviewsGroupedbyUser={reviewsAndWaitingReviews}
-                    waitingReviews={waitingReviews}
-                  />
+                  <Flex align="center" justify="between">
+                    <Review
+                      reviewsGroupedbyUser={reviewsAndWaitingReviews}
+                      waitingReviews={waitingReviews}
+                    />
+
+                    <Flex flexGrow="1" justify="end">
+                      <LastUpdate updatedAt={pr.updated_at} />
+                    </Flex>
+                  </Flex>
 
                   <Flex gap="3" width="100%" flexGrow="1">
-                    <Flex gap="1">
-                      <Tooltip
-                        content={`Assigned to: ${pr?.user?.login || "N/A"}, ${assignees
-                          .map(({ login, name }) => login || name)
-                          .join(", ")}`}
-                      >
-                        <Flex>
-                          <Avatar
-                            src={pr?.user?.avatar_url}
-                            fallback={pr?.user?.login || "N/A"}
-                            size="1"
-                            color="amber"
-                            radius="full"
-                            className="accent-shadow-low"
-                          />
-
-                          {assignees.map(({ login, name, avatar }) => {
-                            if (avatar === pr?.user?.avatar_url) {
-                              return null;
-                            }
-
-                            return (
-                              <Avatar
-                                key={login || name}
-                                src={avatar}
-                                fallback={login || name || "N/A"}
-                                size="1"
-                                color="amber"
-                                radius="full"
-                                ml="-4"
-                                className="accent-shadow-low"
-                              />
-                            );
-                          })}
-                        </Flex>
-                      </Tooltip>
-                    </Flex>
-
                     <Flex
                       direction="column"
                       gap="2"
@@ -227,7 +188,7 @@ export const My = ({ pullRequests, isCompact }: Props) => {
                         direction="row-reverse"
                         gap="1"
                       >
-                        <LastUpdate updatedAt={pr.updated_at} />
+                        <MergePullRequestAction pullRequest={pr} />
 
                         <CIActions
                           actionsByName={actionByName}

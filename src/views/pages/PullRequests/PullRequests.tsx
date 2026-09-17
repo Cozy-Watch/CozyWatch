@@ -14,6 +14,7 @@ import {
 } from "@radix-ui/themes";
 import { useNavigate } from "@tanstack/react-router";
 import { ErrorMessage } from "../../components/ErrorMessage/ErrorMessage";
+import { MergePullRequestAction } from "../../components/MergePullRequestAction/MergePullRequestAction";
 import { renderSafeMarkdown } from "../../utils/renderSafeMarkdown";
 import { usePullRequests } from "./usePullRequests";
 
@@ -278,6 +279,9 @@ export const PullRequests = () => {
                                       </Flex>
 
                                       <Flex gap="2">
+                                        <MergePullRequestAction
+                                          pullRequest={pullRequest}
+                                        />
                                         <Tooltip content="Copy Branch Name">
                                           <Button
                                             size="1"

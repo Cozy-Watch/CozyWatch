@@ -19,7 +19,7 @@ export const LastUpdate = ({ updatedAt, isCompact }: Props) => {
       }
       size="1"
     >
-      {dayjs(updatedAt).toNow()}
+      Last Updated: {dayjs(updatedAt).toNow()}
     </Text>
   );
 };

@@ -12,6 +12,14 @@ import {
   LicenseUsage,
 } from "./mainProcess/licensing/licenseState.types";
 import type { PersonalWeeklyRecap } from "./weeklyRecap/types";
+import type {
+  MergeOptions,
+  MergePullRequestInput,
+  MergeResult,
+  MergeStatusInput,
+  MergeStatusResult,
+  PullRequestIdentity,
+} from "./mainProcess/api/PullRequests/mergePullRequest.types";
 
 export {};
 
@@ -31,6 +39,7 @@ declare global {
       application: {
         setApplicationAppearance: (appearance: Appearance | null) => void;
         getApplicationAppearance: () => Promise<Appearance | null>;
+        getVersion: () => Promise<string>;
 
         // Menubar Density
         getMenubarDensity: () => Promise<"compact" | "default">;
@@ -144,6 +153,11 @@ declare global {
           callback: (data: PullRequestDTO) => void,
         ) => IpcListener<PullRequestDTO>;
         removeOnUpdate: (callback: IpcListener<PullRequestDTO>) => void;
+        getMergeOptions: (
+          identity: PullRequestIdentity,
+        ) => Promise<MergeOptions | MergeResult>;
+        merge: (input: MergePullRequestInput) => Promise<MergeResult>;
+        getMergeStatus: (input: MergeStatusInput) => Promise<MergeStatusResult>;
       };
 
       weeklyRecap: {

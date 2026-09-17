@@ -25,6 +25,19 @@ import {
   getPullRequests,
   getPullRequestSnapshot,
 } from "./mainProcess/api/PullRequests/getPullRequests";
+import {
+  getMergeOptions,
+  getMergeStatus,
+  isMergePullRequestInput,
+  isMergeStatusInput,
+  isPullRequestIdentity,
+  mergePullRequest,
+} from "./mainProcess/api/PullRequests/mergePullRequest";
+import { PULL_REQUEST_MERGE_CHANNELS } from "./mainProcess/api/PullRequests/mergePullRequest.types";
+import type {
+  MergeStatusInput,
+  MergeStatusResult,
+} from "./mainProcess/api/PullRequests/mergePullRequest.types";
 import { getRepositories } from "./mainProcess/api/Repositories/getRepositories";
 import { setRepositoryEnableState } from "./mainProcess/api/Repositories/setRepositoryEnableState";
 import { getUser } from "./mainProcess/api/User/getUser";
@@ -169,6 +182,61 @@ const handleRendererInvoke = <Args extends unknown[], Result>(
 };
 
 const NOTIFICATION_KEY_SET = new Set<string>(NOTIFICATION_KEYS);
+const MERGE_STATUS_POLL_INTERVAL_MS = 5_000;
+const MERGE_STATUS_MAX_POLLS = 240;
+const mergeStatusMonitors = new Map<
+  string,
+  ReturnType<typeof setTimeout>
+>();
+
+const refreshAfterMerge = (message: string) => {
+  void getPullRequests().catch((error) => {
+    log.warn(message, error);
+  });
+};
+
+const stopMergeMonitor = (requestId: string) => {
+  const timer = mergeStatusMonitors.get(requestId);
+  if (timer) clearTimeout(timer);
+  mergeStatusMonitors.delete(requestId);
+};
+
+const monitorQueuedMerge = (
+  input: MergeStatusInput,
+  pollCount = 0,
+) => {
+  if (mergeStatusMonitors.has(input.requestId)) return;
+
+  const poll = async () => {
+    stopMergeMonitor(input.requestId);
+    const result: MergeStatusResult = await getMergeStatus(input);
+    if (
+      result.status === "pending" &&
+      pollCount + 1 < MERGE_STATUS_MAX_POLLS
+    ) {
+      monitorQueuedMerge(input, pollCount + 1);
+      return;
+    }
+
+    if (result.status === "merged") {
+      refreshAfterMerge("[PullRequests] refresh after queued merge failed");
+      return;
+    }
+
+    if (result.status === "pending") {
+      log.warn("[PullRequests] stopped monitoring long-running merge", {
+        owner: input.owner,
+        repository: input.repository,
+        pullNumber: input.pullNumber,
+      });
+    }
+  };
+
+  const timer = setTimeout(() => {
+    void poll();
+  }, MERGE_STATUS_POLL_INTERVAL_MS);
+  mergeStatusMonitors.set(input.requestId, timer);
+};
 
 const isRepositoryEnableState = (
   data: unknown,
@@ -702,6 +770,62 @@ handleRendererInvoke("pull-requests-query", async () => {
   return getPullRequestSnapshot();
 });
 
+handleRendererInvoke(PULL_REQUEST_MERGE_CHANNELS.options, async (_, data: unknown) => {
+  if (!isPullRequestIdentity(data)) {
+    throw new Error("Invalid pull request identity.");
+  }
+
+  log.info("[IPC] pull-request-merge-options", {
+    owner: data.owner,
+    repository: data.repository,
+    pullNumber: data.pullNumber,
+  });
+  return getMergeOptions(data);
+});
+
+handleRendererInvoke(PULL_REQUEST_MERGE_CHANNELS.merge, async (_, data: unknown) => {
+  if (!isMergePullRequestInput(data)) {
+    throw new Error("Invalid pull request merge request.");
+  }
+
+  log.info("[IPC] pull-request-merge", {
+    owner: data.owner,
+    repository: data.repository,
+    pullNumber: data.pullNumber,
+    method: data.method,
+  });
+  const result = await mergePullRequest(data);
+  if (result.status === "merged" || result.status === "alreadyMerged") {
+    refreshAfterMerge("[PullRequests] refresh after merge failed");
+  } else if (
+    (result.status === "queued" || result.status === "existingRequest") &&
+    result.requestId
+  ) {
+    monitorQueuedMerge({ ...data, requestId: result.requestId });
+  }
+  return result;
+});
+
+handleRendererInvoke(PULL_REQUEST_MERGE_CHANNELS.status, async (_, data: unknown) => {
+  if (!isMergeStatusInput(data)) {
+    throw new Error("Invalid pull request merge status request.");
+  }
+
+  log.info("[IPC] pull-request-merge-status", {
+    owner: data.owner,
+    repository: data.repository,
+    pullNumber: data.pullNumber,
+  });
+  const result = await getMergeStatus(data);
+  if (result.status !== "pending") {
+    stopMergeMonitor(data.requestId);
+  }
+  if (result.status === "merged") {
+    refreshAfterMerge("[PullRequests] refresh after queued merge failed");
+  }
+  return result;
+});
+
 ipcMain.on("dispatch-pull-request-update", (_, data) => {
   log.info("[IPC] pull request-update");
   if (mainWindow && !mainWindow.isDestroyed()) {
@@ -793,6 +917,8 @@ handleRendererInvoke("get-application-appearance", async () => {
   log.info("[IPC] get-application-appearance");
   return getData("appearance");
 });
+
+handleRendererInvoke("get-application-version", () => app.getVersion());
 
 ipcMain.on("dispatch-application-appearance-update", (_, data) => {
   log.info("[IPC] dispatch-application-appearance-update");
