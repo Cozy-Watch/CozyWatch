@@ -1,5 +1,6 @@
 import { ChatBubbleIcon } from "@radix-ui/react-icons";
 import {
+  Badge,
   Box,
   Button,
   Card,
@@ -14,6 +15,11 @@ import { useNavigate, useRouter } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { Appearance } from "../../../state/appState";
+import {
+  ACCENT_COLORS,
+  DEFAULT_ACCENT_COLOR,
+  isAccentColor,
+} from "../../../shared/theme";
 import { LicenseModal } from "../../components/LicenseModal/LicenseModal";
 import { LicenseStatusCard } from "../../components/LicenseStatus/LicenseStatusCard";
 import {
@@ -23,6 +29,8 @@ import {
 
 import { useAppearanceMutation } from "./api/useAppearanceMutation";
 import { useAppearanceQuery } from "./api/useAppearanceQuery";
+import { useAccentColorQuery } from "./api/useAccentColorQuery";
+import { useAccentColorMutation } from "./api/useAccentColorMutation";
 import { useNotificationsMutation } from "./api/useNotificationsMutation";
 import { useNotificationQuery } from "./api/useNotificationsQuery";
 import { useOpenAtLoginMutation } from "./api/useOpenAtLoginMutation";
@@ -61,6 +69,9 @@ export const AppSettings = () => {
 
   const { data: appearance } = useAppearanceQuery();
   const { mutateAsync: saveAppearance } = useAppearanceMutation();
+  const { data: storedAccentColor } = useAccentColorQuery();
+  const { mutateAsync: saveAccentColor } = useAccentColorMutation();
+  const accentColor = storedAccentColor ?? DEFAULT_ACCENT_COLOR;
 
   const areAllNotificationsEnabled = Object.values(notifications || {}).every(
     ({ value }) => value === true,
@@ -230,10 +241,9 @@ export const AppSettings = () => {
           </Card>
 
           <Card>
-            <Flex align="center" justify="between">
-              <Text weight="medium">Appearance:</Text>
-
-              <Flex direction="column">
+            <Flex direction="column" gap="3">
+              <Flex align="center" justify="between">
+                <Text weight="medium">Appearance:</Text>
                 <DropdownMenu.Root>
                   <DropdownMenu.Trigger>
                     <Button variant="surface" style={{ width: 180 }}>
@@ -268,6 +278,62 @@ export const AppSettings = () => {
                     >
                       System
                     </DropdownMenu.Item>
+                  </DropdownMenu.Content>
+                </DropdownMenu.Root>
+              </Flex>
+              <Flex align="center" justify="between">
+                <Text weight="medium">Accent color:</Text>
+                <DropdownMenu.Root>
+                  <DropdownMenu.Trigger>
+                    <Button variant="surface" style={{ width: 180 }}>
+                      <Badge
+                        aria-hidden
+                        color={accentColor}
+                        radius="full"
+                        variant="solid"
+                        style={{ height: 12, minWidth: 12, padding: 0 }}
+                      />
+                      {accentColor.charAt(0).toUpperCase() + accentColor.slice(1)}
+                      <DropdownMenu.TriggerIcon />
+                    </Button>
+                  </DropdownMenu.Trigger>
+                  <DropdownMenu.Content align="end">
+                    <DropdownMenu.RadioGroup
+                      value={accentColor}
+                      onValueChange={(value) => {
+                        if (!isAccentColor(value) || value === accentColor) {
+                          return;
+                        }
+
+                        void saveAccentColor(value).catch((error) => {
+                          Logger.error(
+                            "[AppSettings] Error updating accent color",
+                            { error },
+                          );
+                        });
+                      }}
+                    >
+                      <Grid columns="1fr 1fr" gap="1" p="1">
+                        {ACCENT_COLORS.map((color) => (
+                          <DropdownMenu.RadioItem key={color} value={color}>
+                            <Flex align="center" gap="2">
+                              <Badge
+                                aria-hidden
+                                color={color}
+                                radius="full"
+                                variant="solid"
+                                style={{
+                                  height: 12,
+                                  minWidth: 12,
+                                  padding: 0,
+                                }}
+                              />
+                              {color.charAt(0).toUpperCase() + color.slice(1)}
+                            </Flex>
+                          </DropdownMenu.RadioItem>
+                        ))}
+                      </Grid>
+                    </DropdownMenu.RadioGroup>
                   </DropdownMenu.Content>
                 </DropdownMenu.Root>
               </Flex>

@@ -63,6 +63,12 @@ import {
   Appearance,
   NOTIFICATION_KEYS,
 } from "./mainProcess/safeStorage/safeStorage.types";
+import {
+  ACCENT_COLOR_CHANNELS,
+  DEFAULT_ACCENT_COLOR,
+  isAccentColor,
+} from "./shared/theme";
+import type { AccentColor } from "./shared/theme";
 import { setToggleAllNotifications } from "./mainProcess/notifications/setToggleAllNotifications";
 import {
   clearNotificationHistory,
@@ -252,6 +258,12 @@ const isAppearance = (appearance: unknown): appearance is Appearance | null =>
   appearance === null ||
   appearance === Appearance.Light ||
   appearance === Appearance.Dark;
+
+const broadcastAccentColor = (accentColor: AccentColor) => {
+  for (const webContents of getTrustedWebContents()) {
+    webContents.send(ACCENT_COLOR_CHANNELS.updated, accentColor);
+  }
+};
 
 const isNotificationSetting = (
   setting: unknown,
@@ -916,6 +928,27 @@ handleRendererInvoke("set-application-appearance", async (_, appearance) => {
 handleRendererInvoke("get-application-appearance", async () => {
   log.info("[IPC] get-application-appearance");
   return getData("appearance");
+});
+
+handleRendererInvoke(ACCENT_COLOR_CHANNELS.get, async () => {
+  log.info("[IPC] get-application-accent-color");
+  const accentColor = await getData("accentColor");
+  return isAccentColor(accentColor) ? accentColor : DEFAULT_ACCENT_COLOR;
+});
+
+handleRendererInvoke(ACCENT_COLOR_CHANNELS.set, async (_, accentColor) => {
+  if (!isAccentColor(accentColor)) {
+    throw new Error("Invalid accent color.");
+  }
+
+  log.info("[IPC] set-application-accent-color", { accentColor });
+  const wasStored = await storeData({ name: "accentColor", data: accentColor });
+  if (!wasStored) {
+    throw new Error("Unable to save accent color.");
+  }
+
+  broadcastAccentColor(accentColor);
+  return accentColor;
 });
 
 handleRendererInvoke("get-application-version", () => app.getVersion());

@@ -11,6 +11,7 @@ import {
   LicenseState,
   LicenseUsage,
 } from "./mainProcess/licensing/licenseState.types";
+import type { AccentColor } from "./shared/theme";
 import type { PersonalWeeklyRecap } from "./weeklyRecap/types";
 import type {
   MergeOptions,
@@ -39,6 +40,10 @@ declare global {
       application: {
         setApplicationAppearance: (appearance: Appearance | null) => void;
         getApplicationAppearance: () => Promise<Appearance | null>;
+        setApplicationAccentColor: (
+          accentColor: AccentColor,
+        ) => Promise<AccentColor>;
+        getApplicationAccentColor: () => Promise<AccentColor>;
         getVersion: () => Promise<string>;
 
         // Menubar Density
@@ -52,6 +57,12 @@ declare global {
         ) => IpcListener<Appearance>;
         removeOnApplicationAppearanceUpdate: (
           callback: IpcListener<Appearance>,
+        ) => void;
+        onApplicationAccentColorUpdate: (
+          callback: (data: AccentColor) => void,
+        ) => IpcListener<AccentColor>;
+        removeOnApplicationAccentColorUpdate: (
+          callback: IpcListener<AccentColor>,
         ) => void;
 
         onSignOut: (callback: (data: boolean) => void) => IpcListener<boolean>;

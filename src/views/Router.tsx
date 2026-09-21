@@ -8,12 +8,21 @@ import {
   createRouter,
   redirect,
 } from "@tanstack/react-router";
+import { useQueryClient } from "@tanstack/react-query";
 import { StrictMode, useEffect } from "react";
 import { Appearance } from "../state/appState";
+import {
+  DEFAULT_ACCENT_COLOR,
+  isAccentColor,
+} from "../shared/theme";
 import { useIsAuthenticatedQuery } from "./api/useIsAuthenticatedQuery";
 import { AuthContext } from "./context/Auth/Context";
 import { useAppearanceMutation } from "./pages/AppSettings/api/useAppearanceMutation";
 import { useAppearanceQuery } from "./pages/AppSettings/api/useAppearanceQuery";
+import {
+  accentColorQueryKey,
+  useAccentColorQuery,
+} from "./pages/AppSettings/api/useAccentColorQuery";
 import { GithubAuthentication } from "./pages/GithubAuthentication/GithubAuthentication";
 import { Mentions } from "./pages/Mentions/Mentions";
 import { Menubar } from "./pages/Menubar/Menubar";
@@ -200,7 +209,9 @@ export const Router = () => {
 };
 const RouterContent = ({ isAuthenticated }: { isAuthenticated: boolean }) => {
   const { data: stateAppearance } = useAppearanceQuery();
+  const { data: stateAccentColor } = useAccentColorQuery();
   const { mutateAsync: saveAppearance } = useAppearanceMutation();
+  const queryClient = useQueryClient();
 
   const appearance =
     stateAppearance ??
@@ -216,6 +227,22 @@ const RouterContent = ({ isAuthenticated }: { isAuthenticated: boolean }) => {
     mediaQuery.addEventListener("change", handleChange);
     return () => mediaQuery.removeEventListener("change", handleChange);
   }, [saveAppearance]);
+
+  useEffect(() => {
+    const handler = window.electronAPI.application.onApplicationAccentColorUpdate(
+      (accentColor) => {
+        if (isAccentColor(accentColor)) {
+          queryClient.setQueryData(accentColorQueryKey, accentColor);
+        }
+      },
+    );
+
+    return () => {
+      window.electronAPI.application.removeOnApplicationAccentColorUpdate(
+        handler,
+      );
+    };
+  }, [queryClient]);
 
   useEffect(() => {
     const handleNavigateToSettings = (event: {
@@ -247,7 +274,7 @@ const RouterContent = ({ isAuthenticated }: { isAuthenticated: boolean }) => {
   return (
     <StrictMode>
       <Theme
-        accentColor="violet"
+        accentColor={stateAccentColor ?? DEFAULT_ACCENT_COLOR}
         radius="large"
         appearance={appearance}
         style={{ background: "none" }}

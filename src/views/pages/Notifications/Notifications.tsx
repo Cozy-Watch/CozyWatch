@@ -98,7 +98,7 @@ const NotificationList = ({
                 {item.body}
               </Text>
               {!item.read && (
-                <Text size="1" color="violet">
+                <Text size="1" style={{ color: "var(--accent-11)" }}>
                   Unread
                 </Text>
               )}

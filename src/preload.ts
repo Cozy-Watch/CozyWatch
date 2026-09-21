@@ -19,6 +19,10 @@ import type {
   PullRequestIdentity,
 } from "./mainProcess/api/PullRequests/mergePullRequest.types";
 import { PULL_REQUEST_MERGE_CHANNELS } from "./mainProcess/api/PullRequests/mergePullRequest.types";
+import {
+  ACCENT_COLOR_CHANNELS,
+  type AccentColor,
+} from "./shared/theme";
 
 type IpcListener<T> = (event: IpcRendererEvent, data: T) => void;
 type AuthenticationCode = {
@@ -35,6 +39,10 @@ contextBridge.exposeInMainWorld("electronAPI", {
     getApplicationAppearance: (): Promise<Appearance | null> => {
       return ipcRenderer.invoke("get-application-appearance");
     },
+    setApplicationAccentColor: (accentColor: AccentColor): Promise<AccentColor> =>
+      ipcRenderer.invoke(ACCENT_COLOR_CHANNELS.set, accentColor),
+    getApplicationAccentColor: (): Promise<AccentColor> =>
+      ipcRenderer.invoke(ACCENT_COLOR_CHANNELS.get),
     getVersion: (): Promise<string> =>
       ipcRenderer.invoke("get-application-version"),
 
@@ -53,6 +61,15 @@ contextBridge.exposeInMainWorld("electronAPI", {
     },
     removeOnApplicationAppearanceUpdate: (handler: IpcListener<Appearance>) =>
       ipcRenderer.removeListener("pull-application-appearance-update", handler),
+    onApplicationAccentColorUpdate: (
+      callback: (data: AccentColor) => void,
+    ) => {
+      const handler: IpcListener<AccentColor> = (_event, data) => callback(data);
+      ipcRenderer.on(ACCENT_COLOR_CHANNELS.updated, handler);
+      return handler;
+    },
+    removeOnApplicationAccentColorUpdate: (handler: IpcListener<AccentColor>) =>
+      ipcRenderer.removeListener(ACCENT_COLOR_CHANNELS.updated, handler),
 
     // ----- SIGN IN / SIGN OUT -----
     signUser: (isSignIn: boolean) => {
