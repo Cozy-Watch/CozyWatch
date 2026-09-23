@@ -153,7 +153,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
       ipcRenderer.invoke("diagnostics-export-bundle"),
     reportRendererReady: () => ipcRenderer.invoke("diagnostics-renderer-ready"),
 
-    navigateToRoute: (route: "settings" | "signIn") => {
+    navigateToRoute: (route: "settings" | "signIn" | "notifications") => {
       return ipcRenderer.invoke("on-application-navigate-to-route", route);
     },
 

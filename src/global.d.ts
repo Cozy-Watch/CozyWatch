@@ -103,7 +103,7 @@ declare global {
         exportDiagnosticsBundle: () => Promise<{ saved: boolean }>;
         reportRendererReady: () => Promise<void>;
 
-        navigateToRoute: (route: "settings" | "signIn") => void;
+        navigateToRoute: (route: "settings" | "signIn" | "notifications") => void;
         onNavigateToRoute: (
           callback: (event: {
             route: "settings" | "signIn" | "notifications";

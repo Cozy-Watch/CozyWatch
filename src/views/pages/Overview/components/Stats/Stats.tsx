@@ -68,7 +68,7 @@ export const Stats = () => {
               style={{ color: "var(--accent-10)" }}
             >
               <Flex direction="column">
-                <Text size="1" style={{ color: "var(--gray-11)" }}>
+                <Text size="2" style={{ color: "var(--gray-11)" }}>
                   Waiting my review
                 </Text>
                 <Text
@@ -104,7 +104,7 @@ export const Stats = () => {
               style={{ color: "var(--accent-10)" }}
             >
               <Flex direction="column">
-                <Text size="1" style={{ color: "var(--gray-11)" }}>
+                <Text size="2" style={{ color: "var(--gray-11)" }}>
                   Waiting to be reviewed
                 </Text>
                 <Text
@@ -139,7 +139,7 @@ export const Stats = () => {
               style={{ color: "var(--accent-10)" }}
             >
               <Flex direction="column">
-                <Text size="1" style={{ color: "var(--gray-11)" }}>
+                <Text size="2" style={{ color: "var(--gray-11)" }}>
                   Approved Pull Requests
                 </Text>
                 <Text

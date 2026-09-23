@@ -24,17 +24,16 @@ import {
   useAccentColorQuery,
 } from "./pages/AppSettings/api/useAccentColorQuery";
 import { GithubAuthentication } from "./pages/GithubAuthentication/GithubAuthentication";
-import { Mentions } from "./pages/Mentions/Mentions";
+import { MentionsPage } from "./pages/Mentions/MentionsPage";
 import { Menubar } from "./pages/Menubar/Menubar";
 import { Overview } from "./pages/Overview/Overview";
-import { PendingReviews } from "./pages/PendingReviews/PendingReviews";
 import { PullRequests } from "./pages/PullRequests/PullRequests";
+import { PullRequestScopePage } from "./pages/PullRequestScope/PullRequestScopePage";
 import { Repositories } from "./pages/Repositories/Repositories";
-import { Reviewed } from "./pages/Reviewed/Reviewed";
 import { Root } from "./pages/Root/Root";
 import { Settings } from "./pages/Settings/Settings";
-import { FullyApproved } from "./pages/FullyApproved/FullyApproved";
 import { Notifications } from "./pages/Notifications/Notifications";
+import log from "electron-log/renderer";
 
 const LoadingComponent = () => {
   return (
@@ -96,49 +95,73 @@ const overview = createRoute({
 const pendingReviewsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "myPullRequests/pendingReviews",
-  component: PendingReviews,
+  component: () => <PullRequestScopePage scope="my" filter="pendingReviews" />,
 });
 
 const reviewedRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "myPullRequests/reviewed",
-  component: Reviewed,
+  component: () => <PullRequestScopePage scope="my" filter="reviewed" />,
 });
 
 const mentionsInMyRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "myPullRequests/mentions",
-  component: Mentions,
+  beforeLoad: () => {
+    throw redirect({ to: "/mentions" });
+  },
+  component: MentionsPage,
 });
 
 const fullyApprovedInMyRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "myPullRequests/fullyApproved",
-  component: FullyApproved,
+  component: () => <PullRequestScopePage scope="my" filter="fullyApproved" />,
 });
 
 const pendingMyReviewRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "teamPullRequest/pendingReviews",
-  component: PendingReviews,
+  component: () => <PullRequestScopePage scope="relevant" filter="pendingReviews" />,
 });
 
 const reviewsByMeRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "teamPullRequest/reviewed",
-  component: Reviewed,
+  component: () => <PullRequestScopePage scope="relevant" filter="reviewed" />,
 });
 
 const mentionsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "teamPullRequest/mentions",
-  component: Mentions,
+  beforeLoad: () => {
+    throw redirect({ to: "/mentions" });
+  },
+  component: MentionsPage,
 });
 
 const teamFullyApprovedInMyRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "teamPullRequest/fullyApproved",
-  component: FullyApproved,
+  component: () => <PullRequestScopePage scope="relevant" filter="fullyApproved" />,
+});
+
+const myPullRequestsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/myPullRequests",
+  component: () => <PullRequestScopePage scope="my" filter="all" />,
+});
+
+const relevantPullRequestsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/teamPullRequest",
+  component: () => <PullRequestScopePage scope="relevant" filter="all" />,
+});
+
+const mentionsPullRequestsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/mentions",
+  component: MentionsPage,
 });
 
 const pullRequestRoute = createRoute({
@@ -177,6 +200,9 @@ const routeTree = rootRoute.addChildren([
   notificationsRoute,
   githubAuthenticationRoute,
   pullRequestRoute,
+  myPullRequestsRoute,
+  relevantPullRequestsRoute,
+  mentionsPullRequestsRoute,
   repositoriesRoute,
   menubarRoute,
   overview,
@@ -265,6 +291,18 @@ const RouterContent = ({ isAuthenticated }: { isAuthenticated: boolean }) => {
     const handler = window.electronAPI.application.onNavigateToRoute(
       handleNavigateToSettings
     );
+
+    const startupTime =
+      (window as Window & { __APP_START?: number }).__APP_START ??
+      performance.now();
+    log.info(
+      "[Startup] React rendered in",
+      (performance.now() - startupTime).toFixed(0),
+      "ms",
+    );
+    void window.electronAPI.application.reportRendererReady().catch((error) => {
+      log.warn("[Startup] Failed to report renderer readiness", { error });
+    });
 
     return () => {
       window.electronAPI.application.removeOnNavigateToRoute(handler);

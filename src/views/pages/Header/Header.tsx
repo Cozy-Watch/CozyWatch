@@ -11,13 +11,12 @@ import {
   Avatar,
   Badge,
   Box,
-  Button,
   DropdownMenu,
   Flex,
   Spinner,
   Text,
 } from "@radix-ui/themes";
-import { useNavigate } from "@tanstack/react-router";
+import { useLocation, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { ErrorMessage } from "../../components/ErrorMessage/ErrorMessage";
 import { LicenseModal } from "../../components/LicenseModal/LicenseModal";
@@ -39,6 +38,7 @@ export const Header = () => {
   } = useHeader();
 
   const navigation = useNavigate();
+  const location = useLocation();
   const { data: notifications = [] } = useNotifications();
   const unreadCount = notifications.filter((notification) => !notification.read).length;
 
@@ -71,10 +71,6 @@ export const Header = () => {
           <LicenseStatusBadge state={licenseState} />
         </Flex>
         <Flex gap="4" align="center">
-          <Button variant="ghost" onClick={() => navigation({ to: "/notifications" })} aria-label="Notifications">
-            <BellIcon size={18} />
-            {unreadCount > 0 && <Badge color="red">{unreadCount > 99 ? "99+" : unreadCount}</Badge>}
-          </Button>
           {errors.length === 0 ? null : (
             <DropdownMenu.Root>
               <DropdownMenu.Trigger>
@@ -99,15 +95,32 @@ export const Header = () => {
           )}
 
           <DropdownMenu.Root>
-            <DropdownMenu.Trigger>
+            <DropdownMenu.Trigger
+              aria-label={
+                unreadCount > 0
+                  ? `Open user menu, ${unreadCount} unread notifications`
+                  : "Open user menu"
+              }
+            >
               <Flex align="center" gap="2">
-                <Avatar
-                  src={data.avatarUrl}
-                  size="2"
-                  radius="full"
-                  fallback={data.login || "N/A"}
-                  className="accent-shadow-low"
-                />
+                <Box position="relative">
+                  <Avatar
+                    src={data.avatarUrl}
+                    size="2"
+                    radius="full"
+                    fallback={data.login || "N/A"}
+                    className="accent-shadow-low"
+                  />
+                  {unreadCount > 0 && (
+                    <Badge
+                      className="desktop-avatar-notification-count"
+                      color="red"
+                      size="1"
+                    >
+                      {unreadCount > 99 ? "99+" : unreadCount}
+                    </Badge>
+                  )}
+                </Box>
                 <ChevronDownIcon size={16} />
               </Flex>
             </DropdownMenu.Trigger>
@@ -137,6 +150,16 @@ export const Header = () => {
               >
                 <SyncIcon size={16} />
                 Refresh
+              </DropdownMenu.Item>
+              <DropdownMenu.Item
+                aria-current={location.pathname === "/notifications" ? "page" : undefined}
+                onClick={() => navigation({ to: "/notifications" })}
+              >
+                <BellIcon size={16} />
+                Notifications
+                {unreadCount > 0 && (
+                  <Badge color="red">{unreadCount > 99 ? "99+" : unreadCount}</Badge>
+                )}
               </DropdownMenu.Item>
               <DropdownMenu.Item
                 onClick={() => {

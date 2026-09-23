@@ -113,6 +113,12 @@ let backgroundTasksStarted = false;
 let backgroundTasksInitialization: Promise<void> | null = null;
 let licenseValidationStarted = false;
 let rendererReady = false;
+let mainWindowRendererReady = false;
+type MainWindowNavigation = {
+  route: "settings" | "signIn" | "notifications";
+  notificationId?: string;
+};
+let pendingMainWindowNavigation: MainWindowNavigation | null = null;
 const isDevelopment = !app.isPackaged;
 
 const getRendererUrl = () =>
@@ -340,6 +346,7 @@ if (started) {
 export const createWindow = () => {
   log.info("[Window] creating");
   diagnostics.record("main-window-creating");
+  mainWindowRendererReady = false;
 
   // Show dock icon on macOS for the main app
   if (process.platform === "darwin") {
@@ -364,6 +371,9 @@ export const createWindow = () => {
       webSecurity: true,
     },
     icon: path.join(__dirname, "images", "icon.png"),
+  });
+  mainWindow.webContents.on("did-start-loading", () => {
+    mainWindowRendererReady = false;
   });
 
   protectWebContents(mainWindow.webContents, [
@@ -984,21 +994,10 @@ ipcMain.on("dispatch-notification-update", (_, data) => {
 
 ipcMain.on("dispatch-notification-click", (_, notificationId: unknown) => {
   if (typeof notificationId !== "string") return;
-  const sendNavigation = () => {
-    mainWindow?.webContents.send("navigate-to-route", {
-      route: "notifications",
-      notificationId,
-    });
-  };
-
   if (!mainWindow || mainWindow.isDestroyed()) {
     createWindow();
   }
-  if (mainWindow?.webContents.isLoading()) {
-    mainWindow.webContents.once("did-finish-load", sendNavigation);
-  } else {
-    sendNavigation();
-  }
+  queueOrSendMainWindowNavigation({ route: "notifications", notificationId });
   mainWindow?.show();
   mainWindow?.focus();
 });
@@ -1087,14 +1086,38 @@ handleRendererInvoke("diagnostics-export-bundle", () =>
   diagnostics.exportBundle(mainWindow),
 );
 
-handleRendererInvoke("diagnostics-renderer-ready", () => {
+handleRendererInvoke("diagnostics-renderer-ready", (event) => {
   diagnostics.record("renderer-first-paint");
   rendererReady = true;
+  if (event.sender === mainWindow?.webContents) {
+    mainWindowRendererReady = true;
+    if (pendingMainWindowNavigation) {
+      mainWindow.webContents.send(
+        "navigate-to-route",
+        pendingMainWindowNavigation,
+      );
+      pendingMainWindowNavigation = null;
+    }
+  }
   startBackgroundTasks();
 });
 
+const queueOrSendMainWindowNavigation = (navigation: MainWindowNavigation) => {
+  if (!mainWindow || mainWindow.isDestroyed()) {
+    pendingMainWindowNavigation = navigation;
+    return;
+  }
+
+  if (!mainWindowRendererReady || mainWindow.webContents.isLoading()) {
+    pendingMainWindowNavigation = navigation;
+    return;
+  }
+
+  mainWindow.webContents.send("navigate-to-route", navigation);
+};
+
 handleRendererInvoke("on-application-navigate-to-route", (_, route) => {
-  if (route !== "settings" && route !== "signIn") {
+  if (route !== "settings" && route !== "signIn" && route !== "notifications") {
     throw new Error("Invalid navigation route.");
   }
 
@@ -1107,16 +1130,7 @@ handleRendererInvoke("on-application-navigate-to-route", (_, route) => {
 
   if (mainWindow && !mainWindow.isDestroyed()) {
     log.info("[IPC] mainWindow send navigate-to-route", route);
-
-    // Wait for window to be ready before sending route
-    if (mainWindow.webContents.isLoading()) {
-      mainWindow.webContents.once("did-finish-load", () => {
-        mainWindow?.webContents.send("navigate-to-route", { route });
-      });
-    } else {
-      mainWindow.webContents.send("navigate-to-route", { route });
-    }
-
+    queueOrSendMainWindowNavigation({ route });
     mainWindow.show();
     mainWindow.focus();
   }

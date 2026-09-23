@@ -6,7 +6,7 @@ import {
   CodeReviewIcon,
   WorkflowIcon,
 } from "@primer/octicons-react";
-import { Badge, Card, Flex, Select, Tabs, Text } from "@radix-ui/themes";
+import { Badge, Button, Card, Flex, Select, Text } from "@radix-ui/themes";
 import { useQueryClient } from "@tanstack/react-query";
 import { useMemo, useEffect, useState } from "react";
 import type {
@@ -148,12 +148,30 @@ export const Notifications = () => {
       </Flex>
 
       <Flex align="center" justify="between" gap="3">
-        <Tabs.Root value={tab} onValueChange={setTab}>
-          <Tabs.List>
-            <Tabs.Trigger value="all">All</Tabs.Trigger>
-            <Tabs.Trigger value="unread">Unread</Tabs.Trigger>
-          </Tabs.List>
-        </Tabs.Root>
+        <Flex aria-label="Notification filters" gap="2" role="group">
+          {[
+            { value: "all", label: "All", count: data.length },
+            { value: "unread", label: "Unread", count: unreadCount },
+          ].map(({ count, label, value }) => {
+            const isActive = tab === value;
+
+            return (
+              <Button
+                key={value}
+                aria-pressed={isActive}
+                onClick={() => setTab(value)}
+                radius="full"
+                size="1"
+                variant={isActive ? "solid" : "soft"}
+              >
+                {label}
+                <Badge ml="1" size="1" variant="solid" className="navigation-count-badge">
+                  {isPending ? "…" : count > 99 ? "99+" : count}
+                </Badge>
+              </Button>
+            );
+          })}
+        </Flex>
         <Select.Root
           value={type}
           onValueChange={(value) => setType(value as NotificationType | "all")}

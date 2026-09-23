@@ -126,6 +126,10 @@ describe("Menubar tabs", () => {
     expect(mineTab.textContent).toContain("99+");
     expect(teamTab.textContent).toContain("Relevant Pull Requests");
     expect(teamTab.textContent).toContain("2");
+    expect(mineTab.classList.contains("menubar-classic-tab")).toBe(true);
+    expect(teamTab.classList.contains("menubar-classic-tab")).toBe(true);
+    expect(container.querySelector(".menubar-classic-tabs")).not.toBeNull();
+    expect(container.querySelector(".menubar-classic-panel")).not.toBeNull();
     expect(container.textContent).toContain("v0.9.6");
     expect(mineTab.getAttribute("aria-selected")).toBe("true");
     expect(
@@ -147,5 +151,17 @@ describe("Menubar tabs", () => {
       container.querySelector('[role="tabpanel"][data-state="active"]')
         ?.textContent,
     ).toContain("My pull-request panel");
+  });
+
+  it("keeps the classic tabs and panel in compact density", async () => {
+    mockUseMenubarDensityQuery.mockReturnValue({
+      data: "compact",
+    } as ReturnType<typeof useMenubarDensityQuery>);
+
+    await renderMenubar();
+
+    expect(container.querySelectorAll(".menubar-classic-tab")).toHaveLength(2);
+    expect(container.querySelector(".menubar-classic-panel")).not.toBeNull();
+    expect(container.textContent).toContain("v0.9.6");
   });
 });

@@ -157,14 +157,26 @@ export const Menubar = () => {
             isCompact={isCompact}
           />
 
-          <Tabs.List size={isCompact ? "1" : "2"} style={{ width: "100%" }}>
-            <Tabs.Trigger value="mine" style={{ flex: "1 1 0", minWidth: 0 }}>
+          <Tabs.List
+            className="menubar-classic-tabs"
+            size={isCompact ? "1" : "2"}
+            style={{ width: "100%" }}
+          >
+            <Tabs.Trigger
+              className="menubar-classic-tab"
+              value="mine"
+              style={{ flex: "1 1 0", minWidth: 0 }}
+            >
               My Pull Requests
               <Badge ml="1" size="1">
                 {myPullRequests.length > 99 ? "99+" : myPullRequests.length}
               </Badge>
             </Tabs.Trigger>
-            <Tabs.Trigger value="team" style={{ flex: "1 1 0", minWidth: 0 }}>
+            <Tabs.Trigger
+              className="menubar-classic-tab"
+              value="team"
+              style={{ flex: "1 1 0", minWidth: 0 }}
+            >
               Relevant Pull Requests
               <Badge ml="1" size="1">
                 {teamPullRequests.length > 99 ? "99+" : teamPullRequests.length}
@@ -176,8 +188,10 @@ export const Menubar = () => {
         <Tabs.Content value="mine" asChild>
           <Flex
             direction="column"
+            className="menubar-classic-panel"
             flexGrow="1"
             minHeight="0"
+            mx={isCompact ? "2" : "3"}
             overflowY="auto"
             overflowX="hidden"
           >
@@ -187,8 +201,10 @@ export const Menubar = () => {
         <Tabs.Content value="team" asChild>
           <Flex
             direction="column"
+            className="menubar-classic-panel"
             flexGrow="1"
             minHeight="0"
+            mx={isCompact ? "2" : "3"}
             overflowY="auto"
             overflowX="hidden"
           >
