@@ -11,7 +11,16 @@ import {
   LicenseState,
   LicenseUsage,
 } from "./mainProcess/licensing/licenseState.types";
+import type { AccentColor } from "./shared/theme";
 import type { PersonalWeeklyRecap } from "./weeklyRecap/types";
+import type {
+  MergeOptions,
+  MergePullRequestInput,
+  MergeResult,
+  MergeStatusInput,
+  MergeStatusResult,
+  PullRequestIdentity,
+} from "./mainProcess/api/PullRequests/mergePullRequest.types";
 
 export {};
 
@@ -31,6 +40,11 @@ declare global {
       application: {
         setApplicationAppearance: (appearance: Appearance | null) => void;
         getApplicationAppearance: () => Promise<Appearance | null>;
+        setApplicationAccentColor: (
+          accentColor: AccentColor,
+        ) => Promise<AccentColor>;
+        getApplicationAccentColor: () => Promise<AccentColor>;
+        getVersion: () => Promise<string>;
 
         // Menubar Density
         getMenubarDensity: () => Promise<"compact" | "default">;
@@ -43,6 +57,12 @@ declare global {
         ) => IpcListener<Appearance>;
         removeOnApplicationAppearanceUpdate: (
           callback: IpcListener<Appearance>,
+        ) => void;
+        onApplicationAccentColorUpdate: (
+          callback: (data: AccentColor) => void,
+        ) => IpcListener<AccentColor>;
+        removeOnApplicationAccentColorUpdate: (
+          callback: IpcListener<AccentColor>,
         ) => void;
 
         onSignOut: (callback: (data: boolean) => void) => IpcListener<boolean>;
@@ -144,6 +164,11 @@ declare global {
           callback: (data: PullRequestDTO) => void,
         ) => IpcListener<PullRequestDTO>;
         removeOnUpdate: (callback: IpcListener<PullRequestDTO>) => void;
+        getMergeOptions: (
+          identity: PullRequestIdentity,
+        ) => Promise<MergeOptions | MergeResult>;
+        merge: (input: MergePullRequestInput) => Promise<MergeResult>;
+        getMergeStatus: (input: MergeStatusInput) => Promise<MergeStatusResult>;
       };
 
       weeklyRecap: {

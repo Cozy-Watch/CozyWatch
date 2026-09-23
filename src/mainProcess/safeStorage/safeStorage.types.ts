@@ -1,5 +1,6 @@
 import { CacheData as PullRequestCache } from "../api/PullRequests/utils/getDefaultData";
 import type { LicenseState } from "../licensing/licenseState.types";
+import type { AccentColor } from "../../shared/theme";
 
 // ------------
 // REPOSITORIES
@@ -85,6 +86,7 @@ export type StoreDataMap = {
   active_repositories: Record<number, boolean>;
   auth_type: AuthType | null;
   appearance?: Appearance | null;
+  accentColor?: AccentColor;
   licenseKey: string;
   licenseState: LicenseState;
   pull_requests_cache: PullRequestCache | null;

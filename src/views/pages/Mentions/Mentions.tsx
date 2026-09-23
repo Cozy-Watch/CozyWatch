@@ -87,6 +87,7 @@ export const Mentions = () => {
             return (
               <Box width="100%" key={pr.id}>
                 <PullRequestCard
+                  pullRequest={pr}
                   waitingReviews={waitingReviews}
                   reviewsGroupedbyUser={reviewsAndWaitingReviews}
                   avatarUrl={pr?.user?.avatar_url}

@@ -66,7 +66,8 @@ export const WeeklyRecap = () => {
         className="accent-shadow-low"
         style={{
           background:
-            "linear-gradient(135deg, var(--white-a12), var(--accent-a6), var(--white-a12))",
+            "linear-gradient(135deg, var(--accent-a1), var(--accent-a4), var(--accent-a1))",
+          width: "100%",
         }}
       >
         <Flex direction="column" gap="3">
@@ -76,7 +77,7 @@ export const WeeklyRecap = () => {
             style={{ color: "var(--accent-10)" }}
           >
             <Flex direction="column">
-              <Text size="1" style={{ color: "var(--gray-11)" }}>
+              <Text size="1" style={{ color: "var(--white-a11)" }}>
                 Your week on CozyWatch
               </Text>
               {recap ? (
