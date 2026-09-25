@@ -200,7 +200,9 @@ export const Header = () => {
       />
       <LicenseExpiryReminder
         state={licenseState}
-        onManageLicense={() => navigation({ to: "/settings" })}
+        onManageLicense={() =>
+          navigation({ to: "/settings", search: { tab: "license" } })
+        }
       />
     </Flex>
   );

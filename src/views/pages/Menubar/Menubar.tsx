@@ -159,13 +159,12 @@ export const Menubar = () => {
 
           <Tabs.List
             className="menubar-classic-tabs"
+            data-density={isCompact ? "compact" : "standard"}
             size={isCompact ? "1" : "2"}
-            style={{ width: "100%" }}
           >
             <Tabs.Trigger
               className="menubar-classic-tab"
               value="mine"
-              style={{ flex: "1 1 0", minWidth: 0 }}
             >
               My Pull Requests
               <Badge ml="1" size="1">
@@ -175,7 +174,6 @@ export const Menubar = () => {
             <Tabs.Trigger
               className="menubar-classic-tab"
               value="team"
-              style={{ flex: "1 1 0", minWidth: 0 }}
             >
               Relevant Pull Requests
               <Badge ml="1" size="1">
@@ -191,7 +189,6 @@ export const Menubar = () => {
             className="menubar-classic-panel"
             flexGrow="1"
             minHeight="0"
-            mx={isCompact ? "2" : "3"}
             overflowY="auto"
             overflowX="hidden"
           >
@@ -204,7 +201,6 @@ export const Menubar = () => {
             className="menubar-classic-panel"
             flexGrow="1"
             minHeight="0"
-            mx={isCompact ? "2" : "3"}
             overflowY="auto"
             overflowX="hidden"
           >

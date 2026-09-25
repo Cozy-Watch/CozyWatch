@@ -10,6 +10,7 @@ export const Root = () => {
 
   const isAuthenticationRoute = !!matchRoute({ to: "/" });
   const isMenubar = !!matchRoute({ to: "/menubar" });
+  const isSettings = !!matchRoute({ to: "/settings" });
 
   const isAuthenticated = !isAuthenticationRoute;
 
@@ -54,26 +55,23 @@ export const Root = () => {
           />
 
           <Header />
-          <ApplicationNavigation />
+          {!isSettings && <ApplicationNavigation />}
         </Box>
       )}
 
       <Flex
-        className={isAuthenticated ? "desktop-classic-panel" : undefined}
         position="relative"
         direction="column"
         flexGrow="1"
         minHeight="0"
-        mx={isAuthenticated ? "4" : undefined}
-        mb={isAuthenticated ? "4" : undefined}
         style={{
-          ...(isAuthenticated
-            ? {}
-            : {
+          ...(!isAuthenticated
+            ? {
                 borderRadius: "8px",
                 background:
                   "linear-gradient(135deg, var(--accent-a2) 0%,  var(--accent-a1) 50%, var(--accent-a1) 90%)",
-              }),
+              }
+            : {}),
         }}
         overflow="hidden"
       >

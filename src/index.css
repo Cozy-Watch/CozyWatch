@@ -158,7 +158,16 @@
 /* MENU BAR */
 
 .menubar-classic-tabs {
+  --menubar-tabs-inset: var(--space-3);
+  width: calc(100% + 2 * var(--menubar-tabs-inset));
+  margin-inline: calc(-1 * var(--menubar-tabs-inset));
+  padding-inline: var(--menubar-tabs-inset);
+  box-sizing: border-box;
   box-shadow: inset 0 -1px 0 var(--gray-a6);
+}
+
+.menubar-classic-tabs[data-density="compact"] {
+  --menubar-tabs-inset: var(--space-2);
 }
 
 .menubar-classic-tab {
@@ -171,22 +180,7 @@
 .menubar-classic-tab[data-state="active"] {
   z-index: 1;
   border-color: var(--gray-a6);
-  background: var(--gray-2);
   color: var(--gray-12);
-}
-
-.menubar-classic-tab[data-state="active"]::before {
-  display: none;
-}
-
-.menubar-classic-tab[data-state="active"]::after {
-  position: absolute;
-  right: 0;
-  bottom: 0;
-  left: 0;
-  height: 1px;
-  background: var(--gray-2);
-  content: "";
 }
 
 .menubar-classic-tab[data-state="active"] .rt-BaseTabListTriggerInner {
@@ -202,7 +196,28 @@
   border: 1px solid var(--gray-a6);
   border-top: 0;
   border-radius: 0 0 var(--radius-3) var(--radius-3);
-  background: var(--gray-2);
+  background: transparent;
+}
+
+:is(.dark, .dark-theme) .menubar-classic-tab[data-state="active"] {
+  background: var(--black-a3);
+}
+
+:is(.light, .light-theme) .menubar-classic-tab[data-state="active"] {
+  background: var(--white-a5);
+}
+
+:is(.light, .light-theme) .menubar-classic-tab {
+  color: var(--gray-12);
+}
+
+.menubar-classic-tab:hover,
+.menubar-classic-tab[data-state="active"]:hover {
+  background: var(--gray-a3);
+}
+
+.menubar-classic-tab:hover .rt-BaseTabListTriggerInner {
+  background: transparent;
 }
 
 .desktop-classic-navigation {
@@ -219,6 +234,8 @@
 }
 
 .desktop-classic-tabs {
+  box-sizing: border-box;
+  padding-left: var(--space-4);
   box-shadow: inset 0 -1px 0 var(--gray-a6);
 }
 
@@ -232,7 +249,6 @@
 .desktop-classic-tab[data-active] {
   z-index: 1;
   border-color: var(--gray-a6);
-  background: var(--gray-2);
   color: var(--gray-12);
 }
 
@@ -246,7 +262,7 @@
   bottom: 0;
   left: 0;
   height: 1px;
-  background: var(--gray-2);
+  background: var(--gray-1);
   content: "";
 }
 
@@ -259,6 +275,82 @@
   outline-offset: -3px;
 }
 
+.rt-Flex.settings-layout {
+  display: grid;
+  grid-template-columns: 190px minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
+}
+
+.settings-sidebar {
+  grid-column: 1;
+  grid-row: 1;
+  display: flex;
+  box-sizing: border-box;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--space-1);
+  width: 100%;
+  min-width: 0;
+  padding: var(--space-3);
+  border-right: 1px solid var(--gray-a6);
+  box-shadow: none;
+}
+
+.settings-sidebar-trigger {
+  justify-content: flex-start;
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-2);
+  color: var(--gray-11);
+  text-align: left;
+}
+
+.settings-sidebar-trigger[data-state="active"] {
+  background: var(--accent-a3);
+  color: var(--accent-11);
+}
+
+.settings-sidebar-trigger:hover {
+  background: var(--gray-a3);
+}
+
+.settings-sidebar-trigger[data-state="active"]:hover {
+  background: var(--accent-a4);
+}
+
+.settings-sidebar-trigger[data-state="active"]::before {
+  display: none;
+}
+
+.settings-sidebar-trigger .rt-BaseTabListTriggerInner {
+  background: transparent;
+}
+
+.settings-sidebar-trigger:focus-visible .rt-BaseTabListTriggerInner {
+  outline: none;
+}
+
+.settings-sidebar-trigger:focus-visible {
+  outline: 2px solid var(--focus-8);
+  outline-offset: -3px;
+}
+
+.settings-section-panel {
+  grid-column: 2;
+  grid-row: 1;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.settings-section-panel .rt-Card {
+  width: 100%;
+}
+
 .desktop-classic-filters {
   position: absolute;
   z-index: 2;
@@ -266,31 +358,13 @@
   right: var(--space-4);
   left: var(--space-4);
   height: 52px;
-  border-right: 1px solid var(--gray-a6);
-  border-bottom: 1px solid var(--gray-a6);
-  border-left: 1px solid var(--gray-a6);
   background: color-mix(in srgb, var(--gray-2) 82%, transparent);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
 }
 
-.desktop-classic-panel {
-  border: 1px solid var(--gray-a6);
-  border-top: 0;
-  background: var(--gray-2);
-}
-
 .desktop-filtered-scroll {
   padding-top: 52px;
-}
-
-:is(.light, .light-theme) .desktop-classic-tab[data-active],
-:is(.light, .light-theme) .desktop-classic-panel {
-  background: var(--gray-1);
-}
-
-:is(.light, .light-theme) .desktop-classic-tab[data-active]::after {
-  background: var(--gray-1);
 }
 
 :is(.light, .light-theme) .desktop-classic-filters {

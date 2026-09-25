@@ -61,7 +61,7 @@ export const WeeklyRecap = () => {
   const trend = recap ? momentum(recap) : null;
 
   return (
-    <Flex px="4" direction="column">
+    <Flex direction="column">
       <Card
         className="accent-shadow-low"
         style={{

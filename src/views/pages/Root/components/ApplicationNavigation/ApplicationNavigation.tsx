@@ -125,11 +125,11 @@ export const ApplicationNavigation = ({
         : [];
 
   return (
-    <Flex className={`desktop-classic-navigation ${className ?? ""}`} direction="column" flexShrink="0" px="4">
+    <Flex className={`desktop-classic-navigation ${className ?? ""}`} direction="column" flexShrink="0">
       <TabNav.Root className="desktop-classic-tabs" aria-label="Primary navigation" size="2">
         <TabNav.Link asChild active={pathname === "/overview"}>
           <Link className="desktop-classic-tab" to="/overview" aria-current={pathname === "/overview" ? "page" : undefined}>
-            Home
+            Overview
           </Link>
         </TabNav.Link>
         <TabNav.Link asChild active={isMyPullRequests}>
