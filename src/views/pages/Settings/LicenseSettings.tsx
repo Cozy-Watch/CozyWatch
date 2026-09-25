@@ -1,7 +1,6 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { LicenseModal } from "../../components/LicenseModal/LicenseModal";
-import { BuyLicenseButton } from "../../components/BuyLicenseButton/BuyLicenseButton";
 import { LicenseStatusCard } from "../../components/LicenseStatus/LicenseStatusCard";
 import {
   licenseStatusQueryKey,
@@ -39,7 +38,6 @@ export const LicenseSettings = () => {
 
   return (
     <SettingsSection>
-      <BuyLicenseButton showImage />
       <LicenseStatusCard
         state={licenseState}
         isPending={isLicenseStatusPending || isLicenseActionPending}

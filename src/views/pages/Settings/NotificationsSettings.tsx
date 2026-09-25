@@ -10,9 +10,10 @@ export const NotificationsSettings = () => {
   const { mutateAsync: toggleNotification } = useNotificationsMutation();
   const { mutateAsync: toggleAllNotifications } =
     useToggleAllNotificationsMutation();
-  const areAllNotificationsEnabled = Object.values(notifications || {}).every(
-    ({ value }) => value === true,
-  );
+  const notificationEntries = Object.entries(notifications ?? {});
+  const areAllNotificationsEnabled =
+    notificationEntries.length > 0 &&
+    notificationEntries.every(([, notification]) => notification.value);
 
   return (
     <SettingsSection>
@@ -33,10 +34,14 @@ export const NotificationsSettings = () => {
 
           <Flex direction="column" gap="2">
             <Flex gap="2" justify="between">
-              <Text size="2">Enable All:</Text>
+              <Text as="label" size="2" htmlFor="notifications-enable-all">
+                Enable All:
+              </Text>
               <Switch
+                id="notifications-enable-all"
                 size="1"
                 checked={areAllNotificationsEnabled}
+                disabled={isPending || !notifications}
                 onCheckedChange={async (checked) => {
                   try {
                     await toggleAllNotifications(checked);
@@ -50,12 +55,17 @@ export const NotificationsSettings = () => {
             </Flex>
 
             <Flex direction="column" gap="1">
-              {Object.entries(notifications || {}).map(([key, notification]) => (
-                <Box key={key}>
-                  <Text as="label" size="2">
-                    <Flex gap="2" justify="between">
-                      <Text>{notification.title}</Text>
+              {notificationEntries.map(([key, notification]) => {
+                const switchId = `notification-${key}`;
+
+                return (
+                  <Box key={key}>
+                    <Flex gap="2" justify="between" align="center">
+                      <Text as="label" size="2" htmlFor={switchId}>
+                        {notification.title}
+                      </Text>
                       <Switch
+                        id={switchId}
                         size="1"
                         checked={notification.value}
                         onCheckedChange={async (checked) => {
@@ -71,9 +81,9 @@ export const NotificationsSettings = () => {
                         disabled={isPending}
                       />
                     </Flex>
-                  </Text>
-                </Box>
-              ))}
+                  </Box>
+                );
+              })}
             </Flex>
           </Flex>
         </Flex>

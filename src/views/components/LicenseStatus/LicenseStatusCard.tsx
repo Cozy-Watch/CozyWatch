@@ -107,6 +107,7 @@ export const LicenseStatusCard = ({
           )}
 
           {!state ||
+          state.status === "unconfigured" ||
           state.status === "personal" ||
           state.status === "expired" ||
           state.status === "invalid" ? (
