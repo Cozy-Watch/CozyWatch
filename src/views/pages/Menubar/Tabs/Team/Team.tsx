@@ -14,6 +14,7 @@ import { LastUpdate } from "../../../../components/PullRequestsCard/components/L
 import { MergeInfo } from "../../../../components/PullRequestsCard/components/MergeInfo/MergeInfo";
 import { Repository } from "../../../../components/PullRequestsCard/components/Repository/Repository";
 import { Review } from "../../../../components/Review/Review";
+import { MergePullRequestAction } from "../../../../components/MergePullRequestAction/MergePullRequestAction";
 import { Empty } from "../../components/Empty/Empty";
 import { useTabs } from "../useTabs";
 
@@ -53,7 +54,7 @@ export const Team = ({ pullRequests, isCompact }: Props) => {
       gap="4"
       direction="column"
       width="100%"
-      height="100%"
+      minHeight="100%"
       px={isCompact ? "2" : "3"}
       pb={isCompact ? "2" : "3"}
       pt={isCompact ? "2" : "3"}
@@ -113,6 +114,9 @@ export const Team = ({ pullRequests, isCompact }: Props) => {
                     </Flex>
 
                     <LastUpdate updatedAt={pr.updated_at} isCompact />
+                  </Flex>
+                  <Flex justify="end">
+                    <MergePullRequestAction pullRequest={pr} />
                   </Flex>
                 </Flex>
               </Box>
@@ -197,6 +201,9 @@ export const Team = ({ pullRequests, isCompact }: Props) => {
                           actionsByName={actionByName}
                           pullRequestLink={pullRequestUrl}
                         />
+                      </Flex>
+                      <Flex justify="end">
+                        <MergePullRequestAction pullRequest={pr} />
                       </Flex>
                     </Flex>
                   </Flex>

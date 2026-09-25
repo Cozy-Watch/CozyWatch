@@ -1,5 +1,6 @@
 import { CacheData as PullRequestCache } from "../api/PullRequests/utils/getDefaultData";
 import type { LicenseState } from "../licensing/licenseState.types";
+import type { AccentColor } from "../../shared/theme";
 
 // ------------
 // REPOSITORIES
@@ -40,6 +41,23 @@ export interface NotificationSetting {
   value: boolean;
 }
 
+export type NotificationType =
+  | "pullRequest"
+  | "review"
+  | "ci"
+  | "mention"
+  | "system";
+
+export interface NotificationRecord {
+  id: string;
+  type: NotificationType;
+  title: string;
+  body: string;
+  createdAt: string;
+  url?: string;
+  read: boolean;
+}
+
 export const NOTIFICATION_KEYS = [
   "pullRequestsAddedNotification",
   "pullRequestsRemovedNotification",
@@ -68,12 +86,14 @@ export type StoreDataMap = {
   active_repositories: Record<number, boolean>;
   auth_type: AuthType | null;
   appearance?: Appearance | null;
+  accentColor?: AccentColor;
   licenseKey: string;
   licenseState: LicenseState;
   pull_requests_cache: PullRequestCache | null;
   repositories_cache: RepositoriesCache | null;
   user: User | null;
   notifications: NotificationSettingsPerKey;
+  notification_history: NotificationRecord[];
   open_at_login: boolean;
   appSettings: {
     menubarDensity: "compact" | "default";

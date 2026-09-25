@@ -21,7 +21,13 @@ export const Repositories = () => {
 
   if (isPending) {
     return (
-      <Flex flexGrow="1" justify="center" align="center" minHeight={"90dvh"}>
+      <Flex
+        flexGrow="1"
+        height="100%"
+        minHeight="0"
+        justify="center"
+        align="center"
+      >
         <img
           id="sofa"
           src="./images/catSitting.png"
