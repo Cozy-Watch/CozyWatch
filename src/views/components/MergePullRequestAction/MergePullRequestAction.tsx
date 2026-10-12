@@ -44,7 +44,7 @@ export const MergePullRequestAction = ({
   useEffect(() => {
     if (
       (result?.status !== "queued" && result?.status !== "existingRequest") ||
-      !result.requestId ||
+      result.requestId === undefined ||
       !identity
     ) {
       return;
@@ -52,7 +52,7 @@ export const MergePullRequestAction = ({
 
     const interval = window.setInterval(() => {
       void window.electronAPI.pullRequest
-        .getMergeStatus({ ...identity, requestId: result.requestId! })
+        .getMergeStatus({ ...identity, requestId: result.requestId ?? null })
         .then((status) => {
           if (status.status === "pending") return;
           setResult(status);

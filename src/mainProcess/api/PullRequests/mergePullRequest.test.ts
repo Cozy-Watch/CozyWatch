@@ -141,7 +141,10 @@ describe("pull request merge IPC validation", () => {
     });
   });
 
-  test("submits the chosen method with GitHub's default merge action", async () => {
+  test.each([
+    { responseStatus: 202, status: "pending", requestId: "630b9d5e-3f2a-4f7e-8b0c-2d5f9a8c1e42" },
+    { responseStatus: 200, status: "enqueued", requestId: null },
+  ])("tracks a $status submission with GitHub's default merge action", async ({ responseStatus, status, requestId }) => {
     const client = {
       rest: {
         pulls: {
@@ -164,12 +167,12 @@ describe("pull request merge IPC validation", () => {
         },
       },
       request: jest.fn().mockResolvedValue({
-        status: 202,
+        status: responseStatus,
         data: {
-          status: "pending",
+          status,
           details: {
             message: "Queued",
-            uuid: "630b9d5e-3f2a-4f7e-8b0c-2d5f9a8c1e42",
+            ...(requestId ? { uuid: requestId } : {}),
           },
         },
       }),
@@ -195,7 +198,7 @@ describe("pull request merge IPC validation", () => {
     ).resolves.toEqual({
       status: "queued",
       message: "Queued",
-      requestId: "630b9d5e-3f2a-4f7e-8b0c-2d5f9a8c1e42",
+      requestId,
     });
     expect(client.request).toHaveBeenCalledWith(
       expect.objectContaining({ merge_method: "squash", merge_action: "default", sha: "abc123" }),
@@ -497,4 +500,36 @@ describe("pull request merge IPC validation", () => {
       }),
     );
   });
+  test("accepts queue monitoring without an async request UUID", () => {
+    expect(isMergeStatusInput({ ...identity, requestId: null })).toBe(true);
+    expect(isMergeStatusInput(identity)).toBe(false);
+  });
+
+  describe.each([null, "630b9d5e-3f2a-4f7e-8b0c-2d5f9a8c1e42"])(
+    "queue monitoring with request ID %s",
+    (requestId) => {
+      test.each([
+        { state: "open", merged: false, expected: "pending" },
+        { state: "closed", merged: true, expected: "merged" },
+        { state: "closed", merged: false, expected: "failed" },
+      ])("reports $expected from the pull request state", async ({ state, merged, expected }) => {
+        const client = {
+          request: jest.fn().mockResolvedValue({
+            data: { status: "enqueued", details: { message: "Added to merge queue" } },
+          }),
+          rest: { pulls: { get: jest.fn().mockResolvedValue({ data: { state, merged } }) } },
+        };
+        jest.mocked(getGithubClient).mockResolvedValue(client as never);
+
+        await expect(getMergeStatus({ ...identity, requestId })).resolves.toMatchObject({ status: expected });
+        expect(client.rest.pulls.get).toHaveBeenCalledWith(expect.objectContaining({
+          owner: identity.owner,
+          repo: identity.repository,
+          pull_number: identity.pullNumber,
+        }));
+        expect(client.request).toHaveBeenCalledTimes(requestId === null ? 0 : 1);
+      });
+    },
+  );
+
 });

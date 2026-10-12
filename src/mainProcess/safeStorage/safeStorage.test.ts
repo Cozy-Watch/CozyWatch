@@ -83,4 +83,24 @@ describe("credential storage cleanup", () => {
     await expect(access(legacyPath)).resolves.toBeUndefined();
     expect(await storage.getData("access_token")).toBe("test-token");
   });
+  it("does not restore signed-out credentials after current storage disappears", async () => {
+    await writeFile(legacyPath, JSON.stringify({ access_token: encryptedToken }));
+    expect(await storage.getData("access_token")).toBe("test-token");
+    await storage.deleteDataOrThrow("access_token");
+    await rm(primaryPath);
+    jest.resetModules();
+    const { app } = await import("electron");
+    (app.getPath as jest.Mock).mockReturnValue(path.join(directory, "current"));
+    const restarted = await import("./safeStorage");
+    expect(await restarted.getData("access_token")).toBeNull();
+  });
+
+  it("preserves the legacy copy if current storage is corrupt", async () => {
+    await writeFile(legacyPath, JSON.stringify({ access_token: encryptedToken }));
+    await mkdir(path.dirname(primaryPath), { recursive: true });
+    await writeFile(primaryPath, "corrupt");
+    expect(await storage.getData("access_token")).toBeNull();
+    await expect(access(legacyPath)).resolves.toBeUndefined();
+  });
+
 });

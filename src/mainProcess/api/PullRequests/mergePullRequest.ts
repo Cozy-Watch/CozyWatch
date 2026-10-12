@@ -90,10 +90,11 @@ export const isMergeStatusInput = (value: unknown): value is MergeStatusInput =>
 
   const requestId = (value as unknown as Record<string, unknown>).requestId;
   return (
-    typeof requestId === "string" &&
-    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
-      requestId,
-    )
+    requestId === null ||
+    (typeof requestId === "string" &&
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+        requestId,
+      ))
   );
 };
 
@@ -324,7 +325,7 @@ export const mergePullRequest = async (
       merge_action: "default",
     });
     const data = response.data as {
-      status?: "merged" | "pending";
+      status?: "merged" | "pending" | "enqueued";
       details?: { message?: string; uuid?: string };
     };
     const message = data.details?.message || "GitHub accepted the merge request.";
@@ -332,8 +333,8 @@ export const mergePullRequest = async (
     if (data.status === "merged") {
       return { status: "merged", message };
     }
-    if (response.status === 200 && data.status !== "pending") {
-      return { status: "alreadyMerged", message };
+    if (data.status === "enqueued") {
+      return { status: "queued", message, requestId: null };
     }
     return {
       status: "queued",
@@ -378,6 +379,8 @@ export const getMergeStatus = async ({
   ...identity
 }: MergeStatusInput): Promise<MergeStatusResult> => {
   try {
+    if (requestId === null) return await getQueuedPullRequestStatus(identity);
+
     const client = await getGithubClient();
     const response = await client.request({
       method: "GET",
@@ -385,12 +388,15 @@ export const getMergeStatus = async ({
       headers: GITHUB_API_HEADERS,
     });
     const data = response.data as {
-      status?: "merged" | "pending" | "failed";
+      status?: "merged" | "pending" | "enqueued" | "failed";
       details?: { message?: string };
     };
     const message = data.details?.message || "GitHub is processing the merge request.";
     if (data.status === "merged") return { status: "merged", message };
     if (data.status === "pending") return { status: "pending", message };
+    if (data.status === "enqueued") {
+      return await getQueuedPullRequestStatus(identity);
+    }
     return { status: "failed", code: "notMergeable", message };
   } catch (error) {
     const result = describeError(error);
@@ -411,4 +417,28 @@ export const getMergeStatus = async ({
       message: result.message,
     };
   }
+};
+
+// An async request stays "enqueued" even after the queue merges the PR.
+const getQueuedPullRequestStatus = async (
+  identity: PullRequestIdentity,
+): Promise<MergeStatusResult> => {
+  const client = await getGithubClient();
+  const { data } = await client.rest.pulls.get({
+    owner: identity.owner,
+    repo: identity.repository,
+    pull_number: identity.pullNumber,
+    headers: GITHUB_API_HEADERS,
+  });
+  if (data.merged) {
+    return { status: "merged", message: "Pull request successfully merged." };
+  }
+  if (data.state === "closed") {
+    return {
+      status: "failed",
+      code: "notMergeable",
+      message: "Pull request was closed without merging.",
+    };
+  }
+  return { status: "pending", message: "Waiting for the pull request to merge." };
 };

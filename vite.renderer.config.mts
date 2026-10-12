@@ -1,26 +1,27 @@
 import { defineConfig } from "vite";
-
-const PRODUCTION_CSP =
-  "default-src 'self'; script-src 'self'; connect-src 'self' https://api.github.com https://api.lemonsqueezy.com; img-src 'self' data: https:; style-src 'self' 'unsafe-inline'; font-src 'self'; object-src 'none'; frame-src 'none'; base-uri 'none'; form-action 'none';";
-
-const DEVELOPMENT_CSP =
-  "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' http://localhost:* http://127.0.0.1:*; worker-src 'self' blob:; connect-src 'self' ws: http://localhost:* http://127.0.0.1:* https://api.github.com https://api.lemonsqueezy.com; img-src 'self' data: https:; style-src 'self' 'unsafe-inline'; font-src 'self'; object-src 'none'; frame-src 'none'; base-uri 'none'; form-action 'none';";
+import { getContentSecurityPolicy } from "./src/mainProcess/security/contentSecurityPolicy";
 
 export default defineConfig(({ command }) => ({
-  plugins: [{
-    name: "renderer-content-security-policy",
-    transformIndexHtml: {
-      order: "pre",
-      handler: () => [{
-        tag: "meta",
-        attrs: {
-          "http-equiv": "Content-Security-Policy",
-          content: command === "serve" ? DEVELOPMENT_CSP : PRODUCTION_CSP,
+  plugins: [
+    {
+      name: "renderer-content-security-policy",
+      transformIndexHtml: {
+        order: "pre",
+        handler() {
+          return [
+          {
+            tag: "meta",
+            attrs: {
+              "http-equiv": "Content-Security-Policy",
+              content: getContentSecurityPolicy(command === "serve"),
+            },
+            injectTo: "head-prepend",
+          },
+          ];
         },
-        injectTo: "head-prepend",
-      }],
+      },
     },
-  }],
+  ],
   build: {
     rollupOptions: {
       output: {

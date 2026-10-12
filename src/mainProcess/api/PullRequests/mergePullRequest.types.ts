@@ -35,12 +35,13 @@ export interface MergePullRequestInput extends PullRequestIdentity {
 }
 
 export interface MergeStatusInput extends PullRequestIdentity {
-  requestId: string;
+  // null tracks a pull request already accepted into the merge queue.
+  requestId: string | null;
 }
 
 export type MergeResult =
   | { status: "merged"; message: string }
-  | { status: "queued"; message: string; requestId?: string }
+  | { status: "queued"; message: string; requestId?: string | null }
   | { status: "existingRequest"; message: string; requestId: string }
   | { status: "alreadyMerged"; message: string }
   | {

@@ -82,6 +82,7 @@ import {
   openExternalUrl,
   protectWebContents,
 } from "./mainProcess/security/externalUrl";
+import { isTrustedRendererSender } from "./mainProcess/security/ipcSender";
 import { redactDiagnosticValue } from "./mainProcess/security/redactDiagnosticValue";
 
 const RELEASE_SMOKE_READY_MARKER = "COZYWATCH_RELEASE_SMOKE_RENDERER_READY";
@@ -170,15 +171,13 @@ const getTrustedWebContents = () =>
   );
 
 const assertTrustedIpcSender = (event: IpcMainInvokeEvent) => {
-  const isTrustedWebContents = getTrustedWebContents().some(
-    ({ id }) => id === event.sender.id,
-  );
-  const isTrustedUrl = isAllowedRendererUrl(
-    event.sender.getURL(),
-    getRendererUrl(),
-  );
-
-  if (!isTrustedWebContents || !isTrustedUrl) {
+  if (
+    !isTrustedRendererSender(
+      event,
+      getTrustedWebContents().map(({ id }) => id),
+      getRendererUrl(),
+    )
+  ) {
     throw new Error("Untrusted IPC sender.");
   }
 };
@@ -207,6 +206,9 @@ const refreshAfterMerge = (message: string) => {
   });
 };
 
+const mergeMonitorKey = (input: MergeStatusInput) =>
+  JSON.stringify([input.owner, input.repository, input.pullNumber, input.requestId]);
+
 const stopMergeMonitor = (requestId: string) => {
   const timer = mergeStatusMonitors.get(requestId);
   if (timer) clearTimeout(timer);
@@ -217,10 +219,10 @@ const monitorQueuedMerge = (
   input: MergeStatusInput,
   pollCount = 0,
 ) => {
-  if (mergeStatusMonitors.has(input.requestId)) return;
+  if (mergeStatusMonitors.has(mergeMonitorKey(input))) return;
 
   const poll = async () => {
-    stopMergeMonitor(input.requestId);
+    stopMergeMonitor(mergeMonitorKey(input));
     const result: MergeStatusResult = await getMergeStatus(input);
     if (
       result.status === "pending" &&
@@ -247,7 +249,7 @@ const monitorQueuedMerge = (
   const timer = setTimeout(() => {
     void poll();
   }, MERGE_STATUS_POLL_INTERVAL_MS);
-  mergeStatusMonitors.set(input.requestId, timer);
+  mergeStatusMonitors.set(mergeMonitorKey(input), timer);
 };
 
 const isRepositoryEnableState = (
@@ -805,7 +807,7 @@ handleRendererInvoke(PULL_REQUEST_MERGE_CHANNELS.merge, async (_, data: unknown)
     refreshAfterMerge("[PullRequests] refresh after merge failed");
   } else if (
     (result.status === "queued" || result.status === "existingRequest") &&
-    result.requestId
+    result.requestId !== undefined
   ) {
     monitorQueuedMerge({ ...data, requestId: result.requestId });
   }
@@ -824,7 +826,7 @@ handleRendererInvoke(PULL_REQUEST_MERGE_CHANNELS.status, async (_, data: unknown
   });
   const result = await getMergeStatus(data);
   if (result.status !== "pending") {
-    stopMergeMonitor(data.requestId);
+    stopMergeMonitor(mergeMonitorKey(data));
   }
   if (result.status === "merged") {
     refreshAfterMerge("[PullRequests] refresh after queued merge failed");

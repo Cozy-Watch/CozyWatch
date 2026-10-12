@@ -74,8 +74,8 @@ describe("activity markdown", () => {
     expect(images[0].src).toBe(
       "https://github.com/example/project/blob/HEAD/docs/screen.png?raw=true",
     );
-    expect(images[1].src).toBe("https://example.com/image.png");
-    expect(images[1].hasAttribute("width")).toBe(false);
+    expect(images).toHaveLength(1);
+    expect(container.querySelector(".activity-image-fallback")).not.toBeNull();
     expect(
       container.querySelector("script, iframe, [onerror], a[href]"),
     ).toBeNull();
@@ -101,7 +101,7 @@ describe("activity markdown", () => {
         <ActivityContent
           sourceUrl={reviewUrl}
           body={
-            "[![Fix issue](https://example.com/broken.svg)](" + reviewUrl + ")"
+            "[![Fix issue](https://raw.githubusercontent.com/example/project/main/broken.svg)](" + reviewUrl + ")"
           }
         />,
       ),
