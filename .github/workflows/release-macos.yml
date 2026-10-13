@@ -2,6 +2,8 @@ name: Release macOS
 
 on:
   push:
+    branches:
+      - main
     tags:
       - "v*"
   workflow_dispatch:
@@ -40,7 +42,7 @@ jobs:
           cache: npm
 
       - name: Verify tag matches package version
-        if: github.event_name == 'push'
+        if: startsWith(github.ref, 'refs/tags/v')
         shell: bash
         run: |
           tag_version="${GITHUB_REF_NAME#v}"
@@ -59,6 +61,19 @@ jobs:
           npm run lint
           npm run types
           npm test -- --runInBand
+
+      - name: Bump patch version and create release tag
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          npm version patch --no-git-tag-version
+          release_version="$(node -p "require('./package.json').version")"
+          git add package.json package-lock.json
+          git commit -m "chore: release v${release_version}"
+          git tag "v${release_version}"
+          git push origin HEAD:main "refs/tags/v${release_version}"
 
       - name: Import Apple signing certificate
         env:
