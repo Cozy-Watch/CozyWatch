@@ -20,6 +20,7 @@ on:
 
 permissions:
   contents: write
+  pull-requests: write
 
 concurrency:
   group: release-${{ github.ref }}
@@ -34,6 +35,8 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
 
       - name: Set up Node.js
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
@@ -62,20 +65,43 @@ jobs:
           npm run types
           npm test -- --runInBand
 
-      - name: Bump patch version and create release tag
+      - name: Prepare versioned release branch
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        id: prepare-release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         shell: bash
         run: |
+          latest_release_tag="$(gh release list --limit 1 --json tagName --jq '.[0].tagName // ""')"
+          package_version="$(node -p "require('./package.json').version")"
+          latest_release_version="${latest_release_tag#v}"
+          changed_paths="$(git diff --name-only HEAD^ HEAD)"
+
+          if [[ "$package_version" == "$latest_release_version" && -n "$latest_release_version" ]] && \
+            [[ -n "$changed_paths" ]] && \
+            ! grep -Ev '^(package\.json|package-lock\.json)$' <<< "$changed_paths"; then
+            echo "skip_release=true" >> "$GITHUB_OUTPUT"
+            echo "Version sync for $package_version is already released."
+            exit 0
+          fi
+
+          release_version="$(node -e 'const semver = require("semver"); const current = require("./package.json").version; const latest = (process.argv[1] || "").replace(/^v/, ""); process.stdout.write(latest && semver.gt(current, latest) ? current : semver.inc(latest || current, "patch"));' "$latest_release_tag")"
+          release_branch="release/version-v${release_version}"
+
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          npm version patch --no-git-tag-version
-          release_version="$(node -p "require('./package.json').version")"
+          npm version "$release_version" --no-git-tag-version
+          git switch --create "$release_branch"
           git add package.json package-lock.json
           git commit -m "chore: release v${release_version}"
-          git tag "v${release_version}"
-          git push origin HEAD:main "refs/tags/v${release_version}"
+          git tag --force "v${release_version}"
+          git push --force origin "HEAD:refs/heads/${release_branch}" "refs/tags/v${release_version}"
+          echo "release_version=$release_version" >> "$GITHUB_OUTPUT"
+          echo "release_branch=$release_branch" >> "$GITHUB_OUTPUT"
+          echo "skip_release=false" >> "$GITHUB_OUTPUT"
 
       - name: Import Apple signing certificate
+        if: steps.prepare-release.outputs.skip_release != 'true'
         env:
           MACOS_CERTIFICATE_BASE64: ${{ secrets.MACOS_CERTIFICATE_BASE64 }}
           MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
@@ -94,6 +120,7 @@ jobs:
           security list-keychains -d user -s "$keychain_path"
 
       - name: Build, verify, notarize, and publish or rehearse
+        if: steps.prepare-release.outputs.skip_release != 'true'
         env:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
@@ -118,6 +145,24 @@ jobs:
             out/make/zip/**/*.zip
           if-no-files-found: error
           retention-days: ${{ inputs.retention_days }}
+
+      - name: Open version sync pull request
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && steps.prepare-release.outputs.skip_release == 'false'
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_BRANCH: ${{ steps.prepare-release.outputs.release_branch }}
+          RELEASE_VERSION: ${{ steps.prepare-release.outputs.release_version }}
+        shell: bash
+        run: |
+          existing_pr="$(gh pr list --base main --head "$RELEASE_BRANCH" --state open --json url --jq '.[0].url // ""')"
+          if [[ -z "$existing_pr" ]]; then
+            gh pr create \
+              --base main \
+              --head "$RELEASE_BRANCH" \
+              --title "chore: sync release v${RELEASE_VERSION}" \
+              --body "Sync package.json and package-lock.json to the version published in release v${RELEASE_VERSION}."
+          fi
 
       - name: Remove temporary signing keychain
         if: always()
