@@ -146,7 +146,7 @@ it("expands accessibly and opens the exact review, with a PR fallback", async ()
               userName: "reviewer",
               userAvatar: "",
               body: "Feedback",
-              date: "",
+              date: "2026-02-01T12:00:00Z",
               html_url: reviewUrl,
             },
             older: {
@@ -154,7 +154,7 @@ it("expands accessibly and opens the exact review, with a PR fallback", async ()
               userName: "older",
               userAvatar: "",
               body: "",
-              date: "",
+              date: "2026-01-01T12:00:00Z",
             },
           }}
         />
@@ -165,6 +165,9 @@ it("expands accessibly and opens the exact review, with a PR fallback", async ()
   expect(toggle.getAttribute("aria-expanded")).toBe("false");
   await click(toggle);
   expect(toggle.getAttribute("aria-expanded")).toBe("true");
+  const activityEntries = container.querySelectorAll(".activity-entry");
+  expect(activityEntries[0].textContent?.trim()).toMatch(/^reviewer/);
+  expect(activityEntries[1].textContent?.trim()).toMatch(/^older/);
   const links = container.querySelectorAll("a");
   await click(links[0]);
   await click(links[1]);

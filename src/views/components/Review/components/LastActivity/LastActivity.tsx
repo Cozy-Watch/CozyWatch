@@ -35,7 +35,14 @@ export const LastActivity = ({
     () =>
       Object.values(reviewsGroupedbyUser || {}).filter(
         (review) => review.state !== "NO_FEEDBACK",
-      ),
+      ).sort((a, b) => {
+        const dateA = Date.parse(a.date);
+        const dateB = Date.parse(b.date);
+        const timestampA = Number.isFinite(dateA) ? dateA : 0;
+        const timestampB = Number.isFinite(dateB) ? dateB : 0;
+
+        return timestampB - timestampA;
+      }),
     [reviewsGroupedbyUser],
   );
   if (feedback.length === 0) return null;
