@@ -1,4 +1,4 @@
-import { BellIcon, GearIcon, SyncIcon } from "@primer/octicons-react";
+import { BellIcon, GearIcon, RocketIcon, SyncIcon } from "@primer/octicons-react";
 import { Avatar, Button, Flex } from "@radix-ui/themes";
 import { BuyLicenseButton } from "../../../../components/BuyLicenseButton/BuyLicenseButton";
 import { useNotifications } from "../../../../hooks/useNotifications";
@@ -45,6 +45,16 @@ export const Header = ({ avatarUrl, login, name, isCompact }: Props) => {
       </Flex>
 
       <Flex align="center" gap={isCompact ? "1" : "2"}>
+        <Button
+          variant="outline"
+          aria-label="Open dashboard"
+          title="Open dashboard"
+          style={{ boxShadow: "none", color: "var(--accent-12)" }}
+          onClick={() => window.electronAPI.application.navigateToRoute("overview")}
+        >
+          <RocketIcon size={16} />
+          Dashboard
+        </Button>
         <Button
           variant="outline"
           aria-label={unreadCount > 0 ? `Notification settings, ${unreadCount} unread` : "Notification settings"}

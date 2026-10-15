@@ -39,6 +39,8 @@ export const authenticateWithGitHub = async (): Promise<boolean> => {
     await storeData({ name: "access_token", data: token });
     await storeData({ name: "auth_type", data: "oauth" });
 
+    await storeData({ name: "authentication_notice", data: null });
+
     // Important to inicialize GitHub client
     ipcMain.emit("github-token-ready");
 
@@ -61,6 +63,8 @@ export const authenticateWithPAT = async (pat: string) => {
     // Store the token securely
     await storeData({ name: "access_token", data: pat });
     await storeData({ name: "auth_type", data: "pat" });
+
+    await storeData({ name: "authentication_notice", data: null });
 
     // Important to initialize GitHub client
     ipcMain.emit("github-token-ready");
@@ -115,6 +119,8 @@ export const authenticateWithGitHubApp = async (): Promise<boolean> => {
 
     await storeData({ name: "access_token", data: token });
     await storeData({ name: "auth_type", data: "github-app" });
+
+    await storeData({ name: "authentication_notice", data: null });
 
     ipcMain.emit("github-token-ready");
     ipcMain.emit("dispatch-application-sign-user", null, true);

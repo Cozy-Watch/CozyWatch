@@ -1,4 +1,4 @@
-import { GearIcon, SyncIcon } from "@primer/octicons-react";
+import { GearIcon, RocketIcon, SyncIcon } from "@primer/octicons-react";
 import { Avatar, Button, Flex } from "@radix-ui/themes";
 
 interface Props {
@@ -33,6 +33,16 @@ export const HeaderEmpty = ({ isCompact }: Props) => {
       </Flex>
 
       <Flex align="center" gap={isCompact ? "1" : "2"}>
+        <Button
+          variant="outline"
+          aria-label="Open dashboard"
+          title="Open dashboard"
+          style={{ boxShadow: "none", color: "var(--accent-12)" }}
+          onClick={() => window.electronAPI.application.navigateToRoute("overview")}
+        >
+          <RocketIcon size={16} />
+          Dashboard
+        </Button>
         <Button
           variant="outline"
           style={{ boxShadow: "none", color: "var(--accent-12)" }}

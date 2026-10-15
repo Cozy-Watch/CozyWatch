@@ -116,7 +116,7 @@ let licenseValidationStarted = false;
 let rendererReady = false;
 let mainWindowRendererReady = false;
 type MainWindowNavigation = {
-  route: "settings" | "signIn" | "notifications";
+  route: "settings" | "signIn" | "notifications" | "overview";
   notificationId?: string;
 };
 let pendingMainWindowNavigation: MainWindowNavigation | null = null;
@@ -584,18 +584,23 @@ app.on("activate", () => {
 
 // ---- EVENTS ----
 
+const stopAuthenticatedBackgroundTasks = () => {
+  backgroundTasksStarted = false;
+  stopPolling();
+  disableDerivedCacheWrites();
+};
+
 export const performSignOut = async () => {
   log.info("[IPC] performSignOut");
 
-  stopPolling();
-  disableDerivedCacheWrites();
+  stopAuthenticatedBackgroundTasks();
   const signedOut = await signOut();
   if (signedOut) {
     await clearNotificationsOnSignOut();
   }
   if (!signedOut) {
     enableDerivedCacheWrites();
-    startPolling();
+    startAuthenticatedBackgroundTasks();
   }
   return signedOut;
 };
@@ -665,6 +670,14 @@ handleRendererInvoke("weekly-recap-personal", async (_, weekStart: unknown) => {
 });
 
 // Authentication
+ipcMain.on("authentication-required", stopAuthenticatedBackgroundTasks);
+ipcMain.on("show-authentication-required", () => {
+  queueOrSendMainWindowNavigation({ route: "signIn" });
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.show();
+  }
+});
+handleRendererInvoke("authentication-get-notice", () => getData("authentication_notice"));
 handleRendererInvoke("authentication-isStored", async () => {
   const authenticated = await hasLocalAccessToken();
   return authenticated;
@@ -1140,10 +1153,13 @@ const queueOrSendMainWindowNavigation = (navigation: MainWindowNavigation) => {
   mainWindow.webContents.send("navigate-to-route", navigation);
 };
 
-handleRendererInvoke("on-application-navigate-to-route", (_, route) => {
-  if (route !== "settings" && route !== "signIn" && route !== "notifications") {
+handleRendererInvoke("on-application-navigate-to-route", async (_, route) => {
+  if (route !== "settings" && route !== "signIn" && route !== "notifications" && route !== "overview") {
     throw new Error("Invalid navigation route.");
   }
+
+  const destination =
+    route === "overview" && !(await hasLocalAccessToken()) ? "signIn" : route;
 
   log.info("[IPC] on-application-navigate-to-route", route);
 
@@ -1154,7 +1170,7 @@ handleRendererInvoke("on-application-navigate-to-route", (_, route) => {
 
   if (mainWindow && !mainWindow.isDestroyed()) {
     log.info("[IPC] mainWindow send navigate-to-route", route);
-    queueOrSendMainWindowNavigation({ route });
+    queueOrSendMainWindowNavigation({ route: destination });
     mainWindow.show();
     mainWindow.focus();
   }
