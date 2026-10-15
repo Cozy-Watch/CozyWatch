@@ -8,6 +8,10 @@ import { useMenubarDensityQuery } from "../AppSettings/api/useMenubarDensityQuer
 import { Menubar } from "./Menubar";
 import { useMenubar } from "./useMenubar";
 
+jest.mock("../../components/AuthenticationNotice/AuthenticationNotice", () => ({
+  AuthenticationNotice: () => null,
+}));
+
 jest.mock("../../api/useIsAuthenticatedQuery", () => ({
   useIsAuthenticatedQuery: jest.fn(),
 }));

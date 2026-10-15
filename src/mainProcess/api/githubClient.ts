@@ -2,9 +2,9 @@ import { ipcMain } from "electron";
 import { Octokit as OctokitCore } from "@octokit/rest";
 import { throttling } from "@octokit/plugin-throttling";
 import {
-  deleteData,
   deleteDataOrThrow,
   getData,
+  storeData,
 } from "../safeStorage/safeStorage";
 import { AuthType } from "../safeStorage/safeStorage.types";
 import Logger from "electron-log";
@@ -62,7 +62,7 @@ export async function initGithubClient(): Promise<
         // Validate token if present
         if (accessToken && !(await validateToken(accessToken))) {
           Logger.warn("[Octokit] Token invalid, clearing stored token");
-          await deleteData("access_token");
+          await handleRejectedCredentials();
           accessToken = null;
         }
 
@@ -83,6 +83,7 @@ export async function initGithubClient(): Promise<
 
           // Retry getting the token
           accessToken = await getData("access_token");
+          currentAuthType = (await getData("auth_type")) ?? null;
           Logger.info("[Octokit] access token refreshed", {
             present: Boolean(accessToken),
           });
@@ -111,15 +112,12 @@ export async function initGithubClient(): Promise<
         client.hook.error("request", async (error) => {
           const status = "status" in error ? error.status : undefined;
 
-          if (
-            status === 401 ||
-            (error.message && error.message.includes("Bad credentials"))
-          ) {
+          if (status === 401) {
             Logger.warn(
               "[Octokit] Authentication error detected, signing out user",
             );
             octokitInstance = null;
-            await signOut();
+            await handleRejectedCredentials();
             throw new Error("Authentication failed. User has been signed out.");
           }
           throw error;
@@ -224,17 +222,40 @@ export const createGithubClient = async () => {
   return client;
 };
 
+let rejectedCredentialsPromise: Promise<void> | null = null;
+
+const handleRejectedCredentials = () => {
+  rejectedCredentialsPromise ??= (async () => {
+    const authType = currentAuthType ?? await getData("auth_type");
+    const notice = authType === "pat"
+      ? "GitHub no longer accepts your personal access token. It may have expired or been revoked. Enter a new PAT to resume monitoring. Your repository subscriptions have been kept."
+      : "Your GitHub connection is no longer valid. Sign in again to resume monitoring. Your repository subscriptions have been kept.";
+    await storeData({ name: "authentication_notice", data: notice });
+    // Pause background work before removing credentials and derived caches.
+    ipcMain.emit("authentication-required");
+    const signedOut = await signOut({ preserveRepositorySelections: true });
+    if (!signedOut) {
+      throw new Error("Could not clear rejected GitHub credentials.");
+    }
+    ipcMain.emit("dispatch-application-sign-user", null, false);
+    ipcMain.emit("show-authentication-required");
+  })().finally(() => {
+    rejectedCredentialsPromise = null;
+  });
+  return rejectedCredentialsPromise;
+};
+
 /**
- * Clears all stored data and resets the Octokit instance.
+ * Clears session data and resets the Octokit instance.
  */
-export const signOut = async () => {
+export const signOut = async ({ preserveRepositorySelections = false } = {}) => {
   refreshCoordinator.invalidate();
   setPullCache(null);
   setRepositoryCache(null);
   try {
     Logger.info("[Octokit] Signing out...");
     await Promise.all([
-      deleteDataOrThrow("active_repositories"),
+      ...(preserveRepositorySelections ? [] : [deleteDataOrThrow("active_repositories")]),
       deleteDataOrThrow("auth_type"),
       deleteDataOrThrow("pull_requests_cache"),
       deleteDataOrThrow("repositories_cache"),
@@ -282,6 +303,10 @@ async function validateToken(token: string): Promise<boolean> {
       "[Octokit] Token validation failed",
       getSafeErrorMetadata(error),
     );
-    return false;
+    if (getSafeErrorMetadata(error).status === 401) {
+      return false;
+    }
+    // Offline, rate-limited, or unavailable GitHub does not invalidate a token.
+    throw error;
   }
 }

@@ -9,6 +9,7 @@ import {
 } from "@radix-ui/themes";
 import { useIsAuthenticatedQuery } from "../../api/useIsAuthenticatedQuery";
 import { useState } from "react";
+import { AuthenticationNotice } from "../../components/AuthenticationNotice/AuthenticationNotice";
 import { Header } from "./components/Header/Header";
 import { HeaderEmpty } from "./components/Header/Header.empty";
 import { My } from "./Tabs/My/My";
@@ -45,16 +46,19 @@ export const Menubar = () => {
           justify="center"
         >
           {isAuthenticated === false ? (
-            <Button
-              variant="soft"
-              className="inverse-accent-text-shadow"
-              onClick={() => {
-                window.electronAPI.application.navigateToRoute("signIn");
-              }}
-            >
-              <MarkGithubIcon size={16} />
-              Sign In to Github
-            </Button>
+            <Flex direction="column" align="center" gap="3">
+              <AuthenticationNotice />
+              <Button
+                variant="soft"
+                className="inverse-accent-text-shadow"
+                onClick={() => {
+                  window.electronAPI.application.navigateToRoute("signIn");
+                }}
+              >
+                <MarkGithubIcon size={16} />
+                Sign In to Github
+              </Button>
+            </Flex>
           ) : (
             <Spinner size="3" />
           )}

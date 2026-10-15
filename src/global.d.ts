@@ -107,19 +107,19 @@ declare global {
         exportDiagnosticsBundle: () => Promise<{ saved: boolean }>;
         reportRendererReady: () => Promise<void>;
 
-        navigateToRoute: (route: "settings" | "signIn" | "notifications") => void;
+        navigateToRoute: (route: "settings" | "signIn" | "notifications" | "overview") => void;
         onNavigateToRoute: (
           callback: (event: {
-            route: "settings" | "signIn" | "notifications";
+            route: "settings" | "signIn" | "notifications" | "overview";
             notificationId?: string;
           }) => void,
         ) => IpcListener<{
-          route: "settings" | "signIn" | "notifications";
+          route: "settings" | "signIn" | "notifications" | "overview";
           notificationId?: string;
         }>;
         removeOnNavigateToRoute: (
           callback: IpcListener<{
-            route: "settings" | "signIn" | "notifications";
+            route: "settings" | "signIn" | "notifications" | "overview";
             notificationId?: string;
           }>,
         ) => void;
@@ -130,6 +130,7 @@ declare global {
 
       authentication: {
         isStored: () => Promise<boolean>;
+        getNotice: () => Promise<string | null>;
         authenticateGitHub: () => Promise<boolean>;
         authenticateGitHubApp: () => Promise<boolean>;
         storePAT: (token: string) => Promise<{

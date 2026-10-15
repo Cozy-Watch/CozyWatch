@@ -155,12 +155,12 @@ contextBridge.exposeInMainWorld("electronAPI", {
       ipcRenderer.invoke("diagnostics-export-bundle"),
     reportRendererReady: () => ipcRenderer.invoke("diagnostics-renderer-ready"),
 
-    navigateToRoute: (route: "settings" | "signIn" | "notifications") => {
+    navigateToRoute: (route: "settings" | "signIn" | "notifications" | "overview") => {
       return ipcRenderer.invoke("on-application-navigate-to-route", route);
     },
 
-    onNavigateToRoute: (callback: (event: { route: "settings" | "signIn" | "notifications"; notificationId?: string }) => void) => {
-      const handler: IpcListener<{ route: "settings" | "signIn" | "notifications"; notificationId?: string }> = (_event, data) => {
+    onNavigateToRoute: (callback: (event: { route: "settings" | "signIn" | "notifications" | "overview"; notificationId?: string }) => void) => {
+      const handler: IpcListener<{ route: "settings" | "signIn" | "notifications" | "overview"; notificationId?: string }> = (_event, data) => {
         callback(data);
       };
       ipcRenderer.on("navigate-to-route", handler);
@@ -168,7 +168,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
     },
 
     removeOnNavigateToRoute: (
-      handler: IpcListener<{ route: "settings" | "signIn" | "notifications"; notificationId?: string }>,
+      handler: IpcListener<{ route: "settings" | "signIn" | "notifications" | "overview"; notificationId?: string }>,
     ) =>
       ipcRenderer.removeListener("navigate-to-route", handler),
   },
@@ -186,6 +186,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
   // GitHub API
   authentication: {
     isStored: () => ipcRenderer.invoke("authentication-isStored"),
+    getNotice: () => ipcRenderer.invoke("authentication-get-notice"),
     authenticateGitHub: () =>
       ipcRenderer.invoke("authentication-authenticate-github"),
     authenticateGitHubApp: () =>

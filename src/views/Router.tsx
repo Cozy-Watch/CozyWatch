@@ -87,6 +87,11 @@ const githubAuthenticationRoute = createRoute({
 
 // --- Other Routes ---
 const overview = createRoute({
+  beforeLoad: ({ context }) => {
+    if (!context.auth.isAuthenticated) {
+      throw redirect({ to: "/" });
+    }
+  },
   getParentRoute: () => rootRoute,
   path: "/overview",
   component: Overview,
@@ -272,12 +277,14 @@ const RouterContent = ({ isAuthenticated }: { isAuthenticated: boolean }) => {
 
   useEffect(() => {
     const handleNavigateToSettings = (event: {
-      route: "settings" | "signIn" | "notifications";
+      route: "settings" | "signIn" | "notifications" | "overview";
       notificationId?: string;
     }) => {
       const { route, notificationId } = event;
       if (route === "signIn") {
         router.navigate({ to: "/" });
+      } else if (route === "overview") {
+        router.navigate({ to: "/overview" });
       } else if (route === "notifications") {
         router.navigate({
           to: "/notifications",

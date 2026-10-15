@@ -18,6 +18,7 @@ import {
 import Logger from "electron-log";
 import { useState } from "react";
 import Confetti from "react-confetti";
+import { AuthenticationNotice } from "../../components/AuthenticationNotice/AuthenticationNotice";
 import { CozyWatch } from "../../components/SVG/CozyWatch";
 import { usePATauthenticationMutation } from "./api/usePATauthenticationMutation";
 import { useAuthentication } from "./useGithubAuthentication";
@@ -191,6 +192,8 @@ export const GithubAuthentication = () => {
               </Button>
             </Flex>
 
+            <AuthenticationNotice />
+
             {error && (
               <Flex width="100%" align="center" justify="center">
                 <Callout.Root variant="soft" color="red" size="1">
@@ -292,6 +295,7 @@ export const GithubAuthentication = () => {
             </Text>
           </Flex>
 
+          <AuthenticationNotice />
           <Flex direction="column" align="center" justify="center" gap="6">
             <Flex align="center" gap="2" direction="column">
               <Button

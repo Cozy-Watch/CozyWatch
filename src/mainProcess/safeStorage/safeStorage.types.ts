@@ -91,6 +91,7 @@ export type AuthType = "pat" | "oauth" | "github-app";
 
 export type StoreDataMap = {
   access_token: string | null;
+  authentication_notice: string | null;
   active_repositories: Record<number, boolean>;
   auth_type: AuthType | null;
   appearance?: Appearance | null;

@@ -1,6 +1,7 @@
 import { TrophyIcon } from "@primer/octicons-react";
-import { Card, Flex, Skeleton, Text } from "@radix-ui/themes";
-import { useEffect, useState } from "react";
+import { Card, Flex, Skeleton, Spinner, Text } from "@radix-ui/themes";
+import { useQuery } from "@tanstack/react-query";
+import { useUserQuery } from "../../../../api/useUserQuery";
 import { getLastCompletedWeekStart } from "../../../../../weeklyRecap/metrics";
 import type { PersonalWeeklyRecap } from "../../../../../weeklyRecap/types";
 
@@ -44,19 +45,15 @@ const momentum = ({
 };
 
 export const WeeklyRecap = () => {
-  const [recap, setRecap] = useState<PersonalWeeklyRecap | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    void window.electronAPI.weeklyRecap
-      .personal(getLastCompletedWeekStart())
-      .then(setRecap)
-      .catch(() =>
-        setError(
-          "Your weekly recap will appear here with PRs you merged and reviews you gave.",
-        ),
-      );
-  }, []);
+  const { data: user } = useUserQuery();
+  const weekStart = getLastCompletedWeekStart();
+  const { data: recap, error, isFetching } = useQuery({
+    queryKey: ["weeklyRecap", user?.id, weekStart],
+    queryFn: () => window.electronAPI.weeklyRecap.personal(weekStart),
+    enabled: !!user?.id,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 60 * 60 * 1000,
+  });
 
   const trend = recap ? momentum(recap) : null;
 
@@ -90,11 +87,16 @@ export const WeeklyRecap = () => {
                 </Text>
               ) : null}
             </Flex>
-            <TrophyIcon size={20} />
+            <Flex align="center" gap="2">
+              {isFetching && recap ? (
+                <Spinner size="1" aria-label="Refreshing weekly recap" />
+              ) : null}
+              <TrophyIcon size={20} />
+            </Flex>
           </Flex>
-          {error ? (
+          {error && !recap ? (
             <Text size="2" color="gray">
-              {error}
+              Your weekly recap will appear here with PRs you merged and reviews you gave.
             </Text>
           ) : !recap ? (
             <Flex gap="3">
