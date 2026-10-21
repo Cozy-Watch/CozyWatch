@@ -31,6 +31,7 @@ export interface ReviewData {
 }
 
 export interface CIStatus {
+  pullRequestId: number;
   initialRun: PullsActions[0];
   finalRun: PullsActions[0];
 }

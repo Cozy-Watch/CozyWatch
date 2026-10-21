@@ -588,25 +588,13 @@ export const pullRequestQuery = async (isCurrent = () => true): Promise<PullRequ
       const runNames = Object.keys(CIStatus);
 
       const runUpdates = runNames.map((runName) => {
-        const { finalRun, initialRun } = CIStatus[runName];
+        const { finalRun, initialRun, pullRequestId } = CIStatus[runName];
 
         const pullRequestList = Object.values(
           cache.pullRequestsPerRepo[repositoryName] || {},
         ).flat();
 
-        const linkedPullRequests = finalRun.pull_requests ?? [];
-        const pullRequestData =
-          pullRequestList.find((pr) =>
-            linkedPullRequests.some(
-              (linkedPr) => linkedPr.number === pr.number || linkedPr.id === pr.id,
-            ),
-          ) ??
-          (finalRun.head_sha
-            ? pullRequestList.find((pr) => pr.head.sha === finalRun.head_sha)
-            : undefined) ??
-          (finalRun.head_branch
-            ? pullRequestList.find((pr) => pr.head.ref === finalRun.head_branch)
-            : undefined);
+        const pullRequestData = pullRequestList.find(pr => pr.id === pullRequestId);
 
         const title = pullRequestData?.title;
         const pullNumber = pullRequestData?.number ?? finalRun.pull_requests?.[0]?.number;

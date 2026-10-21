@@ -21,6 +21,7 @@ describe("getCIStatusUpdate", () => {
       [`build:${workflowRuns.finalBuildLatest.pull_requests![0].id}`]: {
         initialRun: workflowRuns.initialBuildLatest,
         finalRun: workflowRuns.finalBuildLatest,
+        pullRequestId: workflowRuns.finalBuildLatest.pull_requests![0].id,
       },
     });
   });
@@ -67,4 +68,24 @@ it("keeps the same workflow on different PRs separate and matches empty PR metad
   initialCache.actionsPerRepo[repo].push({ ...workflowRuns.initialBuildLatest, id: 990, pull_requests: [], head_sha: "another-sha" });
   finalCache.actionsPerRepo[repo].push({ ...workflowRuns.finalBuildLatest, id: 991, pull_requests: [], head_sha: "another-sha" });
   expect(Object.keys(getCIStatusUpdate({ repositoryName: repo, initialCache, finalCache, userId: SYNTHETIC_USER_ID }))).toHaveLength(2);
+});
+
+it("ignores an old commit that finishes after current-head CI has failed", () => {
+  const { finalCache, initialCache, workflowRuns } = createSyntheticCacheFixture();
+  const repo = SYNTHETIC_REPOSITORY_NAME;
+  const current = { ...workflowRuns.initialBuildLatest, updated_at: "2026-01-03T00:00:00Z" };
+  initialCache.actionsPerRepo[repo] = [current, { ...current, id: 1000, head_sha: "old", conclusion: null }];
+  finalCache.actionsPerRepo[repo] = [current, { ...current, id: 1000, head_sha: "old", conclusion: "success", updated_at: "2026-01-04T00:00:00Z" }];
+  expect(getCIStatusUpdate({ repositoryName: repo, initialCache, finalCache, userId: SYNTHETIC_USER_ID })).toEqual({});
+});
+it("prefers the newest run attempt even if the previous attempt updated later", () => {
+  const { finalCache, initialCache, workflowRuns } = createSyntheticCacheFixture();
+  const repo = SYNTHETIC_REPOSITORY_NAME;
+  const earlier = { ...workflowRuns.initialBuildLatest, run_attempt: 1, updated_at: "2026-01-05T00:00:00Z" };
+  const latest = { ...earlier, run_attempt: 2, conclusion: "success" as const, updated_at: "2026-01-04T00:00:00Z" };
+  initialCache.actionsPerRepo[repo] = [earlier];
+  finalCache.actionsPerRepo[repo] = [latest, earlier];
+  const changes = Object.values(getCIStatusUpdate({ repositoryName: repo, initialCache, finalCache, userId: SYNTHETIC_USER_ID }));
+  expect(changes).toHaveLength(1);
+  expect(changes[0].finalRun.run_attempt).toBe(2);
 });
