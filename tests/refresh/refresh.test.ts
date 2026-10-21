@@ -99,7 +99,7 @@ describe("production refresh with mocked HTTP (characterization, not optimized b
     } finally { await harness.close(); }
   });
 
-  test("real pagination exposes review-page replacement and older workflow-page retention", async () => {
+  test("pagination retains complete reviews and the newest workflow runs", async () => {
     const repos = createProfile("small");
     Object.assign(repos[0], { openPulls: 1, reviewsPerPull: 101, commentsPerPull: 101, workflowRuns: 201 });
     const github = new MockGithub(repos);
@@ -116,8 +116,8 @@ describe("production refresh with mocked HTTP (characterization, not optimized b
       expect(result.data.reviewPerRepoPerPullNumber["service-1"]["1"].map((review) => review.id))
         .toEqual(isBaseline ? [101] : Array.from({ length: 101 }, (_, index) => index + 1));
       expect(Object.values(result.data.mentions["service-1"]).flat()).toHaveLength(101);
-      expect(result.data.actionsPerRepo["service-1"][0].id).toBe(100200);
-      expect(result.data.actionsPerRepo["service-1"].some((run) => run.id === 100000)).toBe(false);
+      expect(result.data.actionsPerRepo["service-1"][0].id).toBe(isBaseline ? 100200 : 100000);
+      expect(result.data.actionsPerRepo["service-1"].some((run) => run.id === 100000)).toBe(!isBaseline);
     } finally { await harness.close(); }
   });
 

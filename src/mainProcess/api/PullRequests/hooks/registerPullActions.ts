@@ -60,7 +60,9 @@ export const registerPullActions = ({
             const newIds = new Set(newRuns.map((r) => r.id));
             cache.actionsPerRepo = {
               ...cache.actionsPerRepo,
-              [repoName]: [...newRuns, ...existing.filter((r) => !newIds.has(r.id))].slice(0, 100),
+              [repoName]: [...newRuns, ...existing.filter((r) => !newIds.has(r.id))]
+                .sort((a, b) => Date.parse(b.updated_at || b.created_at) - Date.parse(a.updated_at || a.created_at) || b.id - a.id)
+                .slice(0, 100),
             };
           }
         }
