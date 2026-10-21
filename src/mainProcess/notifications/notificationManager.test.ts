@@ -105,3 +105,38 @@ it("preserves unrelated banners and all accepted history on repository changes",
   expect(show).toHaveBeenCalledTimes(2);
   expect(created[0].close).toHaveBeenCalledTimes(1);
 });
+
+it("allows immediate retry after storage recovers without duplicate history", async () => {
+  jest.mocked(storeData).mockResolvedValueOnce(false);
+  await batchNotificationManager([alert("retry")]);
+  expect(history).toEqual([]);
+  await batchNotificationManager([alert("retry")]);
+  await jest.advanceTimersByTimeAsync(40000);
+  expect(history.map(item => item.body)).toEqual(["retry"]);
+  expect(show).toHaveBeenCalledTimes(1);
+});
+it("automatically retries transient write failures without another poll", async () => {
+  jest.mocked(storeData).mockResolvedValueOnce(false);
+  await batchNotificationManager([alert("automatic retry")]);
+  await jest.advanceTimersByTimeAsync(1000);
+  expect(history.map(item => item.body)).toEqual(["automatic retry"]);
+});
+it("cancels storage retries on sign-out", async () => {
+  jest.mocked(storeData).mockResolvedValueOnce(false);
+  await batchNotificationManager([alert("old session")]);
+  await clearNotificationsOnSignOut();
+  await jest.advanceTimersByTimeAsync(40000);
+  expect(history).toEqual([]);
+  expect(show).not.toHaveBeenCalled();
+});
+it("bounds automatic retries when storage remains unavailable", async () => {
+  const save = jest.mocked(storeData);
+  const implementation = save.getMockImplementation()!;
+  save.mockResolvedValue(false);
+  const before = save.mock.calls.length;
+  await batchNotificationManager([alert("unavailable")]);
+  await jest.advanceTimersByTimeAsync(100000);
+  expect(save.mock.calls.length - before).toBe(4);
+  expect(history).toEqual([]);
+  save.mockImplementation(implementation);
+});

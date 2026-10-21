@@ -27,6 +27,9 @@ export const formatNotificationSource = (source?: NotificationRecord["source"]) 
     .join(" · ");
 
 const recentNotifications = new Map<string, number>();
+const pendingWrites = new Map<string, number>();
+const retryWrites = new Map<string, { attempts: number; timer: ReturnType<typeof setTimeout> }>();
+const WRITE_RETRY_DELAYS = [1000, 5000, 30000];
 type Delivery = { notification: ManagedNotification; record: NotificationRecord };
 const notificationQueue: Delivery[] = [];
 let disabledRepositories = new Set<string>();
@@ -131,19 +134,38 @@ export const batchNotificationManager = async (notifications: ManagedNotificatio
   }
   await Promise.all(notifications.map(async (notification) => {
     const hash = getNotificationHash(notification);
-    if (recentNotifications.has(hash)) return;
-    recentNotifications.set(hash, now);
+    if (recentNotifications.has(hash) || pendingWrites.get(hash) === generation) return;
+    const retry = retryWrites.get(hash);
+    if (retry) { clearTimeout(retry.timer); retryWrites.delete(hash); }
+    pendingWrites.set(hash, generation);
     try {
       if (!(await isAllowed(notification)) || !isCurrent()) return;
       // Save every accepted event without waiting for paced native delivery.
       const record = await persistNotification(notification, isCurrent);
+      if (isCurrent()) recentNotifications.set(hash, Date.now());
       if (!isCurrent() || !isRepositoryEnabled(notification)) return;
       notificationQueue.push({ notification, record });
       // History is authoritative. Keep the native backlog bounded as well.
       if (notificationQueue.length > MAX_HISTORY) notificationQueue.shift();
       if (!isProcessingQueue) void processQueue();
     } catch {
-      Logger.warn("[Notifications] Could not save alert");
+      if (!isCurrent()) return;
+      const attempts = retry?.attempts ?? 0;
+      const delay = WRITE_RETRY_DELAYS[attempts];
+      if (delay !== undefined) {
+        // Retry without relying on GitHub regenerating an already observed change.
+        const timer = setTimeout(() => {
+          if (isCurrent()) void batchNotificationManager([notification]);
+        }, delay);
+        retryWrites.set(hash, { attempts: attempts + 1, timer });
+        if (retryWrites.size > MAX_HISTORY) {
+          const oldest = retryWrites.keys().next().value;
+          if (oldest) { clearTimeout(retryWrites.get(oldest)!.timer); retryWrites.delete(oldest); }
+        }
+      }
+      Logger.warn("[Notifications] Could not save alert; retry remains available");
+    } finally {
+      if (pendingWrites.get(hash) === generation) pendingWrites.delete(hash);
     }
   }));
 };
@@ -220,6 +242,9 @@ export const cancelPendingNotifications = () => {
   deliveryTimer = undefined;
   notificationQueue.length = 0;
   recentNotifications.clear();
+  pendingWrites.clear();
+  retryWrites.forEach(retry => clearTimeout(retry.timer));
+  retryWrites.clear();
   isProcessingQueue = false;
   disabledRepositories = new Set();
   const active = activeNotifications;
