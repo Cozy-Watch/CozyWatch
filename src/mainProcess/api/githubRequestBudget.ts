@@ -28,33 +28,46 @@ export function estimateFullRefreshReserve(
 }
 
 
-/** Shared by full refreshes, sweeps and recap requests on one authenticated client. */
+/** Quotas are independent: Search must never consume the core reserve. */
 export const installGithubRequestBudget = (client: Octokit) => {
-  let remaining = Infinity;
-  let resetAt = 0;
-  const observe = (headers: Record<string, string | number | undefined>) => {
+  const budgets = new Map<string, { remaining: number; resetAt: number }>();
+  const resourceFor = (url: string) =>
+    new URL(url, "https://api.github.com").pathname.startsWith("/search/") ? "search" : "core";
+  const observe = (headers: Record<string, string | number | undefined>, url: string, fresh = false) => {
+    const resource = String(headers["x-ratelimit-resource"] || resourceFor(url));
     const value = Number(headers["x-ratelimit-remaining"]);
+    if (!Number.isFinite(value)) return;
     const reset = Number(headers["x-ratelimit-reset"]) * 1000;
-    if (Number.isFinite(value)) remaining = Math.min(remaining, value);
-    if (Number.isFinite(reset) && reset > 0) resetAt = reset;
+    const previous = budgets.get(resource);
+    budgets.set(resource, {
+      remaining: fresh || !previous || (previous.resetAt > 0 && Date.now() >= previous.resetAt)
+        ? value : Math.min(previous.remaining, value),
+      resetAt: Number.isFinite(reset) && reset > 0 ? reset : previous?.resetAt || 0,
+    });
   };
   client.hook.before("request", options => {
-    if (options.url.endsWith("/rate_limit") || options.url === "/rate_limit") return;
-    if (resetAt && Date.now() >= resetAt) { remaining = Infinity; resetAt = 0; }
-    if (remaining <= 100) {
+    const path = new URL(options.url, "https://api.github.com").pathname;
+    if (path === "/rate_limit") return;
+    const resource = resourceFor(options.url);
+    const budget = budgets.get(resource);
+    if (!budget) return;
+    if (budget.resetAt && Date.now() >= budget.resetAt) {
+      budgets.delete(resource);
+      return;
+    }
+    const reserve = resource === "core" ? 100 : 0;
+    if (budget.remaining <= reserve) {
       throw Object.assign(new Error("GitHub request budget reserved. Updates will resume after the quota resets."), {
-        status: 429, response: { headers: { "retry-after": String(Math.max(60, Math.ceil((resetAt - Date.now()) / 1000))) } },
+        status: 429, response: { headers: { "retry-after": String(Math.max(60, Math.ceil((budget.resetAt - Date.now()) / 1000))) } },
       });
     }
-    remaining--;
+    budget.remaining--;
   });
-  client.hook.after("request", response => {
-    // A fresh quota check starts a new observation window, including after reset.
-    if (response.url?.endsWith("/rate_limit")) remaining = Infinity;
-    observe(response.headers);
+  client.hook.after("request", (response, options) => {
+    observe(response.headers, options.url, new URL(options.url, "https://api.github.com").pathname === "/rate_limit");
   });
-  client.hook.error("request", error => {
-    if ("response" in error && error.response) observe(error.response.headers);
+  client.hook.error("request", (error, options) => {
+    if ("response" in error && error.response) observe(error.response.headers, options.url);
     throw error;
   });
 };
