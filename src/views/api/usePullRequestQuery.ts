@@ -1,19 +1,23 @@
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { QueryClient, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
 import { CacheData as PullRequestData } from "src/mainProcess/api/PullRequests/utils/getDefaultData";
 
 export const queryKey = ["pullRequests"];
 
-let latestPushedPullRequestData: PullRequestData | undefined;
-let pushedUpdateSequence = 0;
+const snapshots = new WeakMap<QueryClient, { data?: PullRequestData; sequence: number }>();
 
 export const usePullRequestQuery = () => {
   const queryClient = useQueryClient();
+  let snapshot = snapshots.get(queryClient);
+  if (!snapshot) {
+    snapshot = { sequence: 0 };
+    snapshots.set(queryClient, snapshot);
+  }
 
   useEffect(() => {
     const handleUpdate = (data: PullRequestData) => {
-      latestPushedPullRequestData = data;
-      pushedUpdateSequence += 1;
+      snapshot.data = data;
+      snapshot.sequence += 1;
       queryClient.setQueryData(queryKey, (oldData: PullRequestData) => {
         if (!oldData) {
           return data;
@@ -31,20 +35,20 @@ export const usePullRequestQuery = () => {
     return () => {
       window.electronAPI.pullRequest.removeOnUpdate(handler);
     };
-  }, []);
+  }, [queryClient]);
 
   return useQuery<PullRequestData>({
     staleTime: Infinity,
     queryKey: queryKey,
     queryFn: async () => {
-      const updateSequenceAtStart = pushedUpdateSequence;
+      const updateSequenceAtStart = snapshot.sequence;
       const response = await window.electronAPI.pullRequest.query();
 
       // A background update can arrive while the initial snapshot IPC is pending.
       // Keep that newer push instead of replacing it with the earlier snapshot.
-      return pushedUpdateSequence > updateSequenceAtStart &&
-        latestPushedPullRequestData
-        ? latestPushedPullRequestData
+      return snapshot.sequence > updateSequenceAtStart &&
+        snapshot.data
+        ? snapshot.data
         : response;
     },
   });

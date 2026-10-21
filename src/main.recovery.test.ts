@@ -171,3 +171,9 @@ it("publishes notification history changes to the live renderer", () => {
   ipc.emit("dispatch-notification-update", null, history);
   expect(webContents.send).toHaveBeenCalledWith("notification-update", history);
 });
+
+it("broadcasts explicit sign-out to renderers", async () => {
+  webContents.send.mockClear();
+  await main.performSignOut();
+  expect(webContents.send).toHaveBeenCalledWith("sign-user", false);
+});

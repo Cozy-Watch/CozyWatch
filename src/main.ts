@@ -628,7 +628,7 @@ export const performSignOut = async () => {
   stopAuthenticatedBackgroundTasks();
   const signedOut = await signOut();
   if (signedOut) {
-    await clearNotificationsOnSignOut();
+    ipcMain.emit("dispatch-application-sign-user", null, false);
   }
   if (!signedOut) {
     enableDerivedCacheWrites();
