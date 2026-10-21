@@ -26,7 +26,7 @@ export const usePATauthenticationMutation = () => {
     onSuccess: () => {
       queryClient.invalidateQueries();
 
-      navigate({ to: "/settings", search: { tab: "license" } });
+      navigate({ to: "/settings", search: { tab: "repositories" } });
     },
   });
 };

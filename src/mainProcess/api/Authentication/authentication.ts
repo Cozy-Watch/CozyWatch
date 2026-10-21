@@ -5,7 +5,8 @@ import { CLIENT_ID, GITHUB_APP_CLIENT_ID } from "../../keys";
 import { getData, storeData } from "../../safeStorage/safeStorage";
 import { Octokit } from "@octokit/rest";
 import { tryOpenExternalUrl } from "../../security/externalUrl";
-import { batchNotificationManager } from "../../notifications/notificationManager";
+import { getLicenseState, startTrialAfterGitHubConnection } from "../../licensing/licenseState";
+import { clearAuthenticationCodeNotification, showAuthenticationCodeNotification } from "./authenticationCodeNotification";
 
 export const authenticateWithGitHub = async (): Promise<boolean> => {
   try {
@@ -19,13 +20,8 @@ export const authenticateWithGitHub = async (): Promise<boolean> => {
           user_code,
         });
 
+        showAuthenticationCodeNotification(user_code, verification_uri);
         tryOpenExternalUrl(verification_uri);
-
-        batchNotificationManager([{
-          title: "GitHub Authentication",
-          body: `Your auth code is: ${user_code}. Enter it at the opened URL.`,
-          type: "system",
-        }]);
       },
     });
 
@@ -35,11 +31,14 @@ export const authenticateWithGitHub = async (): Promise<boolean> => {
       throw new Error("No token received");
     }
 
+    await getLicenseState();
     // Store the token securely
-    await storeData({ name: "access_token", data: token });
+    if (!(await storeData({ name: "access_token", data: token }))) throw new Error("Unable to securely save your GitHub connection.");
     await storeData({ name: "auth_type", data: "oauth" });
 
     await storeData({ name: "authentication_notice", data: null });
+
+    await startTrialAfterGitHubConnection();
 
     // Important to inicialize GitHub client
     ipcMain.emit("github-token-ready");
@@ -51,6 +50,8 @@ export const authenticateWithGitHub = async (): Promise<boolean> => {
   } catch (err) {
     Logger.error("Error during authentication:", err);
     return false; // Authentication failed
+  } finally {
+    clearAuthenticationCodeNotification();
   }
 };
 
@@ -60,11 +61,14 @@ export const authenticateWithPAT = async (pat: string) => {
   try {
     await octokit.request("GET /user");
 
+    await getLicenseState();
     // Store the token securely
-    await storeData({ name: "access_token", data: pat });
+    if (!(await storeData({ name: "access_token", data: pat }))) throw new Error("Unable to securely save your GitHub connection.");
     await storeData({ name: "auth_type", data: "pat" });
 
     await storeData({ name: "authentication_notice", data: null });
+
+    await startTrialAfterGitHubConnection();
 
     // Important to initialize GitHub client
     ipcMain.emit("github-token-ready");
@@ -101,13 +105,8 @@ export const authenticateWithGitHubApp = async (): Promise<boolean> => {
           user_code,
         });
 
+        showAuthenticationCodeNotification(user_code, verification_uri);
         tryOpenExternalUrl(verification_uri);
-
-        batchNotificationManager([{
-          title: "GitHub Authentication",
-          body: `Your auth code is: ${user_code}. Enter it at the opened URL.`,
-          type: "system",
-        }]);
       },
     });
 
@@ -117,11 +116,13 @@ export const authenticateWithGitHubApp = async (): Promise<boolean> => {
       throw new Error("No token received");
     }
 
-    await storeData({ name: "access_token", data: token });
+    await getLicenseState();
+    if (!(await storeData({ name: "access_token", data: token }))) throw new Error("Unable to securely save your GitHub connection.");
     await storeData({ name: "auth_type", data: "github-app" });
 
     await storeData({ name: "authentication_notice", data: null });
 
+    await startTrialAfterGitHubConnection();
     ipcMain.emit("github-token-ready");
     ipcMain.emit("dispatch-application-sign-user", null, true);
 
@@ -129,6 +130,8 @@ export const authenticateWithGitHubApp = async (): Promise<boolean> => {
   } catch (err) {
     Logger.error("Error during GitHub App authentication:", err);
     return false;
+  } finally {
+    clearAuthenticationCodeNotification();
   }
 };
 

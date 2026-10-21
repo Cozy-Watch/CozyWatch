@@ -1,0 +1,45 @@
+{
+  "source": "src/mainProcess/notifications/notificationManager.ts",
+  "findings": [
+    {
+      "scenario": "A second batch preserves pending alerts",
+      "expected": [
+        "A",
+        "B",
+        "C"
+      ],
+      "actual": [
+        "A",
+        "C"
+      ],
+      "reproduced": true
+    },
+    {
+      "scenario": "Distinct PRs with identical copy both notify",
+      "expected": 2,
+      "actual": 1,
+      "reproduced": true
+    },
+    {
+      "scenario": "Sign-out cancels pending private alerts",
+      "expected": [],
+      "actual": [
+        "B"
+      ],
+      "reproduced": true
+    },
+    {
+      "scenario": "Failed persistence is not announced as saved history",
+      "expected": 0,
+      "actual": 1,
+      "storedRecords": 0,
+      "reproduced": true
+    },
+    {
+      "scenario": "Native notification failure has a handler",
+      "expected": 1,
+      "actual": 0,
+      "reproduced": true
+    }
+  ]
+}

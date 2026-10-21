@@ -1,0 +1,267 @@
+{
+  "full": {
+    "info": 0,
+    "low": 3,
+    "moderate": 23,
+    "high": 38,
+    "critical": 2,
+    "total": 66
+  },
+  "production": {
+    "info": 0,
+    "low": 0,
+    "moderate": 0,
+    "high": 0,
+    "critical": 0,
+    "total": 0
+  },
+  "directOrCritical": [
+    {
+      "package": "@electron-forge/cli",
+      "installed": "7.11.2",
+      "severity": "high",
+      "direct": true,
+      "advisories": [],
+      "fixAvailable": {
+        "name": "@electron-forge/cli",
+        "version": "8.0.1",
+        "isSemVerMajor": true
+      }
+    },
+    {
+      "package": "@electron-forge/maker-deb",
+      "installed": "7.11.2",
+      "severity": "high",
+      "direct": true,
+      "advisories": [],
+      "fixAvailable": {
+        "name": "@electron-forge/maker-deb",
+        "version": "8.0.1",
+        "isSemVerMajor": true
+      }
+    },
+    {
+      "package": "@electron-forge/maker-dmg",
+      "installed": "7.11.2",
+      "severity": "high",
+      "direct": true,
+      "advisories": [],
+      "fixAvailable": {
+        "name": "@electron-forge/maker-dmg",
+        "version": "8.0.1",
+        "isSemVerMajor": true
+      }
+    },
+    {
+      "package": "@electron-forge/maker-rpm",
+      "installed": "7.11.2",
+      "severity": "high",
+      "direct": true,
+      "advisories": [],
+      "fixAvailable": {
+        "name": "@electron-forge/maker-rpm",
+        "version": "8.0.1",
+        "isSemVerMajor": true
+      }
+    },
+    {
+      "package": "@electron-forge/maker-squirrel",
+      "installed": "7.11.2",
+      "severity": "high",
+      "direct": true,
+      "advisories": [],
+      "fixAvailable": {
+        "name": "@electron-forge/maker-squirrel",
+        "version": "8.0.1",
+        "isSemVerMajor": true
+      }
+    },
+    {
+      "package": "@electron-forge/maker-zip",
+      "installed": "7.11.2",
+      "severity": "high",
+      "direct": true,
+      "advisories": [],
+      "fixAvailable": {
+        "name": "@electron-forge/maker-zip",
+        "version": "8.0.1",
+        "isSemVerMajor": true
+      }
+    },
+    {
+      "package": "@electron-forge/plugin-auto-unpack-natives",
+      "installed": "7.11.2",
+      "severity": "high",
+      "direct": true,
+      "advisories": [],
+      "fixAvailable": {
+        "name": "@electron-forge/plugin-auto-unpack-natives",
+        "version": "8.0.1",
+        "isSemVerMajor": true
+      }
+    },
+    {
+      "package": "@electron-forge/plugin-vite",
+      "installed": "7.11.2",
+      "severity": "high",
+      "direct": true,
+      "advisories": [],
+      "fixAvailable": {
+        "name": "@electron-forge/plugin-vite",
+        "version": "8.0.1",
+        "isSemVerMajor": true
+      }
+    },
+    {
+      "package": "@electron-forge/publisher-github",
+      "installed": "7.11.2",
+      "severity": "high",
+      "direct": true,
+      "advisories": [],
+      "fixAvailable": {
+        "name": "@electron-forge/publisher-github",
+        "version": "8.0.1",
+        "isSemVerMajor": true
+      }
+    },
+    {
+      "package": "handlebars",
+      "installed": "4.7.9",
+      "severity": "critical",
+      "direct": false,
+      "advisories": [
+        {
+          "title": "Handlebars: JavaScript Injection via Unsafe Inline Embedding of Precompiled Templates",
+          "url": "https://github.com/advisories/GHSA-xw65-4hp5-5hc7"
+        },
+        {
+          "title": "Handlebars: JavaScript Injection via AST Type Confusion in compile (bypass of CVE-2026-33937)",
+          "url": "https://github.com/advisories/GHSA-8r5x-fm3f-whwj"
+        },
+        {
+          "title": "Handlebars: JavaScript Injection via Own Property Check Bypass",
+          "url": "https://github.com/advisories/GHSA-p8wg-vrv2-v86f"
+        }
+      ],
+      "fixAvailable": true
+    },
+    {
+      "package": "jest",
+      "installed": "30.5.0",
+      "severity": "moderate",
+      "direct": true,
+      "advisories": [],
+      "fixAvailable": {
+        "name": "jest",
+        "version": "25.0.0",
+        "isSemVerMajor": true
+      }
+    },
+    {
+      "package": "tar",
+      "installed": "6.2.1",
+      "severity": "critical",
+      "direct": false,
+      "advisories": [
+        {
+          "title": "node-tar Vulnerable to Arbitrary File Creation/Overwrite via Hardlink Path Traversal",
+          "url": "https://github.com/advisories/GHSA-34x7-hfp2-rc4v"
+        },
+        {
+          "title": "node-tar is Vulnerable to Arbitrary File Overwrite and Symlink Poisoning via Insufficient Path Sanitization",
+          "url": "https://github.com/advisories/GHSA-8qq5-rm4j-mr97"
+        },
+        {
+          "title": "Arbitrary File Read/Write via Hardlink Target Escape Through Symlink Chain in node-tar Extraction",
+          "url": "https://github.com/advisories/GHSA-83g3-92jg-28cx"
+        },
+        {
+          "title": "tar has Hardlink Path Traversal via Drive-Relative Linkpath",
+          "url": "https://github.com/advisories/GHSA-qffp-2rhf-9h96"
+        },
+        {
+          "title": "node-tar Symlink Path Traversal via Drive-Relative Linkpath",
+          "url": "https://github.com/advisories/GHSA-9ppj-qmqm-q256"
+        },
+        {
+          "title": "Race Condition in node-tar Path Reservations via Unicode Ligature Collisions on macOS APFS",
+          "url": "https://github.com/advisories/GHSA-r6q2-hw4h-h46w"
+        },
+        {
+          "title": "node-tar applies PAX size override to intermediary GNU long-name/long-link headers, causing tar parser interpretation differential (file smuggling)",
+          "url": "https://github.com/advisories/GHSA-vmf3-w455-68vh"
+        },
+        {
+          "title": "node-tar: Process crash via PAX numeric path type confusion",
+          "url": "https://github.com/advisories/GHSA-w8wr-v893-vjvp"
+        },
+        {
+          "title": "node-tar: Decompression/parse DoS via unlimited input",
+          "url": "https://github.com/advisories/GHSA-23hp-3jrh-7fpw"
+        },
+        {
+          "title": "node-tar: Negative tar entry size causes infinite loop in archive replace",
+          "url": "https://github.com/advisories/GHSA-8x88-c5mf-7j5w"
+        },
+        {
+          "title": "node-tar: Uncaught Exception DoS via NUL byte in PAX path/linkpath records",
+          "url": "https://github.com/advisories/GHSA-gvwx-54wh-qm9j"
+        },
+        {
+          "title": "node-tar: Uncontrolled recursion in mapHas/filesFilter allows uncatchable stack-overflow DoS via crafted long-path tar with member selection",
+          "url": "https://github.com/advisories/GHSA-r292-9mhp-454m"
+        }
+      ],
+      "fixAvailable": {
+        "name": "@electron-forge/cli",
+        "version": "8.0.1",
+        "isSemVerMajor": true
+      }
+    },
+    {
+      "package": "ts-jest",
+      "installed": "29.4.12",
+      "severity": "moderate",
+      "direct": true,
+      "advisories": [],
+      "fixAvailable": {
+        "name": "ts-jest",
+        "version": "29.1.2",
+        "isSemVerMajor": true
+      }
+    },
+    {
+      "package": "vite",
+      "installed": "8.2.2",
+      "severity": "high",
+      "direct": true,
+      "advisories": [
+        {
+          "title": "launch-editor: escapeCmdArgs() omits % escaping on Windows",
+          "url": "https://github.com/advisories/GHSA-698v-4r3x-3vcv"
+        },
+        {
+          "title": "launch-editor: Editor CLI flag misinterpretation causing arbitrary command execution for some editors",
+          "url": "https://github.com/advisories/GHSA-r825-w8mm-5pxw"
+        },
+        {
+          "title": "launch-editor: `fs.existsSync()` existence check can be bypassed on Windows",
+          "url": "https://github.com/advisories/GHSA-587h-7wmj-h5pm"
+        }
+      ],
+      "fixAvailable": true
+    },
+    {
+      "package": "vite-plugin-static-copy",
+      "installed": "4.1.1",
+      "severity": "high",
+      "direct": true,
+      "advisories": [],
+      "fixAvailable": {
+        "name": "vite-plugin-static-copy",
+        "version": "0.2.0",
+        "isSemVerMajor": true
+      }
+    }
+  ]
+}

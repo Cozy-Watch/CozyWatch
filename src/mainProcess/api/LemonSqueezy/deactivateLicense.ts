@@ -1,10 +1,11 @@
+import { ipcMain } from "electron";
 import { deactivateLicense as lemonDeactivateLicense } from "@lemonsqueezy/lemonsqueezy.js";
 import {
   getLicenseState,
   setLicenseState,
 } from "../../licensing/licenseState";
-import { createPersonalLicenseState } from "../../licensing/licenseState.utils";
-import { deleteData, getData } from "../../safeStorage/safeStorage";
+import { withoutActivation } from "../../licensing/licenseState.utils";
+import { saveLicenseActivation, getData } from "../../safeStorage/safeStorage";
 
 export const deactivateLicense = async () => {
   const [licenseKey, currentState] = await Promise.all([
@@ -13,7 +14,7 @@ export const deactivateLicense = async () => {
   ]);
 
   if (!licenseKey) {
-    return setLicenseState(createPersonalLicenseState());
+    return setLicenseState(withoutActivation(currentState));
   }
 
   if (!currentState.licenseInstanceId) {
@@ -35,7 +36,8 @@ export const deactivateLicense = async () => {
     );
   }
 
-  await deleteData("licenseKey");
-
-  return setLicenseState(createPersonalLicenseState());
+  const nextState = withoutActivation(currentState);
+  await saveLicenseActivation(null, nextState);
+  ipcMain.emit("dispatch-license-state", null, nextState);
+  return nextState;
 };

@@ -9,6 +9,8 @@ export default defineConfig(async () => {
   return {
     define: {
       __COZYWATCH_OFFICIAL_BUILD__: JSON.stringify(isOfficialBuild),
+      __COZYWATCH_LICENSE_TEST_MODE__: JSON.stringify(process.env.COZYWATCH_LICENSE_TEST_MODE === "true"),
+      __COZYWATCH_LIFETIME_PRODUCT_ID__: JSON.stringify(Number(process.env.COZYWATCH_LIFETIME_PRODUCT_ID) || null),
       __COZYWATCH_DIAGNOSTICS_BUILD__: JSON.stringify(isDiagnosticsBuild),
     },
     build: {

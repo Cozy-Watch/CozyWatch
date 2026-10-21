@@ -1,3 +1,5 @@
+import { getLicenseState } from "../licensing/licenseState";
+import { canUseDesktop } from "../licensing/licenseState.utils";
 import { Notification, app, ipcMain } from "electron";
 import Logger from "electron-log";
 import { getData, storeData } from "../safeStorage/safeStorage";
@@ -127,7 +129,7 @@ async function processQueue() {
   isProcessingQueue = true;
   const notification = notificationQueue.shift();
 
-  if (notification) {
+  if (notification && (notification.type === "system" || (!notification.type && !notification.source) || await getLicenseState().then(canUseDesktop).catch(() => false))) {
     const record = await persistNotification(notification);
     const electronNotification = new Notification({
       title: notification.title,

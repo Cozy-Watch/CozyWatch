@@ -448,3 +448,17 @@ export const deleteAllData = async () => {
     return false;
   }
 };
+
+// Persist the key and its entitlement as a single atomic primary-storage mutation.
+export const saveLicenseActivation = async (licenseKey: string | null, licenseState: StoreDataMap["licenseState"]) => {
+  await app.whenReady();
+  assertEncryptionAvailable();
+  const storage = await getPrimaryStorage();
+  const encryptedState = safeStorage.encryptString(JSON.stringify(licenseState)).toString("base64");
+  const encryptedKey = licenseKey === null ? null : safeStorage.encryptString(JSON.stringify(licenseKey)).toString("base64");
+  await mutateStorageFile(getPrimaryStoragePath(), storage, (draft) => {
+    draft.licenseState = encryptedState;
+    if (encryptedKey === null) delete draft.licenseKey;
+    else draft.licenseKey = encryptedKey;
+  });
+};

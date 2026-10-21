@@ -84,6 +84,10 @@ The official Cozy Watch name, logos, icons, and other brand assets are not grant
 
 [COMMERCIAL-BINARY-TERMS-DRAFT.md](COMMERCIAL-BINARY-TERMS-DRAFT.md) contains a discussion draft for an optional official distribution, licensing service, and support offering. It is not a final agreement, does not restrict MIT-licensed source code, and does not replace applicable third-party licenses.
 
+The upcoming official desktop offer is a one-time license for personal and commercial use on two Macs, with all features and future desktop updates included. New users receive a 14-day trial starting at their first successful GitHub connection. Existing free installations retain access until they review the new terms and start their fresh 30-day transition trial. Existing paid desktop access is preserved while subscription migration is confirmed. Future hosted services are separate.
+
+Contributor builds require no paid license, make no production licensing requests, and do not use the official automatic-update service. See [the lifetime launch checklist](docs/launch/README.md) for configuration, migration, test mode, screenshots, and promotional assets. This implementation is not confirmation that the new checkout is live or that existing subscription renewals have been cancelled.
+
 Dependencies may have their own license terms. Review the relevant package license notices before redistributing an application bundle.
 
 ## Security

@@ -103,4 +103,32 @@ describe("credential storage cleanup", () => {
     await expect(access(legacyPath)).resolves.toBeUndefined();
   });
 
+  it("keeps GitHub credentials and preferences across license activation, deactivation, and restart", async () => {
+    await storage.storeData({ name: "access_token", data: "test-token" });
+    await storage.storeData({ name: "auth_type", data: "pat" });
+    await storage.storeData({ name: "active_repositories", data: { 100: true, 200: false } });
+    await storage.storeData({ name: "accentColor", data: "green" });
+
+    await storage.saveLicenseActivation("synthetic-license-key", {
+      schemaVersion: 2,
+      status: "licensed",
+      entitlement: "lifetime",
+      licenseInstanceId: "synthetic-device",
+      licenseProductId: 400,
+      lastValidatedAt: "2026-10-21T00:00:00Z",
+    });
+    expect(await storage.getData("access_token")).toBe("test-token");
+    await storage.saveLicenseActivation(null, { schemaVersion: 2, status: "trial-ended" });
+
+    jest.resetModules();
+    const { app } = await import("electron");
+    (app.getPath as jest.Mock).mockReturnValue(path.join(directory, "current"));
+    const restarted = await import("./safeStorage");
+    expect(await restarted.getData("access_token")).toBe("test-token");
+    expect(await restarted.getData("auth_type")).toBe("pat");
+    expect(await restarted.getData("active_repositories")).toEqual({ 100: true, 200: false });
+    expect(await restarted.getData("accentColor")).toBe("green");
+    expect(await restarted.getData("licenseKey")).toBeNull();
+  });
+
 });

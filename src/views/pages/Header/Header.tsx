@@ -22,7 +22,7 @@ import { ErrorMessage } from "../../components/ErrorMessage/ErrorMessage";
 import { LicenseModal } from "../../components/LicenseModal/LicenseModal";
 import { LicenseExpiryReminder } from "../../components/LicenseStatus/LicenseExpiryReminder";
 import { LicenseStatusBadge } from "../../components/LicenseStatus/LicenseStatusBadge";
-import { isCommercialUseLicensed } from "../../components/LicenseStatus/licenseStatus.utils";
+import { isDesktopLicensed } from "../../components/LicenseStatus/licenseStatus.utils";
 import { CozyWatch } from "../../components/SVG/CozyWatch";
 import { WhiteCozyWatch } from "../../components/SVG/WhiteCozyWatch";
 import { useHeader } from "./useHeader";
@@ -54,7 +54,7 @@ export const Header = () => {
     return null;
   }
   const { licenseState, errors } = data;
-  const hasCommercialLicense = isCommercialUseLicensed(licenseState);
+  const hasDesktopLicense = isDesktopLicensed(licenseState);
 
   return (
     <Flex direction="column" flexGrow="1" position="relative" p="4" pt="0">
@@ -132,7 +132,7 @@ export const Header = () => {
               </Flex>
 
               <DropdownMenu.Separator />
-              {!hasCommercialLicense && (
+              {!hasDesktopLicense && (
                 <DropdownMenu.Item
                   color="green"
                   onClick={() => {
@@ -140,7 +140,7 @@ export const Header = () => {
                   }}
                 >
                   <WhiteCozyWatch height="16px" />
-                  Official distribution license
+                  Buy Cozy Watch
                 </DropdownMenu.Item>
               )}
               <DropdownMenu.Item

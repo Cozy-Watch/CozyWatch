@@ -41,7 +41,7 @@ export const useAuthentication = () => {
       await startAuthentication();
 
       queryClient.invalidateQueries();
-      navigate({ to: "/settings", search: { tab: "license" } });
+      navigate({ to: "/settings", search: { tab: "repositories" } });
     } catch (err) {
       Logger.error("Error during authentication:", err);
     }
@@ -52,7 +52,7 @@ export const useAuthentication = () => {
       await startAppAuthentication();
 
       queryClient.invalidateQueries();
-      navigate({ to: "/settings", search: { tab: "license" } });
+      navigate({ to: "/settings", search: { tab: "repositories" } });
     } catch (err) {
       Logger.error("Error during GitHub App authentication:", err);
     }

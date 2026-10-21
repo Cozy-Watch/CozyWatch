@@ -1,3 +1,4 @@
+import { assertMonitoringAllowed } from "../../licensing/licenseAccess";
 import Logger from "electron-log";
 import { RepositoriesCache } from "../../safeStorage/safeStorage.types";
 import { repositoriesQuery } from "./query/repositoriesQuery";
@@ -5,6 +6,7 @@ import { repositoriesQuery } from "./query/repositoriesQuery";
 let inFlightPromise: Promise<RepositoriesCache> | null = null;
 
 export const getRepositories = async (): Promise<RepositoriesCache> => {
+  await assertMonitoringAllowed();
   if (inFlightPromise) {
     Logger.info(
       "[Repositories] Request already in flight, returning existing promise"

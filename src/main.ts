@@ -12,6 +12,8 @@ import {
   authenticateWithPAT,
   hasLocalAccessToken,
 } from "./mainProcess/api/Authentication/authentication";
+import { canUseDesktop } from "./mainProcess/licensing/licenseState.utils";
+import type { LicenseState } from "./mainProcess/licensing/licenseState.types";
 import { signOut } from "./mainProcess/api/githubClient";
 import { activateLicense } from "./mainProcess/api/LemonSqueezy/activateLicense";
 import { deactivateLicense } from "./mainProcess/api/LemonSqueezy/deactivateLicense";
@@ -19,7 +21,7 @@ import { validateLicense } from "./mainProcess/api/LemonSqueezy/validateLicense"
 import {
   getLicenseState,
   markExpiryReminderShown,
-  setLicenseUsage,
+  acceptTransitionTerms,
 } from "./mainProcess/licensing/licenseState";
 import {
   getPullRequests,
@@ -326,17 +328,49 @@ const startBackgroundTasks = () => {
     });
 };
 
-const startAuthenticatedBackgroundTasks = () => {
-  if (!rendererReady || backgroundTasksStarted) {
+let backgroundGeneration = 0;
+const startAuthenticatedBackgroundTasks = async () => {
+  if (!rendererReady || backgroundTasksStarted) return;
+  backgroundTasksStarted = true;
+  const generation = backgroundGeneration;
+  try {
+    const [state, authenticated] = await Promise.all([getLicenseState(), hasLocalAccessToken()]);
+    if (generation !== backgroundGeneration) return;
+    if (!authenticated || !canUseDesktop(state)) {
+      backgroundTasksStarted = false;
+      return;
+    }
+    void getRepositories().catch((error) => log.error("[Repositories] background refresh failed", error));
+    startPolling();
+    diagnostics.record("background-tasks-ready", { authenticated: true });
+  } catch (error) {
+    if (generation === backgroundGeneration) backgroundTasksStarted = false;
+    log.error("[App] Could not start monitoring", error);
+  }
+};
+
+ipcMain.on("dispatch-license-state", (_, state: LicenseState) => {
+  for (const contents of getTrustedWebContents()) contents.send("license-updated", state);
+  if (!canUseDesktop(state)) {
+    backgroundGeneration += 1;
+    backgroundTasksStarted = false;
+    stopPolling();
     return;
   }
-  backgroundTasksStarted = true;
-  void getRepositories().catch((error) => {
-    log.error("[Repositories] background refresh failed", error);
-  });
-  startPolling();
-  diagnostics.record("background-tasks-ready", { authenticated: true });
-};
+  void startAuthenticatedBackgroundTasks();
+});
+
+// Local expiry is enforced even if the Settings screen is never opened.
+let lastLicenseCheck = Date.now();
+const licenseTimer = setInterval(() => {
+  if (!rendererReady) return;
+  void getLicenseState().catch((error) => log.warn("[License] Local status unavailable", error));
+  if (Date.now() - lastLicenseCheck >= 6 * 60 * 60 * 1000) {
+    lastLicenseCheck = Date.now();
+    void validateLicense().catch((error) => log.warn("[License] Retry deferred", error));
+  }
+}, 30_000);
+licenseTimer.unref();
 
 appUpdate();
 
@@ -436,7 +470,10 @@ export const createWindow = () => {
     // main-process transport. Reporting that output here creates a duplicate
     // log entry whose source is electron-log.js (and object arguments become
     // "[object Object]").
-    if (sourceId.includes("electron-log")) {
+    if (
+      sourceId.includes("electron-log") ||
+      (sourceId.includes("/@vite/client") && /\[Renderer\] console (warning|error)/.test(message))
+    ) {
       return;
     }
 
@@ -585,6 +622,7 @@ app.on("activate", () => {
 // ---- EVENTS ----
 
 const stopAuthenticatedBackgroundTasks = () => {
+  backgroundGeneration += 1;
   backgroundTasksStarted = false;
   stopPolling();
   disableDerivedCacheWrites();
@@ -900,15 +938,8 @@ handleRendererInvoke("license-validate", async () => {
   return validateLicense();
 });
 
-handleRendererInvoke("license-set-usage", async (_, usage: unknown) => {
-  log.info("[IPC] license-set-usage", { usage });
-
-  if (usage !== "personal" && usage !== "commercial") {
-    throw new Error("Invalid license usage selection.");
-  }
-
-  return setLicenseUsage(usage);
-});
+handleRendererInvoke("license-accept-transition", () => acceptTransitionTerms());
+handleRendererInvoke("license-quit", () => app.quit());
 
 handleRendererInvoke("license-deactivate", async () => {
   log.info("[IPC] license-deactivate");
@@ -1177,6 +1208,7 @@ handleRendererInvoke("on-application-navigate-to-route", async (_, route) => {
 });
 
 app.on("before-quit", () => {
+  clearInterval(licenseTimer);
   log.info("[App] stopping polling before quit");
   diagnostics.record("app-before-quit");
   diagnostics.stopMetricsCollection();

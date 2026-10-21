@@ -22,6 +22,7 @@ export const validateLicense = async () => {
     getLicenseState(),
   ]);
 
+  if (currentState.status === "community") return currentState;
   if (!licenseKey) {
     log.info("[License] No license key found in storage");
     return currentState;
@@ -35,6 +36,12 @@ export const validateLicense = async () => {
       currentState.licenseInstanceId,
     );
 
+    // A structured rejection is authoritative even when returned with a 4xx.
+    const rejection = response.data;
+    if (rejection && rejection.valid === false && rejection.license_key && rejection.meta && response.statusCode !== 429 && (response.statusCode ?? 500) < 500) {
+      assertLicenseProduct(rejection, COZYWATCH_LICENSE_PRODUCT_CONFIG);
+      return setLicenseState(createLicenseStateFromLemon({ data: rejection, previousState: currentState }));
+    }
     if (response.error || !response.data) {
       throw new Error(
         response.error?.message ?? "Unable to validate the license.",
@@ -62,7 +69,7 @@ export const validateLicense = async () => {
     if (error instanceof LicenseProductMismatchError) {
       const invalidState = {
         ...currentState,
-        status: "invalid" as const,
+        status: "revoked" as const,
         lastValidatedAt: new Date().toISOString(),
         lastValidationError: message,
       };
@@ -75,11 +82,11 @@ export const validateLicense = async () => {
       message,
     });
 
-    await setLicenseState({
+    return setLicenseState({
       ...currentState,
-      lastValidationError: message,
+      lastValidationError: currentState.status === "licensed"
+        ? "Unable to reach the licensing service. Your saved activation remains valid; we will retry automatically."
+        : "Unable to reach the licensing service. Your trial dates have not changed; we will retry automatically.",
     });
-
-    throw error;
   }
 };

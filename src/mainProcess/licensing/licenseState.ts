@@ -1,64 +1,77 @@
+import { ipcMain } from "electron";
 import { getData, storeData } from "../safeStorage/safeStorage";
-import { LicenseState, LicenseUsage } from "./licenseState.types";
 import {
-  createUnconfiguredLicenseState,
-  isLicenseState,
+  LICENSE_STATE_SCHEMA_VERSION,
+  type LicenseState,
+} from "./licenseState.types";
+import {
+  createTrialLicenseState,
+  migrateLicenseState,
   resolveTimeBasedLicenseState,
-  selectCommercialUse,
-  selectPersonalUse,
+  shouldShowExpiryReminder,
 } from "./licenseState.utils";
+import { isOfficialBuild } from "./buildFlavor";
 
 export const setLicenseState = async (state: LicenseState) => {
-  const saved = await storeData({ name: "licenseState", data: state });
-
-  if (!saved) {
+  if (!(await storeData({ name: "licenseState", data: state })))
     throw new Error("Unable to save license state.");
-  }
-
+  ipcMain.emit("dispatch-license-state", null, state);
   return state;
 };
 
+let initialization: Promise<LicenseState> | null = null;
 export const getLicenseState = async (): Promise<LicenseState> => {
-  const storedState = await getData("licenseState");
-
-  if (isLicenseState(storedState)) {
-    const resolvedState = resolveTimeBasedLicenseState(storedState);
-
-    if (resolvedState.status !== storedState.status) {
-      await setLicenseState(resolvedState);
-    }
-
-    return resolvedState;
-  }
-
-  const initialState = createUnconfiguredLicenseState();
-
-  await setLicenseState(initialState);
-
-  return initialState;
+  if (!isOfficialBuild())
+    return { schemaVersion: LICENSE_STATE_SCHEMA_VERSION, status: "community" };
+  initialization ??= (async () => {
+    const [stored, account] = await Promise.all([
+      getData("licenseState"),
+      getData("access_token"),
+    ]);
+    const state = migrateLicenseState(stored, !!account);
+    if (JSON.stringify(state) !== JSON.stringify(stored))
+      await setLicenseState(state);
+    return state;
+  })().catch((error) => {
+    initialization = null;
+    throw error;
+  });
+  await initialization;
+  const stored = await getData("licenseState");
+  const state = migrateLicenseState(stored, false);
+  if (JSON.stringify(state) !== JSON.stringify(stored))
+    await setLicenseState(state);
+  return state;
 };
 
-export const setLicenseUsage = async (
-  usage: LicenseUsage,
-): Promise<LicenseState> => {
-  const currentState = await getLicenseState();
-  const nextState =
-    usage === "commercial"
-      ? selectCommercialUse(currentState)
-      : selectPersonalUse(currentState);
-
-  return setLicenseState(nextState);
+let trialMutation: Promise<unknown> = Promise.resolve();
+export const startTrialAfterGitHubConnection = async () => {
+  trialMutation = trialMutation
+    .catch(() => undefined)
+    .then(async () => {
+      const state = await getLicenseState();
+      if (state.status !== "unconfigured" || state.trialStartedAt) return state;
+      return setLicenseState(createTrialLicenseState("new", new Date(), state));
+    });
+  return trialMutation;
 };
 
-export const markExpiryReminderShown = async (): Promise<LicenseState> => {
-  const currentState = await getLicenseState();
+export const acceptTransitionTerms = async () => {
+  const state = await getLicenseState();
+  if (!state.transitionPending) return state;
+  return setLicenseState(
+    createTrialLicenseState("transition", new Date(), state),
+  );
+};
 
-  if (currentState.status !== "expired") {
-    return currentState;
-  }
-
+export const markExpiryReminderShown = async () => {
+  const state = await getLicenseState();
+  if (!shouldShowExpiryReminder(state)) return state;
   return setLicenseState({
-    ...currentState,
+    ...state,
     lastExpiryReminderAt: new Date().toISOString(),
   });
 };
+
+export const refreshLocalLicenseState = async () =>
+  resolveTimeBasedLicenseState(await getLicenseState());

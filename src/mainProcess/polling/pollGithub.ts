@@ -1,3 +1,4 @@
+import { assertMonitoringAllowed } from "../licensing/licenseAccess";
 import log from "electron-log";
 import { performanceDiagnostics } from "../diagnostics/diagnostics";
 import { getPullRequests } from "../api/PullRequests/getPullRequests";
@@ -134,7 +135,7 @@ export class RefreshScheduler {
 
 const scheduler = new RefreshScheduler({
   full: getPullRequests,
-  sweep: sweepReviewDelta,
+  sweep: async () => { await assertMonitoringAllowed(); return sweepReviewDelta(); },
   invalidate: () => refreshCoordinator.invalidate(),
 });
 

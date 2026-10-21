@@ -12,6 +12,13 @@ import path from "node:path";
 dotenv.config();
 
 const isOfficialBuild = process.env.COZYWATCH_OFFICIAL_BUILD === "true";
+if (isOfficialBuild && (!Number.isSafeInteger(Number(process.env.COZYWATCH_LIFETIME_PRODUCT_ID)) || Number(process.env.COZYWATCH_LIFETIME_PRODUCT_ID) <= 0)) {
+  throw new Error("Set COZYWATCH_LIFETIME_PRODUCT_ID to the verified lifetime product before building the official paid release.");
+}
+if (isOfficialBuild && process.env.COZYWATCH_LICENSE_TEST_MODE === "true" && process.env.COZYWATCH_DIAGNOSTICS_BUILD !== "true") {
+  throw new Error("Test license keys must not be accepted by a production release.");
+}
+
 const appleCredentials = {
   appleId: process.env.APPLE_ID,
   appleIdPassword: process.env.APPLE_PASSWORD,
@@ -120,13 +127,17 @@ const config: ForgeConfig = {
       background: "./assets/dmg-background.png",
       icon: "./assets/dmg-icon.png",
       iconSize: 100,
-      title: "CozyWatchInstaller",
+      title: "Install Cozy Watch",
       overwrite: true,
+      contents: (options) => [
+        { x: 190, y: 265, type: "file", path: path.resolve(options.appPath), name: "Cozy Watch.app" },
+        { x: 530, y: 265, type: "link", path: "/Applications" },
+      ],
       additionalDMGOptions: {
         window: {
           size: {
-            width: 658,
-            height: 498,
+            width: 720,
+            height: 480,
           },
         },
       },

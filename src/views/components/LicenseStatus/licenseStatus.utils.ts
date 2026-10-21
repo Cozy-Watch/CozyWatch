@@ -1,41 +1,27 @@
 import type { LicenseState } from "../../../mainProcess/licensing/licenseState.types";
 
-export const isCommercialUseLicensed = (state?: LicenseState) =>
-  state?.status === "commercial-trial" ||
-  state?.status === "commercial-active" ||
-  state?.status === "lifetime-active";
-
+export const isDesktopLicensed = (state?: LicenseState) =>
+  state?.status === "licensed" || state?.status === "community";
 export const getLicenseStatusLabel = (state?: LicenseState) => {
   switch (state?.status) {
-    case "commercial-trial":
-      return "Official Trial";
-    case "commercial-active":
-      return "Official Distribution";
-    case "lifetime-active":
-      return "Lifetime Official Distribution";
-    case "personal":
-    case "expired":
-    case "invalid":
-    case "unconfigured":
+    case "licensed":
+      return "Lifetime license";
+    case "trial":
+      return state.transitionPending ? "New terms" : "Full-feature trial";
+    case "trial-ended":
+      return "Trial ended";
+    case "revoked":
+      return "License needs attention";
+    case "community":
+      return "Community build";
     default:
-      return "Open-Source Use";
+      return "Ready to try";
   }
 };
-
 export const getTrialDaysRemaining = (state: LicenseState) => {
-  if (state.status !== "commercial-trial" || !state.trialEndsAt) {
-    return null;
-  }
-
-  const trialEndsAt = new Date(state.trialEndsAt);
-  const remaining = trialEndsAt.getTime() - Date.now();
-
-  if (Number.isNaN(trialEndsAt.getTime()) || remaining <= 0) {
-    return 0;
-  }
-
-  return Math.ceil(remaining / (24 * 60 * 60 * 1000));
+  if (state.status !== "trial" || !state.trialEndsAt) return null;
+  return Math.max(
+    0,
+    Math.ceil((Date.parse(state.trialEndsAt) - Date.now()) / 86_400_000),
+  );
 };
-
-export const hasStartedCommercialTrial = (state: LicenseState) =>
-  Boolean(state.trialStartedAt || state.trialEndsAt);

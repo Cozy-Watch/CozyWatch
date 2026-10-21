@@ -1,0 +1,12 @@
+[
+  {
+    "scenario": "CI disabled",
+    "expectedAlerts": 0,
+    "actualAlerts": 1
+  },
+  {
+    "scenario": "Disabled repositories",
+    "expectedCommentRequests": 0,
+    "actualCommentRequests": 3
+  }
+]
