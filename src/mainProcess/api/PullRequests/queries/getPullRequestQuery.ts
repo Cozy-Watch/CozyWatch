@@ -623,7 +623,7 @@ export const pullRequestQuery = async (isCurrent = () => true): Promise<PullRequ
 
         if (finalRun.conclusion === "success") {
           return {
-            title: `CI "${runName}" Status Update`,
+            title: `CI "${finalRun.name}" Status Update`,
             body: `${subject} successfully passed the checks.`,
             type: "ci",
             tone: "success",
@@ -632,7 +632,7 @@ export const pullRequestQuery = async (isCurrent = () => true): Promise<PullRequ
           };
         }
         return {
-          title: `CI "${runName}" Status Update`,
+          title: `CI "${finalRun.name}" Status Update`,
           body: `${subject} status changed from ${initialRun.conclusion} to ${finalRun.conclusion}.`,
           type: "ci",
           tone: ["failure", "timed_out", "startup_failure", "action_required"].includes(finalRun.conclusion ?? "")

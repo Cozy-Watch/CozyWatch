@@ -1,29 +1,6 @@
-import { CacheData, PullsActions, CIStatus } from "./getDefaultData";
+import type { CacheData, PullsActions, CIStatus } from "./getDefaultData";
 
-type WorkflowRun = PullsActions[0];
-
-const groupByActionName = (
-  acc: Record<string, WorkflowRun>,
-  run: WorkflowRun
-) => {
-  if (!run.name) {
-    return acc;
-  }
-
-  if (
-    acc[run.name] &&
-    new Date(acc[run.name].updated_at || acc[run.name].created_at || 0) >
-      new Date(run.updated_at || run.created_at || 0)
-  ) {
-    return acc;
-  }
-
-  return {
-    ...acc,
-    [run.name]: run,
-  };
-};
-
+type WorkflowRun = PullsActions[number];
 interface Params {
   repositoryName: string;
   initialCache: CacheData;
@@ -31,67 +8,31 @@ interface Params {
   userId: number;
 }
 
-export const getCIStatusUpdate = ({
-  repositoryName,
-  initialCache,
-  finalCache,
-  userId,
-}: Params): Record<string, CIStatus> => {
-  const finalPullRequests = Object.values(
-    finalCache.pullRequestsPerRepo[repositoryName] || {}
-  )
-    .flat()
-    .filter(
-      (pr) =>
-        pr?.user?.id === userId ||
-        pr?.assignees?.some((assignee) => assignee.id === userId) ||
-        pr?.requested_reviewers?.some((reviewer) => reviewer.id === userId)
-    );
-
-  const initialWorkflowRuns = initialCache.actionsPerRepo[repositoryName] || [];
-  const finalWorkflowRuns = finalCache.actionsPerRepo[repositoryName] || [];
-
-  const finalPullRequestId = finalPullRequests.map((pr) => pr.id);
-
-  const initialCIInRepository = initialWorkflowRuns.filter((run) =>
-    run.pull_requests?.some((pr) => finalPullRequestId.includes(pr.id))
+export const getCIStatusUpdate = ({ repositoryName, initialCache, finalCache, userId }: Params): Record<string, CIStatus> => {
+  const pulls = Object.values(finalCache.pullRequestsPerRepo[repositoryName] ?? {}).flat().filter(pr =>
+    pr.user?.id === userId || pr.assignees?.some(user => user.id === userId) || pr.requested_reviewers?.some(user => user.id === userId),
   );
-
-  const initialLatestRunByActionName = initialCIInRepository.reduce(
-    groupByActionName,
-    {}
-  );
-
-  const finalCIInRepository = finalWorkflowRuns.filter((run) =>
-    run.pull_requests?.some((pr) => finalPullRequestId.includes(pr.id))
-  );
-
-  const finalLatestRunByActionName = finalCIInRepository.reduce(
-    groupByActionName,
-    {}
-  );
-
-  const actionChanged = Object.keys(finalLatestRunByActionName).reduce(
-    (
-      acc: Record<string, { initialRun: WorkflowRun; finalRun: WorkflowRun }>,
-      runName
-    ) => {
-      const initialRun = initialLatestRunByActionName[runName];
-      const finalRun = finalLatestRunByActionName[runName];
-
-      if (initialRun && finalRun) {
-        if (initialRun.conclusion !== finalRun.conclusion) {
-          return {
-            ...acc,
-            [runName]: { initialRun, finalRun },
-          };
-        }
+  const group = (runs: WorkflowRun[]) => {
+    const latest = new Map<string, WorkflowRun>();
+    for (const run of runs) {
+      if (!run.name) continue;
+      for (const pr of pulls) {
+        const linked = run.pull_requests?.some(link => link.id === pr.id || link.number === pr.number);
+        const sameHead = !run.pull_requests?.length && run.head_sha && run.head_sha === pr.head?.sha;
+        if (!linked && !sameHead) continue;
+        const key = `${run.workflow_id ?? run.name}:${pr.id}`;
+        const previous = latest.get(key);
+        if (!previous || Date.parse(run.updated_at || run.created_at) >= Date.parse(previous.updated_at || previous.created_at)) latest.set(key, run);
       }
-
-      return acc;
-    },
-    {}
-  );
-
-  return actionChanged;
+    }
+    return latest;
+  };
+  const initial = group(initialCache.actionsPerRepo[repositoryName] ?? []);
+  const final = group(finalCache.actionsPerRepo[repositoryName] ?? []);
+  const changes: Record<string, CIStatus> = {};
+  for (const [key, finalRun] of final) {
+    const initialRun = initial.get(key);
+    if (initialRun && initialRun.conclusion !== finalRun.conclusion) changes[key] = { initialRun, finalRun };
+  }
+  return changes;
 };
