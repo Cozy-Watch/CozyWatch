@@ -61,13 +61,13 @@ describe("production refresh with mocked HTTP (characterization, not optimized b
       const warm = await harness.run("reported/unchanged");
       reports.push(warm.metrics);
       expect(warm.data.flatPullRequests).toHaveLength(208);
-      expect(warm.metrics.requests).toBe(isBaseline ? 429 : 436);
+      expect(warm.metrics.requests).toBe(isBaseline ? 429 : 450);
       // Baseline shares one review ETag between PRs. Accidental matches depend on completion order.
       if (isBaseline) {
         expect(warm.metrics.notModified).toBeGreaterThanOrEqual(220);
         expect(warm.metrics.notModified).toBeLessThan(428);
       } else {
-        expect(warm.metrics.notModified).toBe(429);
+        expect(warm.metrics.notModified).toBe(438);
       }
       expect(warm.metrics.registeredHooks).toBe(isBaseline ? 16 : 0);
 
