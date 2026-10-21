@@ -78,6 +78,7 @@ import {
   markAllNotificationsRead,
   markNotificationRead,
   clearNotificationsOnSignOut,
+  cancelPendingNotifications,
 } from "./mainProcess/notifications/notificationManager";
 import {
   isAllowedRendererUrl,
@@ -622,6 +623,7 @@ app.on("activate", () => {
 // ---- EVENTS ----
 
 const stopAuthenticatedBackgroundTasks = () => {
+  cancelPendingNotifications();
   backgroundGeneration += 1;
   backgroundTasksStarted = false;
   stopPolling();
@@ -667,6 +669,7 @@ handleRendererInvoke(
 );
 
 ipcMain.on("dispatch-application-sign-user", (_, isSignIn) => {
+  if (!isSignIn) void clearNotificationsOnSignOut().catch(() => log.warn("[Notifications] Could not clear signed-out history"));
   log.info("[IPC] dispatch-application-sign-user");
 
   if (mainWindow && !mainWindow.isDestroyed()) {

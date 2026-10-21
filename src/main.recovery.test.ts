@@ -71,6 +71,7 @@ beforeAll(async () => {
   }));
   jest.doMock("./mainProcess/notifications/notificationManager", () => ({
     clearNotificationsOnSignOut: jest.fn(async () => undefined),
+    cancelPendingNotifications: jest.fn(),
   }));
   for (const module of [
     "./mainProcess/api/LemonSqueezy/activateLicense",

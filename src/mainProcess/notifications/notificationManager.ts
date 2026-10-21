@@ -27,6 +27,8 @@ const recentNotifications = new Set<string>();
 const notificationQueue: ManagedNotification[] = [];
 let isProcessingQueue = false;
 let notificationSequence = 0;
+let sessionGeneration = 0;
+let deliveryTimer: ReturnType<typeof setTimeout> | undefined;
 const NOTIFICATION_DELAY = 3000;
 const DEDUPLICATION_WINDOW = 60000;
 const MAX_HISTORY = 100;
@@ -49,15 +51,18 @@ const readHistory = async (): Promise<NotificationRecord[]> =>
 
 const updateHistory = async (
   update: (history: NotificationRecord[]) => NotificationRecord[],
+  isCurrent = () => true,
 ) => {
   historyMutation = historyMutation
     .catch(() => undefined)
     .then(async () => {
-      const history = update(await readHistory());
+      const previous = await readHistory();
+      if (!isCurrent()) return;
+      const history = update(previous);
       if (!(await storeData({ name: "notification_history", data: history }))) {
         throw new Error("Could not save notification history. Please try again.");
       }
-      emitHistoryUpdate(history);
+      if (isCurrent()) emitHistoryUpdate(history);
     });
   await historyMutation;
 };
@@ -94,9 +99,9 @@ const createRecord = (notification: ManagedNotification): NotificationRecord => 
   read: false,
 });
 
-const persistNotification = async (notification: ManagedNotification) => {
+const persistNotification = async (notification: ManagedNotification, isCurrent: () => boolean) => {
   const record = createRecord(notification);
-  await updateHistory((history) => [record, ...history].slice(0, MAX_HISTORY));
+  await updateHistory((history) => [record, ...history].slice(0, MAX_HISTORY), isCurrent);
   return record;
 };
 
@@ -127,11 +132,15 @@ async function processQueue() {
   }
 
   isProcessingQueue = true;
+  const generation = sessionGeneration;
+  const isCurrent = () => generation === sessionGeneration;
   const notification = notificationQueue.shift();
 
   try {
   if (notification && (notification.type === "system" || (!notification.type && !notification.source) || await getLicenseState().then(canUseDesktop).catch(() => false))) {
-    const record = await persistNotification(notification);
+    if (!isCurrent()) return;
+    const record = await persistNotification(notification, isCurrent);
+    if (!isCurrent()) return;
     if (!Notification.isSupported()) return;
     const electronNotification = new Notification({
       title: notification.title,
@@ -142,6 +151,7 @@ async function processQueue() {
     activeNotifications.push(electronNotification);
 
     electronNotification.on("click", () => {
+      if (!isCurrent()) return;
       void markNotificationRead(record.id).catch(() => Logger.warn("[Notifications] Could not mark alert read"));
       ipcMain.emit("dispatch-notification-click", null, record.id);
       clearNotification(electronNotification);
@@ -157,11 +167,24 @@ async function processQueue() {
   } catch {
     Logger.warn("[Notifications] Could not deliver alert; continuing queue");
   } finally {
-    setTimeout(() => void processQueue(), NOTIFICATION_DELAY);
+    if (isCurrent()) deliveryTimer = setTimeout(() => void processQueue(), NOTIFICATION_DELAY);
   }
 }
 
+export const cancelPendingNotifications = () => {
+  sessionGeneration++;
+  if (deliveryTimer) clearTimeout(deliveryTimer);
+  deliveryTimer = undefined;
+  notificationQueue.length = 0;
+  recentNotifications.clear();
+  isProcessingQueue = false;
+  const active = activeNotifications;
+  activeNotifications = [];
+  active.forEach(notification => { try { notification.close(); } catch { /* Already closed by the OS. */ } });
+};
+
 export const clearNotificationsOnSignOut = async () => {
+  cancelPendingNotifications();
   await clearNotificationHistory();
   if (app.isReady()) {
     Logger.info("[Notifications] history cleared on sign out");

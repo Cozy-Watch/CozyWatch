@@ -58,3 +58,16 @@ it("does not publish a successful history update when storage fails", async () =
   expect(updates).not.toHaveBeenCalled();
   ipcMain.removeListener("dispatch-notification-update", updates);
 });
+
+it("cancels queued and active private alerts on sign-out", async () => {
+  batchNotificationManager([alert("private A"), alert("private B")]);
+  await jest.advanceTimersByTimeAsync(0);
+  const first = created[0];
+  await clearNotificationsOnSignOut();
+  await jest.advanceTimersByTimeAsync(10000);
+  expect(history).toEqual([]); expect(show).toHaveBeenCalledTimes(1);
+  expect(first.close).toHaveBeenCalledTimes(1);
+  batchNotificationManager([alert("new session")]);
+  await jest.advanceTimersByTimeAsync(10000);
+  expect(history.map(n => n.body)).toEqual(["new session"]);
+});
