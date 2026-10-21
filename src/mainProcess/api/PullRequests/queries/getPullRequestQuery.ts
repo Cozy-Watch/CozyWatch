@@ -203,7 +203,7 @@ export const pullRequestQuery = async (isCurrent = () => true): Promise<PullRequ
     Object.values(cache.pullRequestsPerRepo).flatMap((page) =>
       Object.values(page).flat(),
     ),
-  ).map((pr) => ({
+  ).filter(pr => activeRepositories[pr.base.repo.id]).map((pr) => ({
     pullNumber: pr.number,
     owner: pr.base.repo.owner.login,
     repoName: pr.base.repo.name,

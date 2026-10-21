@@ -33,7 +33,7 @@ test("disabled CI setting suppresses native CI messages", async () => {
   } finally { await h.close(); }
 });
 
-test("audit: disabled repository still receives comment-detail requests", async () => {
+test("disabled repositories receive no comment-detail requests", async () => {
   const github = new MockGithub(createProfile("small"), 0);
   const h = await createHarness(github);
   try {
@@ -43,7 +43,7 @@ test("audit: disabled repository still receives comment-detail requests", async 
     setLocalCache(null);
     const result = await h.run("audit/disabled");
     const detailCalls = result.samples.filter(call => call.operation === "issues-list-comments");
-    expect(detailCalls.length).toBeGreaterThan(0);
+    expect(detailCalls.length).toBe(0);
     results.push({ scenario: "Disabled repositories", expectedCommentRequests: 0, actualCommentRequests: detailCalls.length });
     writeFileSync("docs/audit/refresh-reproductions.json", JSON.stringify(results, null, 2) + "\n");
   } finally { await h.close(); }
