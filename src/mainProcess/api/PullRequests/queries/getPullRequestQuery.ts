@@ -1,3 +1,4 @@
+import { estimateFullRefreshReserve } from "../../githubRequestBudget";
 import { app, ipcMain } from "electron";
 import Logger from "electron-log";
 import pLimit from "p-limit";
@@ -78,9 +79,9 @@ export const pullRequestQuery = async (isCurrent = () => true): Promise<PullRequ
     );
 
     // Rough estimate: 1 repo = ~4 requests (list, actions, reviews per PR, comments per PR)
-    const estimatedRequests = repositories.length * 5;
+    const estimatedRequests = estimateFullRefreshReserve(cache, repositories);
 
-    if (rateLimit.rate.remaining < Math.max(estimatedRequests + 50, 100)) {
+    if (rateLimit.rate.remaining < estimatedRequests) {
       const resetTime = new Date(rateLimit.rate.reset * 1000);
       const waitMinutes = Math.ceil((resetTime.getTime() - Date.now()) / 60000);
 

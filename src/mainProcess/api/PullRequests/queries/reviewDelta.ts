@@ -1,3 +1,5 @@
+import { estimateFullRefreshReserve } from "../../githubRequestBudget";
+export { estimateFullRefreshReserve } from "../../githubRequestBudget";
 import { app, ipcMain } from "electron";
 import pLimit from "p-limit";
 import { getGithubClient, isPATAuth } from "../../githubClient";
@@ -22,7 +24,6 @@ import { dedupePullRequests } from "../utils/dedupePullRequests";
 const MAX_REVIEW_PRS = 100;
 const MAX_REVIEW_PAGES = 200;
 const CONCURRENCY = 4;
-const QUOTA_MARGIN = 100;
 type Pull = PullRequestList[number];
 type Page = { data: PullRequestList; etag?: string; next: boolean };
 type ReviewDelta = { repo: Repository; pull: Pull; reviews: PullListReview };
@@ -57,30 +58,6 @@ const fingerprint = (pr: Pull) =>
     pr.head.sha,
     (pr.requested_reviewers || []).map((user) => user.id).sort((a, b) => a - b),
   ]);
-
-// Full refresh includes list, reviews, comments and up to ten workflow pages/repo.
-// The estimate includes known detail pagination and headroom for growth/retries.
-export function estimateFullRefreshReserve(
-  cache: CacheData,
-  repositories: Repository[],
-) {
-  let requests = 1;
-  for (const repo of repositories) {
-    const pulls = Object.values(
-      cache.pullRequestsPerRepo[repo.name] || {},
-    ).flat();
-    requests += Math.max(1, Math.ceil(pulls.length / 100)) + 11;
-    for (const pr of pulls) {
-      const reviews =
-        cache.reviewPerRepoPerPullNumber[repo.name]?.[pr.number]?.length || 0;
-      requests += Math.max(1, Math.ceil(reviews / 100)) + 1;
-    }
-    // Comments are stored in page buckets, including their PR identity.
-    const comments = Object.values(cache.mentions[repo.name] || {}).flat();
-    requests += Math.ceil(comments.length / 100);
-  }
-  return Math.ceil(requests * 1.25) + QUOTA_MARGIN;
-}
 
 /** Only remove a stale request when a newly submitted review is at least as new
  * as the PR metadata. Older reviews must never erase a subsequent re-request. */
