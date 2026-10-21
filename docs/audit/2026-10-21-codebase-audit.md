@@ -1,5 +1,7 @@
 # Cozy Watch codebase audit — 2026-10-21
 
+> Historical findings. See [the remediation record](2026-10-21-remediation.md) for the fix commits and current verification results.
+
 **Assessment:** Do not release the current working tree without fixing the high-priority notification and cache correctness problems. Passing tests currently include characterizations of known defects; they are not a release guarantee. No production source was changed during this audit.
 
 ## Scope and verification

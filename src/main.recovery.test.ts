@@ -42,7 +42,7 @@ beforeAll(async () => {
       webContents,
       on: jest.fn(),
       once: jest.fn(),
-      loadURL: jest.fn(),
+      loadURL: jest.fn().mockResolvedValue(undefined),
       show: jest.fn(),
       focus: jest.fn(),
       isDestroyed: () => false,

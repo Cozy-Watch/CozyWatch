@@ -1,0 +1,34 @@
+{
+  "date": "2026-10-21",
+  "sourceCommit": "e98cb9f2cc9c678aeba7fbfec304507c172b2f9e",
+  "types": "passed",
+  "lint": "passed",
+  "unitAndUI": {
+    "suites": 50,
+    "passed": 249
+  },
+  "refresh": {
+    "suites": 4,
+    "passed": 33,
+    "skipped": 1
+  },
+  "notificationAuditHarness": "5 scenarios passed",
+  "dependencyAudit": "zero full-tree and runtime findings",
+  "macOSPackage": {
+    "platform": "darwin",
+    "architecture": "arm64",
+    "flavor": "contributor",
+    "rendererStartup": "passed",
+    "fuseVerification": "passed",
+    "extraFilePrivileges": false,
+    "DMG": "passed",
+    "ZIP": "passed",
+    "DMGChecksum": "valid"
+  },
+  "notVerified": [
+    "Developer ID signing and notarization",
+    "Universal official build",
+    "Native notification permissions, Focus, banner delivery, and restart interactions in a signed official app"
+  ],
+  "pushed": false
+}

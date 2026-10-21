@@ -1,10 +1,9 @@
 import { refreshCoordinator } from "../../polling/refreshCoordinator";
 import { cancelPendingNotifications } from "../../notifications/notificationManager";
-import { setLocalCache as setPullCache } from "../PullRequests/utils/getDefaultData";
 import { ipcMain } from "electron";
 import Logger from "electron-log";
 import { storeData } from "../../safeStorage/safeStorage";
-import { getCachedData as pullRequestCachedData } from "../PullRequests/utils/getDefaultData";
+import { getCachedData as pullRequestCachedData, setLocalCache as setPullCache } from "../PullRequests/utils/getDefaultData";
 import { dedupePullRequests } from "../PullRequests/utils/dedupePullRequests";
 import { getCachedData, setLocalCache } from "./utils/getDefaultData";
 

@@ -1,12 +1,9 @@
-// Audit characterizations: assertions reproduce current defects; these are not
-// regression guarantees. Run explicitly with the refresh Jest configuration.
+// Regression coverage for notification preferences and disabled repositories.
 import { expect, test } from "@jest/globals";
-import { writeFileSync } from "node:fs";
 import { createHarness } from "./harness";
 import { createProfile } from "./fixtures";
 import { MockGithub } from "./mock-github";
 
-const results: unknown[] = [];
 test("disabled CI setting suppresses native CI messages", async () => {
   const repos = createProfile("small");
   Object.assign(repos[0], { openPulls: 1, workflowRuns: 1 });
@@ -29,7 +26,6 @@ test("disabled CI setting suppresses native CI messages", async () => {
     const alerts = h.notifications.mock.calls.flatMap(([items]) => items).filter(item => item.type === "ci");
     expect(alerts.length).toBe(0);
     expect(Object.keys(warm.data.CIStatusUpdatePerRepo)).toHaveLength(0);
-    results.push({ scenario: "CI disabled", expectedAlerts: 0, actualAlerts: alerts.length });
   } finally { await h.close(); }
 });
 
@@ -44,7 +40,5 @@ test("disabled repositories receive no comment-detail requests", async () => {
     const result = await h.run("audit/disabled");
     const detailCalls = result.samples.filter(call => call.operation === "issues-list-comments");
     expect(detailCalls.length).toBe(0);
-    results.push({ scenario: "Disabled repositories", expectedCommentRequests: 0, actualCommentRequests: detailCalls.length });
-    writeFileSync("docs/audit/refresh-reproductions.json", JSON.stringify(results, null, 2) + "\n");
   } finally { await h.close(); }
 });

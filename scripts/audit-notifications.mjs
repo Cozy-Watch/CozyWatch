@@ -1,5 +1,5 @@
 // Read-only behavioral audit: runs the actual notification manager with fake OS,
-// storage, and timers. Findings describe existing defects, not passing guarantees.
+// storage, and timers. Expected behavior is checked without real OS delivery.
 import fs from 'node:fs';
 import vm from 'node:vm';
 import path from 'node:path';
@@ -19,11 +19,13 @@ function harness({ save = true } = {}) {
     constructor(options) { super(); this.options = options; created.push(this); }
     show() { shown.push(this.options); }
     close() { this.emit('close'); }
+    static isSupported() { return true; }
   }
   const ipcMain = new EventEmitter();
   const modules = {
     electron: { Notification, ipcMain, app: { isReady: () => true } },
     'electron-log': { info() {}, warn() {}, error() {} },
+    './getNotificationSettings': { getNotificationsSettings: async () => Object.fromEntries(['newReviewsNotification','reviewsUpdateNotification','ciStatusNotification','mentionsNotification','pullRequestsAddedNotification','pullRequestsRemovedNotification'].map(key => [key, { value: true }])) },
     '../licensing/licenseState': { getLicenseState: async () => ({ status: 'licensed' }) },
     '../licensing/licenseState.utils': { canUseDesktop: () => true },
     '../safeStorage/safeStorage': {
@@ -35,7 +37,7 @@ function harness({ save = true } = {}) {
   vm.runInNewContext(compiled, { exports, require: name => {
     if (!(name in modules)) throw new Error(`Unexpected import: ${name}`);
     return modules[name];
-  }, setInterval: () => 0, setTimeout: cb => { timers.push(cb); return 0; }, Date, Set, Promise });
+  }, setInterval: () => 0, setTimeout: cb => { timers.push(cb); return cb; }, clearTimeout: cb => { const index = timers.indexOf(cb); if (index >= 0) timers.splice(index, 1); }, Date, Set, Map, Promise });
   return { api: exports, shown, created, ipcMain, history: () => history, async drain() {
     await flush();
     for (let limit = 100; timers.length && limit > 0; limit--) { timers.shift()(); await flush(); }
@@ -68,5 +70,6 @@ const alert = (body, number = 1) => ({ title: 'Review update', body, type: 'revi
     const h = harness(); h.api.batchNotificationManager([alert('A')]); await h.drain();
     findings.push({ scenario: 'Native notification failure has a handler', expected: 1, actual: h.created[0].listenerCount('failed') });
   }
-  console.log(JSON.stringify({ source: path.relative(process.cwd(), sourcePath), findings: findings.map(f => ({ ...f, reproduced: JSON.stringify(f.expected) !== JSON.stringify(f.actual) })) }, null, 2));
+  if (findings.some(f => JSON.stringify(f.expected) !== JSON.stringify(f.actual))) process.exitCode = 1;
+  console.log(JSON.stringify({ source: path.relative(process.cwd(), sourcePath), findings: findings.map(f => ({ ...f, passed: JSON.stringify(f.expected) === JSON.stringify(f.actual) })) }, null, 2));
 })().catch(error => { console.error(error); process.exitCode = 1; });
