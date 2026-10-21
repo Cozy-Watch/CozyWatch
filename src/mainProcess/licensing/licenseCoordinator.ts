@@ -1,11 +1,20 @@
+import { AsyncLocalStorage } from "node:async_hooks";
 import type { LicenseState } from "./licenseState.types";
 
+const operation = new AsyncLocalStorage<{ active: boolean }>();
 let tail: Promise<unknown> = Promise.resolve();
 let generation = 0;
 let lastMutation: { key: string; result: Promise<LicenseState> } | undefined;
 
 const enqueue = <T>(work: () => Promise<T>): Promise<T> => {
-  const result = tail.then(work, work);
+  const execute = () => {
+    const context = { active: true };
+    return operation.run(context, async () => {
+      try { return await work(); }
+      finally { context.active = false; }
+    });
+  };
+  const result = tail.then(execute, execute);
   tail = result.then(() => undefined, () => undefined);
   return result;
 };
@@ -33,3 +42,7 @@ export const commitLicenseValidation = (
   write: () => Promise<LicenseState>,
   readCurrent: () => Promise<LicenseState>,
 ) => enqueue(() => version === generation ? write() : readCurrent());
+
+/** Local normalization shares the queue, including when called inside a mutation. */
+export const runLicenseRead = <T>(read: () => Promise<T>): Promise<T> =>
+  operation.getStore()?.active ? read() : enqueue(read);

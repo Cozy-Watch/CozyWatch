@@ -15,6 +15,7 @@ import {
 } from "./storageMigration";
 import { decodeStorageValue, encodeStorageValue } from "./storageEncoding";
 import type {
+  AuthType,
   StoreDataMap,
   StoreDataName,
   StoreDataParams,
@@ -461,5 +462,28 @@ export const saveLicenseActivation = async (licenseKey: string | null, licenseSt
     draft.licenseState = encryptedState;
     if (encryptedKey === null) delete draft.licenseKey;
     else draft.licenseKey = encryptedKey;
+  });
+};
+
+/** One atomic write: a connection is never visible without matching setup state. */
+export const saveGitHubConnection = async (
+  token: string,
+  authType: AuthType,
+  licenseState?: StoreDataMap["licenseState"],
+  isCurrent = () => true,
+) => {
+  await app.whenReady();
+  assertEncryptionAvailable();
+  const storage = await getPrimaryStorage();
+  const encrypt = (value: unknown) => safeStorage.encryptString(JSON.stringify(value)).toString("base64");
+  const values = {
+    access_token: encrypt(token),
+    auth_type: encrypt(authType),
+    authentication_notice: encrypt(null),
+    ...(licenseState ? { licenseState: encrypt(licenseState) } : {}),
+  };
+  await mutateStorageFile(getPrimaryStoragePath(), storage, draft => {
+    if (!isCurrent()) throw new Error("GitHub connection cancelled.");
+    Object.assign(draft, values);
   });
 };

@@ -3,6 +3,7 @@ jest.mock("../buildFlavor", () => ({ isOfficialBuild: () => true }));
 jest.mock("../../safeStorage/safeStorage", () => ({
   getData: jest.fn(),
   storeData: jest.fn(),
+  saveGitHubConnection: jest.fn(),
 }));
 let values: Record<string, unknown>;
 let licensing: typeof import("../licenseState");
@@ -107,4 +108,19 @@ it("does not migrate or overwrite unreadable license records", async () => {
   jest.mocked(storage.getData).mockRejectedValueOnce(new Error("keychain unavailable"));
   await expect(licensing.getLicenseState()).rejects.toThrow("keychain unavailable");
   expect(storage.storeData).not.toHaveBeenCalled();
+});
+
+it("commits the first connection and trial together, and preserves state when commit fails", async () => {
+  const storage = await import("../../safeStorage/safeStorage");
+  await licensing.getLicenseState();
+  jest.mocked(storage.saveGitHubConnection).mockRejectedValueOnce(new Error("Disk full"));
+  await expect(licensing.completeGitHubConnection("synthetic-token", "pat")).rejects.toThrow("Disk full");
+  expect(values.access_token).toBeUndefined();
+  expect((await licensing.getLicenseState()).status).toBe("unconfigured");
+  jest.mocked(storage.saveGitHubConnection).mockImplementationOnce(async (token, type, state) => {
+    values = { ...values, access_token: token, auth_type: type, licenseState: state, authentication_notice: null };
+  });
+  await licensing.completeGitHubConnection("synthetic-token", "pat");
+  expect(values.auth_type).toBe("pat");
+  expect((await licensing.getLicenseState()).status).toBe("trial");
 });

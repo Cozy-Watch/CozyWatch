@@ -1,5 +1,5 @@
 import { ipcMain } from "electron";
-import { getData, storeData } from "../safeStorage/safeStorage";
+import { getData, storeData, saveGitHubConnection } from "../safeStorage/safeStorage";
 import {
   LICENSE_STATE_SCHEMA_VERSION,
   type LicenseState,
@@ -10,6 +10,8 @@ import {
   resolveTimeBasedLicenseState,
   shouldShowExpiryReminder,
 } from "./licenseState.utils";
+import { runLicenseMutation, runLicenseRead } from "./licenseCoordinator";
+import type { AuthType } from "../safeStorage/safeStorage.types";
 import { isOfficialBuild } from "./buildFlavor";
 
 export const setLicenseState = async (state: LicenseState) => {
@@ -20,7 +22,9 @@ export const setLicenseState = async (state: LicenseState) => {
 };
 
 let initialization: Promise<LicenseState> | null = null;
-export const getLicenseState = async (): Promise<LicenseState> => {
+export const getLicenseState = (): Promise<LicenseState> => runLicenseRead(loadLicenseState);
+
+const loadLicenseState = async (): Promise<LicenseState> => {
   if (!isOfficialBuild())
     return { schemaVersion: LICENSE_STATE_SCHEMA_VERSION, status: "community" };
   initialization ??= (async () => {
@@ -44,34 +48,41 @@ export const getLicenseState = async (): Promise<LicenseState> => {
   return state;
 };
 
-let trialMutation: Promise<unknown> = Promise.resolve();
-export const startTrialAfterGitHubConnection = async () => {
-  trialMutation = trialMutation
-    .catch(() => undefined)
-    .then(async () => {
-      const state = await getLicenseState();
-      if (state.status !== "unconfigured" || state.trialStartedAt) return state;
-      return setLicenseState(createTrialLicenseState("new", new Date(), state));
-    });
-  return trialMutation;
-};
+const trialForConnection = (state: LicenseState) =>
+  state.status === "unconfigured" && !state.trialStartedAt
+    ? createTrialLicenseState("new", new Date(), state) : state;
 
-export const acceptTransitionTerms = async () => {
+export const startTrialAfterGitHubConnection = () => runLicenseMutation("start-trial", async () => {
+  const state = await getLicenseState();
+  const next = trialForConnection(state);
+  return next === state ? state : setLicenseState(next);
+});
+
+export const completeGitHubConnection = (token: string, authType: AuthType, isCurrent = () => true) =>
+  runLicenseMutation(`github-connection:${authType}:${token}`, async () => {
+    if (!isCurrent()) throw new Error("GitHub connection cancelled.");
+    const state = trialForConnection(await getLicenseState());
+    await saveGitHubConnection(token, authType, state.status === "community" ? undefined : state, isCurrent);
+    ipcMain.emit("dispatch-license-state", null, state);
+    return state;
+  });
+
+export const acceptTransitionTerms = () => runLicenseMutation("accept-transition", async () => {
   const state = await getLicenseState();
   if (!state.transitionPending) return state;
   return setLicenseState(
     createTrialLicenseState("transition", new Date(), state),
   );
-};
+});
 
-export const markExpiryReminderShown = async () => {
+export const markExpiryReminderShown = () => runLicenseMutation("expiry-reminder", async () => {
   const state = await getLicenseState();
   if (!shouldShowExpiryReminder(state)) return state;
   return setLicenseState({
     ...state,
     lastExpiryReminderAt: new Date().toISOString(),
   });
-};
+});
 
 export const refreshLocalLicenseState = async () =>
   resolveTimeBasedLicenseState(await getLicenseState());

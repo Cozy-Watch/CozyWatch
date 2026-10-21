@@ -10,6 +10,7 @@ import {
   authenticateWithGitHub,
   authenticateWithGitHubApp,
   authenticateWithPAT,
+  cancelAuthentication,
   hasLocalAccessToken,
 } from "./mainProcess/api/Authentication/authentication";
 import { canUseDesktop } from "./mainProcess/licensing/licenseState.utils";
@@ -615,6 +616,7 @@ app.on("activate", () => {
 // ---- EVENTS ----
 
 const stopAuthenticatedBackgroundTasks = () => {
+  cancelAuthentication();
   cancelPendingNotifications();
   backgroundGeneration += 1;
   backgroundTasksStarted = false;

@@ -132,4 +132,28 @@ describe("credential storage cleanup", () => {
     expect(await restarted.getData("licenseKey")).toBeNull();
   });
 
+  it("atomically stores the connection and trial and preserves the previous connection on disk failure", async () => {
+    const previous = { schemaVersion: 2 as const, status: "licensed" as const, entitlement: "lifetime" as const };
+    await storage.saveGitHubConnection("old-token", "oauth", previous);
+    const before = await readFile(primaryPath, "utf8");
+    const fs = jest.requireActual<typeof import("node:fs/promises")>("node:fs/promises");
+    const failure = jest.spyOn(fs, "rename").mockRejectedValueOnce(new Error("Disk full"));
+    await expect(storage.saveGitHubConnection("new-token", "pat", { schemaVersion: 2, status: "trial" })).rejects.toThrow("Disk full");
+    failure.mockRestore();
+    expect(await readFile(primaryPath, "utf8")).toBe(before);
+    expect(await storage.getData("access_token")).toBe("old-token");
+    expect(await storage.getData("auth_type")).toBe("oauth");
+    expect(await storage.getData("licenseState")).toEqual(previous);
+    await storage.saveGitHubConnection("new-token", "pat", { schemaVersion: 2, status: "trial" });
+    expect(await storage.getData("access_token")).toBe("new-token");
+    expect(await storage.getData("auth_type")).toBe("pat");
+    expect((await storage.getData("licenseState"))?.status).toBe("trial");
+    expect(await storage.getData("authentication_notice")).toBeNull();
+  });
+  it("does not commit a connection cancelled while waiting for storage", async () => {
+    await storage.saveGitHubConnection("old-token", "oauth");
+    await expect(storage.saveGitHubConnection("cancelled-token", "pat", undefined, () => false)).rejects.toThrow("cancelled");
+    expect(await storage.getData("access_token")).toBe("old-token");
+  });
+
 });

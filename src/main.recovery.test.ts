@@ -52,7 +52,7 @@ beforeAll(async () => {
     initialize: jest.fn(), info: jest.fn(), error: jest.fn(), warn: jest.fn(),
   }));
   jest.doMock("electron-squirrel-startup", () => false);
-  jest.doMock("./mainProcess/api/Authentication/authentication", () => ({ hasLocalAccessToken }));
+  jest.doMock("./mainProcess/api/Authentication/authentication", () => ({ hasLocalAccessToken, cancelAuthentication: jest.fn() }));
   jest.doMock("./mainProcess/licensing/licenseState", () => ({ getLicenseState: jest.fn(async () => ({ schemaVersion: 2, status: licenseStatus })) }));
   jest.doMock("./mainProcess/api/githubClient", () => ({ signOut }));
   jest.doMock("./mainProcess/api/Repositories/getRepositories", () => ({ getRepositories }));
