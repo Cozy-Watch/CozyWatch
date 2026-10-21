@@ -32,3 +32,19 @@ it("appends new batches without discarding pending alerts, including empty batch
   expect(history.map(n => n.body)).toEqual(["C", "B", "A"]);
   expect(show).toHaveBeenCalledTimes(3);
 });
+
+it("continues after a native exception and observes native failures", async () => {
+  show.mockImplementationOnce(() => { throw new Error("native failure"); });
+  batchNotificationManager([alert("failure"), alert("next")]);
+  await jest.advanceTimersByTimeAsync(10000);
+  expect(show).toHaveBeenCalledTimes(2);
+  expect(created[1].listenerCount("failed")).toBe(1);
+  expect(() => created[1].emit("failed")).not.toThrow();
+});
+it("retains history when native notifications are unsupported", async () => {
+  supported.mockReturnValue(false);
+  batchNotificationManager([alert("unsupported")]);
+  await jest.advanceTimersByTimeAsync(10000);
+  expect(history).toHaveLength(1);
+  expect(show).not.toHaveBeenCalled();
+});

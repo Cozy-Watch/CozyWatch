@@ -127,8 +127,10 @@ async function processQueue() {
   isProcessingQueue = true;
   const notification = notificationQueue.shift();
 
+  try {
   if (notification && (notification.type === "system" || (!notification.type && !notification.source) || await getLicenseState().then(canUseDesktop).catch(() => false))) {
     const record = await persistNotification(notification);
+    if (!Notification.isSupported()) return;
     const electronNotification = new Notification({
       title: notification.title,
       body: [formatNotificationSource(notification.source), notification.body]
@@ -143,10 +145,18 @@ async function processQueue() {
       clearNotification(electronNotification);
     });
     electronNotification.on("close", () => clearNotification(electronNotification));
+    electronNotification.on("failed", () => {
+      Logger.warn("[Notifications] Native delivery failed; history remains available");
+      clearNotification(electronNotification);
+    });
     electronNotification.show();
   }
 
-  setTimeout(() => void processQueue(), NOTIFICATION_DELAY);
+  } catch {
+    Logger.warn("[Notifications] Could not deliver alert; continuing queue");
+  } finally {
+    setTimeout(() => void processQueue(), NOTIFICATION_DELAY);
+  }
 }
 
 export const clearNotificationsOnSignOut = async () => {
