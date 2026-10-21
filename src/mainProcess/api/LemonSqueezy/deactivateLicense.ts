@@ -7,7 +7,11 @@ import {
 import { withoutActivation } from "../../licensing/licenseState.utils";
 import { saveLicenseActivation, getData } from "../../safeStorage/safeStorage";
 
-export const deactivateLicense = async () => {
+import { runLicenseMutation } from "../../licensing/licenseCoordinator";
+
+export const deactivateLicense = () => runLicenseMutation("deactivate", performDeactivation);
+
+const performDeactivation = async () => {
   const [licenseKey, currentState] = await Promise.all([
     getData("licenseKey"),
     getLicenseState(),

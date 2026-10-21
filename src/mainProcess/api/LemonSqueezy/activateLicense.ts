@@ -21,11 +21,15 @@ import {
   getData,
   saveLicenseActivation,
 } from "../../safeStorage/safeStorage";
-import { validateLicense as validateStoredLicense } from "./validateLicense";
+import { runLicenseMutation } from "../../licensing/licenseCoordinator";
+import { validateLicenseDuringActivation as validateStoredLicense } from "./validateLicense";
 
 const getInstanceName = () => `${APP_NAME} on ${os.hostname()}`.slice(0, 255);
 
-export const activateLicense = async (licenseKey: string) => {
+export const activateLicense = (licenseKey: string) =>
+  runLicenseMutation(`activate:${licenseKey.trim()}`, () => performActivation(licenseKey));
+
+const performActivation = async (licenseKey: string) => {
   const trimmedLicenseKey = licenseKey.trim();
 
   if (!trimmedLicenseKey) {

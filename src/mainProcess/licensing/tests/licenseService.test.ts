@@ -152,3 +152,52 @@ it("rejects test purchases in a production licensing build", async () => {
     "Test keys",
   );
 });
+
+it("ignores delayed validation after successful deactivation", async () => {
+  let finish: (value: ReturnType<typeof response>) => void = () => undefined;
+  (remoteValidate as jest.Mock).mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
+  (saveLicenseActivation as jest.Mock).mockImplementation(async (nextKey, nextState) => { key = nextKey; state = nextState; });
+  const validation = validateLicense();
+  await new Promise(resolve => setImmediate(resolve));
+  expect(remoteValidate).toHaveBeenCalledTimes(1);
+  await deactivateLicense();
+  expect(key).toBeNull();
+  expect(state.status).not.toBe("licensed");
+  finish(response());
+  await validation;
+  expect(state.status).not.toBe("licensed");
+  expect(key).toBeNull();
+});
+it("coalesces overlapping activation requests for the same key", async () => {
+  key = null; state.status = "trial";
+  await Promise.all([activateLicense("synthetic-key"), activateLicense("synthetic-key")]);
+  expect(remoteActivate).toHaveBeenCalledTimes(1);
+  expect(saveLicenseActivation).toHaveBeenCalledTimes(1);
+});
+
+it.each(["unavailable", "revoked", "wrong-product"])("ignores stale %s responses after deactivation", async (outcome) => {
+  let finish: (value: unknown) => void = () => undefined;
+  (remoteValidate as jest.Mock).mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
+  (saveLicenseActivation as jest.Mock).mockImplementation(async (nextKey, nextState) => { key = nextKey; state = nextState; });
+  const validation = validateLicense();
+  await new Promise(resolve => setImmediate(resolve));
+  await deactivateLicense();
+  const deactivated = state;
+  const result = response();
+  if (outcome === "revoked") { result.data.valid = false; result.data.license_key.status = "disabled"; }
+  if (outcome === "wrong-product") result.data.meta.product_id = 999;
+  finish(outcome === "unavailable" ? { error: new Error("Offline"), data: null } : result);
+  expect(await validation).toEqual(deactivated);
+  expect(state).toEqual(deactivated);
+});
+it("rejects an older valid response after a newer revocation response", async () => {
+  let finish: (value: unknown) => void = () => undefined;
+  (remoteValidate as jest.Mock).mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
+  const old = validateLicense();
+  await new Promise(resolve => setImmediate(resolve));
+  const revoked = response(); revoked.data.valid = false; revoked.data.license_key.status = "disabled";
+  (remoteValidate as jest.Mock).mockResolvedValueOnce(revoked);
+  expect((await validateLicense()).status).toBe("revoked");
+  finish(response());
+  expect((await old).status).toBe("revoked");
+});
