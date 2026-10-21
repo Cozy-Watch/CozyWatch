@@ -89,7 +89,7 @@ export const pullRequestQuery = async (isCurrent = () => true): Promise<PullRequ
         `[PullRequests] Rate limit low (${rateLimit.rate.remaining} remaining, need ~${estimatedRequests}), skipping poll. Resets in ${waitMinutes} minutes.`,
       );
 
-      batchNotificationManager([
+      await batchNotificationManager([
         {
           title: "GitHub Rate Limit Reached",
           body: `Pull request updates are paused due to low rate limit. Resets in approximately ${waitMinutes} minutes.`,
@@ -673,7 +673,7 @@ export const pullRequestQuery = async (isCurrent = () => true): Promise<PullRequ
     };
   });
 
-  batchNotificationManager([
+  await batchNotificationManager([
     ...pullRequestsAddedNotification.map(item => ({ ...item, setting: "pullRequestsAddedNotification" })),
     ...pullRequestsRemovedNotification.map(item => ({ ...item, setting: "pullRequestsRemovedNotification" })),
     ...reviewNotifications,
@@ -681,6 +681,7 @@ export const pullRequestQuery = async (isCurrent = () => true): Promise<PullRequ
     ...ciStatusNotification.map(item => ({ ...item, setting: "ciStatusNotification" })),
     ...mentionNotifications.map(item => ({ ...item, setting: "mentionsNotification" })),
   ] as ManagedNotification[]);
+  assertCurrent();
 
   const flatPullRequests = dedupePullRequests(
     Object.values(cache.pullRequestsPerRepo || {}).flatMap((value) =>

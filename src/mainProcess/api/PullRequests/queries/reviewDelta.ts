@@ -436,14 +436,15 @@ export async function sweepReviewDelta(): Promise<ReviewSweepResult> {
           if (settings.reviewsUpdateNotification.value)
             next.reviewUpdateList.reviewChanged.push(...changes.reviewChanged);
         }
-        setLocalCache(next);
-        ipcMain.emit("dispatch-pull-request-update", null, next);
-        metrics.publicationLatencyMs = performance.now() - startedAt;
         const notifications = getReviewNotifications(next.reviewUpdateList);
         if (notifications.length) {
           app.setBadgeCount(notifications.length);
-          batchNotificationManager(notifications);
+          await batchNotificationManager(notifications);
         }
+        if (!isCurrent()) return metrics;
+        setLocalCache(next);
+        ipcMain.emit("dispatch-pull-request-update", null, next);
+        metrics.publicationLatencyMs = performance.now() - startedAt;
         await storeData({ name: "pull_requests_cache", data: next });
       }
       if (!budget) metrics.skipped = "quota-budget-exhausted";

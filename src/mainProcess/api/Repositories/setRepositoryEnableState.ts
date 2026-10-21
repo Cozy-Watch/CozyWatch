@@ -1,5 +1,5 @@
 import { refreshCoordinator } from "../../polling/refreshCoordinator";
-import { cancelPendingNotifications } from "../../notifications/notificationManager";
+import { setDisabledNotificationRepositories } from "../../notifications/notificationManager";
 import { ipcMain } from "electron";
 import Logger from "electron-log";
 import { storeData } from "../../safeStorage/safeStorage";
@@ -53,7 +53,11 @@ export const setRepositoryEnableState = async (
   }
 
   refreshCoordinator.invalidate();
-  cancelPendingNotifications();
+  setDisabledNotificationRepositories(
+    Object.values(currentCache.repositoriesByPage).flat()
+      .filter(repo => !activeRepositories[repo.id])
+      .map(repo => `${repo.owner}/${repo.name}`),
+  );
   setPullCache(pullRequestsData);
   setLocalCache(data);
   ipcMain.emit("dispatch-repository-update", null, data);

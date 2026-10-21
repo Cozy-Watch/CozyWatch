@@ -21,7 +21,7 @@ jest.mock("../licensing/licenseState", () => ({ getLicenseState: async () => ({ 
 jest.useFakeTimers();
 import { storeData } from "../safeStorage/safeStorage";
 import { ipcMain } from "electron";
-import { batchNotificationManager, clearNotificationsOnSignOut, markAllNotificationsRead } from "./notificationManager";
+import { batchNotificationManager, clearNotificationsOnSignOut, markAllNotificationsRead, setDisabledNotificationRepositories, cancelPendingNotifications } from "./notificationManager";
 const alert = (body: string, pullNumber = 1) => ({ title: "Review", body, type: "review" as const, source: { repository: "org/repo", pullNumber } });
 beforeEach(async () => {
   jest.useFakeTimers(); await clearNotificationsOnSignOut(); history = []; created.length = 0; show.mockReset(); supported.mockReturnValue(true);
@@ -87,4 +87,21 @@ it("rechecks preferences before delivering an already queued alert", async () =>
   batchNotificationManager([{ ...alert("disabled CI"), setting: "ciStatusNotification" }]);
   await jest.advanceTimersByTimeAsync(10000);
   expect(show).not.toHaveBeenCalled(); expect(history).toEqual([]);
+});
+
+it("persists the whole batch before the native delivery delay", async () => {
+  await batchNotificationManager([alert("A"), alert("B"), alert("C")]);
+  expect(history.map(item => item.body)).toEqual(["C", "B", "A"]);
+  expect(show.mock.calls.length).toBeLessThanOrEqual(1);
+  cancelPendingNotifications();
+  expect(history).toHaveLength(3);
+});
+it("preserves unrelated banners and all accepted history on repository changes", async () => {
+  await batchNotificationManager([alert("first"), alert("disabled"), { ...alert("other"), source: { repository: "org/other", pullNumber: 2 } }]);
+  await jest.advanceTimersByTimeAsync(0);
+  setDisabledNotificationRepositories(["ORG/REPO"]);
+  await jest.advanceTimersByTimeAsync(10000);
+  expect(history).toHaveLength(3);
+  expect(show).toHaveBeenCalledTimes(2);
+  expect(created[0].close).toHaveBeenCalledTimes(1);
 });
