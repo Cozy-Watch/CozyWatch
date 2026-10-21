@@ -36,7 +36,7 @@ export const GithubAuthentication = () => {
   const { error, mutateAsync } = usePATauthenticationMutation();
 
   const {
-    data: { authData },
+    data: { authData, isPending: connecting, error: connectionError },
     action: { authenticate, authenticateGitHubApp, setAuthData },
   } = useAuthentication();
 
@@ -221,6 +221,7 @@ export const GithubAuthentication = () => {
             </Flex>
 
             <AuthenticationNotice />
+          {connectionError && <Text role="alert" size="2" color="red" align="center">{connectionError}</Text>}
 
             {error && (
               <Flex width="100%" align="center" justify="center">
@@ -300,21 +301,22 @@ export const GithubAuthentication = () => {
           </Text>
         </Flex>
         <AuthenticationNotice />
+          {connectionError && <Text role="alert" size="2" color="red" align="center">{connectionError}</Text>}
         <Flex direction="column" gap="4" pt="2" width="100%" style={{ maxWidth: 360 }}>
           <Flex direction="column" align="center" gap="2">
-            <Button size="3" onClick={() => authenticate()} style={{ width: "100%" }}>
+            <Button size="3" loading={connecting} onClick={() => authenticate()} style={{ width: "100%" }}>
               <MarkGithubIcon size={18} />Connect GitHub
             </Button>
             <Text size="1" color="gray" align="center">Sign in through your browser. Best for most users.</Text>
           </Flex>
           <Flex direction="column" align="center" gap="2">
-            <Button size="3" color="gray" variant="soft" onClick={() => setShowOtherOptions(true)} style={{ width: "100%" }}>
+            <Button size="3" disabled={connecting} color="gray" variant="soft" onClick={() => setShowOtherOptions(true)} style={{ width: "100%" }}>
               <KeyIcon size={18} />Use a personal access token
             </Button>
             <Text size="1" color="gray" align="center">Connect with a token you create on GitHub.</Text>
           </Flex>
           <Flex direction="column" align="center" gap="2">
-            <Button size="3" color="gray" variant="soft" onClick={() => authenticateGitHubApp()} style={{ width: "100%" }}>
+            <Button size="3" disabled={connecting} color="gray" variant="soft" onClick={() => authenticateGitHubApp()} style={{ width: "100%" }}>
               <MarkGithubIcon size={18} />Connect with GitHub App
             </Button>
             <Text size="1" color="gray" align="center">For organizations using GitHub Apps. May need admin approval.</Text>
