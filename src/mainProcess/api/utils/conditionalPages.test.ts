@@ -34,3 +34,11 @@ it("probes beyond a full unchanged terminal page when Link is absent", async () 
   });
   expect((await readConditionalPages({ client, key, request })).flat()).toHaveLength(101);
 });
+
+it("does not probe beyond the service cap after an unchanged full terminal page", async () => {
+  const client = {}, key = "capped-workflows";
+  await readConditionalPages({ client, key, maxPages: 1, request: async () => ({ data: Array(100).fill(1), headers: { etag: "terminal" } }) });
+  const request = jest.fn(async () => { throw unchanged(); });
+  expect((await readConditionalPages({ client, key, maxPages: 1, request })).flat()).toHaveLength(100);
+  expect(request).toHaveBeenCalledTimes(1);
+});

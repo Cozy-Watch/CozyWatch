@@ -27,7 +27,7 @@ export const readConditionalPages = async <T>({
       const headers = (error as { response?: { headers?: Response<T>["headers"] } }).response?.headers;
       value = {
         ...old, etag: headers?.etag ?? old.etag,
-        next: headers?.link !== undefined ? /rel="next"/.test(headers.link) : old.next || old.data.length === 100,
+        next: headers?.link !== undefined ? /rel="next"/.test(headers.link) : old.next || (old.data.length === 100 && page < maxPages),
       };
     }
     pages.push(value);

@@ -9,7 +9,6 @@ import type { ManagedNotification } from "../../../notifications/notificationMan
 import { storeData } from "../../../safeStorage/safeStorage";
 import { getGithubClient } from "../../githubClient";
 import { getUser } from "../../User/getUser";
-import { registerPullActions } from "../hooks/registerPullActions";
 import { getAddedRemovedPRId } from "../utils/getAddedRemovedPRId";
 import { getCIStatusUpdate } from "../utils/getCIStatusUpdate";
 import { dedupePullRequests } from "../utils/dedupePullRequests";
@@ -136,15 +135,6 @@ export const pullRequestQuery = async (isCurrent = () => true): Promise<PullRequ
   }
 
   assertCurrent();
-  const removeHooks = [
-    registerPullActions({
-    cache,
-    octokit,
-    operationName: pullActionsOperationName,
-  }),
-
-  ];
-  try {
 
   try {
     await settleRefreshWork(
@@ -305,6 +295,7 @@ export const pullRequestQuery = async (isCurrent = () => true): Promise<PullRequ
               name: repo.name,
               octokit,
               operationName: pullActionsOperationName,
+              cache,
               owner: repo.owner,
             }),
           ),
@@ -698,7 +689,4 @@ export const pullRequestQuery = async (isCurrent = () => true): Promise<PullRequ
   const duration = endTime - startTime; // Calculate the duration
   Logger.info(`[PullRequests] Total Execution Time: ${duration}ms`);
   return { ...data, repositories };
-  } finally {
-    removeHooks.forEach(remove => remove());
-  }
 };
