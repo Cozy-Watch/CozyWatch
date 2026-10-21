@@ -16,6 +16,7 @@ jest.mock("../safeStorage/safeStorage", () => ({
   getData: jest.fn(async () => history),
   storeData: jest.fn(async ({ data }: { data: NotificationRecord[] }) => { history = data; return true; }),
 }));
+jest.mock("./getNotificationSettings", () => ({ getNotificationsSettings: jest.fn(async () => ({ ciStatusNotification: { value: false } })) }));
 jest.mock("../licensing/licenseState", () => ({ getLicenseState: async () => ({ status: "licensed" }) }));
 jest.useFakeTimers();
 import { storeData } from "../safeStorage/safeStorage";
@@ -80,4 +81,10 @@ it("deduplicates only the same source and copy within a rolling window", async (
   batchNotificationManager([alert("identical", 1)]);
   await jest.advanceTimersByTimeAsync(10000);
   expect(show).toHaveBeenCalledTimes(3);
+});
+
+it("rechecks preferences before delivering an already queued alert", async () => {
+  batchNotificationManager([{ ...alert("disabled CI"), setting: "ciStatusNotification" }]);
+  await jest.advanceTimersByTimeAsync(10000);
+  expect(show).not.toHaveBeenCalled(); expect(history).toEqual([]);
 });

@@ -1,3 +1,4 @@
+import { getNotificationsSettings } from "./getNotificationSettings";
 import { getLicenseState } from "../licensing/licenseState";
 import { canUseDesktop } from "../licensing/licenseState.utils";
 import { Notification, app, ipcMain } from "electron";
@@ -7,9 +8,11 @@ import type {
   NotificationRecord,
   NotificationTone,
   NotificationType,
+  NotificationKey,
 } from "../safeStorage/safeStorage.types";
 
 export interface ManagedNotification {
+  setting?: NotificationKey;
   title: string;
   body: string;
   type?: NotificationType;
@@ -142,6 +145,8 @@ async function processQueue() {
 
   try {
   if (notification && (notification.type === "system" || (!notification.type && !notification.source) || await getLicenseState().then(canUseDesktop).catch(() => false))) {
+    if (!isCurrent()) return;
+    if (notification.setting && !(await getNotificationsSettings())[notification.setting].value) return;
     if (!isCurrent()) return;
     const record = await persistNotification(notification, isCurrent);
     if (!isCurrent()) return;

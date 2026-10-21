@@ -580,12 +580,7 @@ export const pullRequestQuery = async (isCurrent = () => true): Promise<PullRequ
   const ciStatusNotification = repositories
     .map((repo) => {
       const repositoryName = repo.name;
-      const CIStatus = getCIStatusUpdate({
-        repositoryName,
-        initialCache,
-        finalCache: cache,
-        userId: user.id,
-      });
+      const CIStatus = CIStatusUpdatePerRepo[repositoryName] ?? {};
 
       const runNames = Object.keys(CIStatus);
 
@@ -676,11 +671,11 @@ export const pullRequestQuery = async (isCurrent = () => true): Promise<PullRequ
   });
 
   batchNotificationManager([
-    ...pullRequestsAddedNotification,
-    ...pullRequestsRemovedNotification,
+    ...pullRequestsAddedNotification.map(item => ({ ...item, setting: "pullRequestsAddedNotification" })),
+    ...pullRequestsRemovedNotification.map(item => ({ ...item, setting: "pullRequestsRemovedNotification" })),
     ...reviewNotifications,
-    ...ciStatusNotification,
-    ...mentionNotifications,
+    ...ciStatusNotification.map(item => ({ ...item, setting: "ciStatusNotification" })),
+    ...mentionNotifications.map(item => ({ ...item, setting: "mentionsNotification" })),
   ] as ManagedNotification[]);
 
   const flatPullRequests = dedupePullRequests(

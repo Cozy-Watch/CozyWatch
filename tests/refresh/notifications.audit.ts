@@ -7,7 +7,7 @@ import { createProfile } from "./fixtures";
 import { MockGithub } from "./mock-github";
 
 const results: unknown[] = [];
-test("audit: disabled CI setting still produces a CI notification", async () => {
+test("disabled CI setting suppresses native CI messages", async () => {
   const repos = createProfile("small");
   Object.assign(repos[0], { openPulls: 1, workflowRuns: 1 });
   const github = new MockGithub(repos, 0);
@@ -27,7 +27,7 @@ test("audit: disabled CI setting still produces a CI notification", async () => 
     h.notifications.mockClear();
     const warm = await h.run("audit/ci-disabled");
     const alerts = h.notifications.mock.calls.flatMap(([items]) => items).filter(item => item.type === "ci");
-    expect(alerts.length).toBe(1);
+    expect(alerts.length).toBe(0);
     expect(Object.keys(warm.data.CIStatusUpdatePerRepo)).toHaveLength(0);
     results.push({ scenario: "CI disabled", expectedAlerts: 0, actualAlerts: alerts.length });
   } finally { await h.close(); }
