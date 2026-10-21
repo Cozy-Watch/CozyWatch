@@ -112,7 +112,7 @@ export const getCachedData = async (): Promise<CacheData> => {
   if (localCache !== null) {
     Logger.log("[Repositories] using localCache");
     return {
-      ...defaultData,
+      ...structuredClone(defaultData),
       ...localCache,
     };
   }
@@ -122,11 +122,11 @@ export const getCachedData = async (): Promise<CacheData> => {
   if (storageCache?.schemaVersion === 2) {
     Logger.log("[Repositories] using storageCache");
     return {
-      ...defaultData,
+      ...structuredClone(defaultData),
       ...storageCache,
     };
   }
 
   Logger.log("[Repositories] no cache using defaults");
-  return defaultData;
+  return structuredClone(defaultData);
 };
