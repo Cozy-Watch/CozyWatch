@@ -22,6 +22,7 @@ import {
   ReviewData,
   setLocalCache,
 } from "../utils/getDefaultData";
+import { getInlineMentionNotifications } from "../utils/getInlineMentionNotifications";
 import { getMentions } from "../utils/getMentions";
 import { getRepositoriesData } from "../utils/getRepositoriesData";
 import { getReviewStatusUpdate } from "../utils/getReviewStatusUpdate";
@@ -484,6 +485,8 @@ export const pullRequestQuery = async (isCurrent = () => true): Promise<PullRequ
     },
   );
 
+  const inlineMentions = notificationsSettings.mentionsNotification.value ? getInlineMentionNotifications(initialCache, cache, user) : [];
+
   const amountOfPullRequestAdded = pullRequestAddedOrRemoved.added.length;
   const amountOfPullRequestRemoved = pullRequestAddedOrRemoved.removed.length;
 
@@ -505,7 +508,7 @@ export const pullRequestQuery = async (isCurrent = () => true): Promise<PullRequ
     amountOfNewReviews +
     amountOfUpdatedReviews +
     amountOfCiUpdates +
-    amountOfAddedMentions;
+    amountOfAddedMentions + inlineMentions.length;
 
   app.setBadgeCount(totalChanges);
 
@@ -678,6 +681,7 @@ export const pullRequestQuery = async (isCurrent = () => true): Promise<PullRequ
     ...pullRequestsAddedNotification.map(item => ({ ...item, setting: "pullRequestsAddedNotification" })),
     ...pullRequestsRemovedNotification.map(item => ({ ...item, setting: "pullRequestsRemovedNotification" })),
     ...reviewNotifications,
+    ...inlineMentions,
     ...ciStatusNotification.map(item => ({ ...item, setting: "ciStatusNotification" })),
     ...mentionNotifications.map(item => ({ ...item, setting: "mentionsNotification" })),
   ] as ManagedNotification[]);
