@@ -1,0 +1,39 @@
+{
+  "findings": [
+    {
+      "scenario": "Search quota must not block healthy core API requests",
+      "expected": false,
+      "actual": true,
+      "defectReproduced": true
+    },
+    {
+      "scenario": "Accepted events are durable before native pacing / restart",
+      "expected": 2,
+      "actual": 1,
+      "defectReproduced": true
+    },
+    {
+      "scenario": "Cancelling native delivery should not erase unrelated accepted events from history",
+      "expected": 2,
+      "actual": 1,
+      "defectReproduced": true
+    },
+    {
+      "scenario": "Failed persistence must allow immediate retry",
+      "expected": 1,
+      "actual": 0,
+      "defectReproduced": true
+    },
+    {
+      "scenario": "A late old-commit success must not override current failing CI",
+      "expected": [],
+      "actual": [
+        {
+          "sha": "old-commit",
+          "conclusion": "success"
+        }
+      ],
+      "defectReproduced": true
+    }
+  ]
+}
