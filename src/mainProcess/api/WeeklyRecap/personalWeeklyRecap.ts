@@ -1,3 +1,6 @@
+import pLimit from "p-limit";
+import { getUser } from "../User/getUser";
+import { refreshCoordinator } from "../../polling/refreshCoordinator";
 import Logger from "electron-log";
 import { getGithubClient } from "../githubClient";
 import {
@@ -45,6 +48,8 @@ const searchCount = async (query: string) => {
 const countSubmittedReviews = async (weekStart: string) => {
   const octokit = await getGithubClient();
   const { start, end } = getWeekRange(weekStart);
+  const user = await getUser();
+  const limit = pLimit(4);
   const repositories = new Set<string>();
   let total = 0;
   let page = 1;
@@ -57,10 +62,11 @@ const countSubmittedReviews = async (weekStart: string) => {
       headers: { "x-operation-name": OPERATION },
     });
 
+    if (response.data.total_count > MAX_PAGES * PER_PAGE) throw new Error("Your review history exceeds GitHub’s search limit. A complete recap is unavailable.");
     const candidatePulls = response.data.items;
 
     await Promise.all(
-      candidatePulls.map(async (item) => {
+      candidatePulls.map(item => limit(async () => {
         if (!item.number || !item.repository_url) {
           return;
         }
@@ -72,7 +78,7 @@ const countSubmittedReviews = async (weekStart: string) => {
           return;
         }
 
-        const reviews = await octokit.rest.pulls.listReviews({
+        const reviews = await octokit.paginate(octokit.rest.pulls.listReviews, {
           owner,
           repo,
           pull_number: item.number,
@@ -80,9 +86,9 @@ const countSubmittedReviews = async (weekStart: string) => {
           headers: { "x-operation-name": OPERATION },
         });
 
-        const matchedReviews = reviews.data.filter((review) => {
+        const matchedReviews = reviews.filter((review) => {
           const submittedAt = review.submitted_at;
-          if (!submittedAt || review.user?.type !== "User") {
+          if (!submittedAt || review.user?.id !== user.id) {
             return false;
           }
 
@@ -94,7 +100,7 @@ const countSubmittedReviews = async (weekStart: string) => {
           total += matchedReviews.length;
           repositories.add(item.repository_url);
         }
-      }),
+      })),
     );
 
     if (
@@ -115,7 +121,7 @@ const weekQuery = (weekStart: string) => {
   return { from: weekStart, to: weekEnd };
 };
 
-export const getPersonalWeeklyRecap = async (
+const fetchPersonalWeeklyRecap = async (
   weekStart: string,
 ): Promise<PersonalWeeklyRecap> => {
   const startedAt = Date.now();
@@ -144,4 +150,16 @@ export const getPersonalWeeklyRecap = async (
     previousMergedCount: previousMerged.total,
     fetchedAt: new Date().toISOString(),
   };
+};
+
+const recapCache = new Map<string, { expires: number; value: Promise<PersonalWeeklyRecap> }>();
+export const getPersonalWeeklyRecap = async (weekStart: string): Promise<PersonalWeeklyRecap> => {
+  const user = await getUser();
+  const key = `${refreshCoordinator.epoch}:${user.id}:${weekStart}`;
+  const cached = recapCache.get(key);
+  if (cached && cached.expires > Date.now()) return cached.value;
+  if (recapCache.size >= 10) recapCache.clear();
+  const value = fetchPersonalWeeklyRecap(weekStart).catch(error => { recapCache.delete(key); throw error; });
+  recapCache.set(key, { expires: Date.now() + 15 * 60_000, value });
+  return value;
 };
