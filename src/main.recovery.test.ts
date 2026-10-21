@@ -164,3 +164,9 @@ it("does not feed Vite-forwarded renderer logs back into the logger", async () =
   listener({}, 2, "An original renderer warning", 10, "http://localhost:5173/src/app.tsx");
   expect(log.warn).toHaveBeenCalledTimes(1);
 });
+
+it("publishes notification history changes to the live renderer", () => {
+  const history = [{ id: "new-alert", read: false }];
+  ipc.emit("dispatch-notification-update", null, history);
+  expect(webContents.send).toHaveBeenCalledWith("notification-update", history);
+});

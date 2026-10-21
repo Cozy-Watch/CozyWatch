@@ -1024,8 +1024,8 @@ handleRendererInvoke("mark-all-notifications-read", () => markAllNotificationsRe
 handleRendererInvoke("clear-notification-history", () => clearNotificationHistory());
 
 ipcMain.on("dispatch-notification-update", (_, data) => {
-  if (mainWindow && !mainWindow.isDestroyed()) {
-    mainWindow.webContents.send("notification-update", data);
+  for (const contents of getTrustedWebContents()) {
+    contents.send("notification-update", data);
   }
 });
 
