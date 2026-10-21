@@ -32,7 +32,7 @@ if (status === "trial")
     trialStartedAt: now.toISOString(),
     trialEndsAt: new Date(now.getTime() + 14 * 86400000).toISOString(),
   };
-if (status === "new") state = { schemaVersion: 2, status: "trial", trialKind: "new" };
+if (status === "new") state = { schemaVersion: 2, status: "unconfigured" };
 if (status === "transition")
   state = {
     schemaVersion: 2,

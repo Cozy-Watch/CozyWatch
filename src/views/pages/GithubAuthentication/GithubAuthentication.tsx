@@ -320,7 +320,7 @@ export const GithubAuthentication = () => {
             <Text size="1" color="gray" align="center">For organizations using GitHub Apps. May need admin approval.</Text>
           </Flex>
         </Flex>
-        {licenseState?.status === "trial" && !licenseState.trialStartedAt && !licenseState.transitionPending && (
+        {licenseState?.status === "unconfigured" && (
           <Flex direction="column" align="center" gap="1" pt="2">
             <Text size="1" color="gray" align="center">14 days free · All features · No payment details</Text>
             <Text size="1" color="gray" align="center">Your trial starts after GitHub connects.</Text>
