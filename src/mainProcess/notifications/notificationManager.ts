@@ -99,8 +99,6 @@ const persistNotification = async (notification: ManagedNotification) => {
 };
 
 export const batchNotificationManager = (notifications: ManagedNotification[]) => {
-  notificationQueue.length = 0;
-
   notifications.forEach((notification) => {
     const hash = getNotificationHash(notification);
     if (!recentNotifications.has(hash)) {
