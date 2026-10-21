@@ -73,7 +73,7 @@ const reviewCalls = (samples: MockGithub["samples"]) =>
           changed.data.reviewPerRepoPerPullNumber["synthetic-company/service-1"]["1"][0].state,
         ).toBe("APPROVED");
         expect(
-          changed.data.flatPullRequests.find((pr) => pr.number === 1)
+          changed.data.flatPullRequests.find((pr) => pr.number === 1 && pr.base.repo.id === github.repositories[0].id)
             ?.requested_reviewers,
         ).toEqual([]);
         expect(changed.data.flatPullRequests).toHaveLength(208);
@@ -85,7 +85,8 @@ const reviewCalls = (samples: MockGithub["samples"]) =>
           ),
         ).toHaveLength(1);
         h.notifications.mockClear();
-        await h.run("delta/fallback-after-approval");
+        const fallback = await h.run("delta/fallback-after-approval");
+        expect(fallback.data.flatPullRequests.find(pr => pr.number === 1 && pr.base.repo.id === github.repositories[0].id)?.requested_reviewers).toEqual([]);
         expect(
           h.notifications.mock.calls.flatMap(
             ([notifications]) => notifications,

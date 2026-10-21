@@ -41,8 +41,13 @@ export const pullsListQuery = async ({
       } catch (error) {
         if ((error as { status?: number }).status !== 304 || !old) throw error;
         const headers = (error as { response?: { headers?: Record<string, string> } }).response?.headers;
+        // A review sweep can reconcile reviewers in the app cache without
+        // changing the server's list ETag. Preserve that newer derived snapshot.
+        const current = cache.pullRequestsPerRepo[key]?.[String(page)];
+        const samePage = current && cache.etagPerRepo[key]?.list?.[String(page)] === old.etag &&
+          current.length === old.data.length && current.every((pr, index) => pr.id === old.data[index].id);
         value = {
-          ...old, etag: headers?.etag ?? old.etag,
+          ...old, data: samePage ? current : old.data, etag: headers?.etag ?? old.etag,
           next: headers?.link !== undefined ? /rel="next"/.test(headers.link) : old.next || old.data.length === 100,
         };
       }
