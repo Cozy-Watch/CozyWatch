@@ -79,6 +79,9 @@ export const isAllowedRendererUrl = (url: string, rendererUrl: string) => {
       return targetUrl.toString() === allowedUrl.toString();
     }
 
+    if (allowedUrl.protocol === "cozy-watch:") {
+      return targetUrl.protocol === allowedUrl.protocol && targetUrl.host === allowedUrl.host && targetUrl.pathname === allowedUrl.pathname && !targetUrl.username && !targetUrl.password;
+    }
     return targetUrl.origin === allowedUrl.origin;
   } catch {
     return false;

@@ -4,7 +4,7 @@ import log from "electron-log/main";
 import started from "electron-squirrel-startup";
 import { Menubar } from "menubar";
 import path from "node:path";
-import { pathToFileURL } from "node:url";
+import { APP_RENDERER_URL, registerAppScheme, installAppProtocol } from "./mainProcess/security/appProtocol";
 import "./background";
 import {
   authenticateWithGitHub,
@@ -125,11 +125,8 @@ type MainWindowNavigation = {
 let pendingMainWindowNavigation: MainWindowNavigation | null = null;
 const isDevelopment = !app.isPackaged;
 
-const getRendererUrl = () =>
-  MAIN_WINDOW_VITE_DEV_SERVER_URL ??
-  pathToFileURL(
-    path.join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`),
-  ).toString();
+registerAppScheme();
+const getRendererUrl = () => MAIN_WINDOW_VITE_DEV_SERVER_URL ?? APP_RENDERER_URL;
 
 const rendererFailureUrl = `data:text/html;charset=utf-8,${encodeURIComponent(`
   <!doctype html>
@@ -519,13 +516,7 @@ export const createWindow = () => {
     }
   });
 
-  if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
-    mainWindow.loadURL(MAIN_WINDOW_VITE_DEV_SERVER_URL);
-  } else {
-    mainWindow.loadFile(
-      path.join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`),
-    );
-  }
+  void mainWindow.loadURL(getRendererUrl()).catch(() => showRendererFailure());
 
   createMenu();
   log.info("[Menu] created");
@@ -561,6 +552,7 @@ app.on("did-become-active", () => {
 });
 
 app.whenReady().then(() => {
+  if (app.isPackaged) installAppProtocol(path.join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}`));
   log.info("[App] ready");
   diagnostics.record("app-ready");
   diagnostics.startMetricsCollection();

@@ -30,6 +30,7 @@ beforeAll(async () => {
   Object.assign(globalThis, { MAIN_WINDOW_VITE_DEV_SERVER_URL: "http://localhost:5173" });
   processOn = jest.spyOn(process, "on").mockReturnValue(process);
   jest.doMock("electron", () => ({
+    protocol: { registerSchemesAsPrivileged: jest.fn() },
     app: {
       isPackaged: true,
       getVersion: () => "test",
