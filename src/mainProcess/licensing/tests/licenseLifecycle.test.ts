@@ -101,3 +101,10 @@ it("preserves the GitHub connection and repository choices through upgrade migra
   const storage = await import("../../safeStorage/safeStorage");
   expect((storage.storeData as jest.Mock).mock.calls.every(([entry]) => entry.name === "licenseState")).toBe(true);
 });
+
+it("does not migrate or overwrite unreadable license records", async () => {
+  const storage = await import("../../safeStorage/safeStorage");
+  jest.mocked(storage.getData).mockRejectedValueOnce(new Error("keychain unavailable"));
+  await expect(licensing.getLicenseState()).rejects.toThrow("keychain unavailable");
+  expect(storage.storeData).not.toHaveBeenCalled();
+});

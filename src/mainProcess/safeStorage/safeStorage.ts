@@ -383,7 +383,8 @@ export const getData = async <T extends StoreDataName>(
     return value;
   } catch (error) {
     log.error(`Failed to get ${name}:`, error);
-    return null;
+    if (isDerivedCacheKey(name)) return null;
+    throw new Error("Unable to read secure storage. Your saved data has not been replaced. Check access to your login keychain and restart Cozy Watch.", { cause: error });
   }
 };
 

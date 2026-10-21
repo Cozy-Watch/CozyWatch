@@ -57,7 +57,7 @@ describe("credential storage cleanup", () => {
   it("keeps the legacy copy if writing current storage fails", async () => {
     await writeFile(legacyPath, JSON.stringify({ access_token: encryptedToken }));
     await writeFile(path.join(directory, "current"), "blocks directory creation");
-    expect(await storage.getData("access_token")).toBeNull();
+    await expect(storage.getData("access_token")).rejects.toThrow("Unable to read secure storage");
     await expect(access(legacyPath)).resolves.toBeUndefined();
   });
 
@@ -99,7 +99,8 @@ describe("credential storage cleanup", () => {
     await writeFile(legacyPath, JSON.stringify({ access_token: encryptedToken }));
     await mkdir(path.dirname(primaryPath), { recursive: true });
     await writeFile(primaryPath, "corrupt");
-    expect(await storage.getData("access_token")).toBeNull();
+    await expect(storage.getData("access_token")).rejects.toThrow("saved data has not been replaced");
+    expect(await readFile(primaryPath, "utf8")).toBe("corrupt");
     await expect(access(legacyPath)).resolves.toBeUndefined();
   });
 
