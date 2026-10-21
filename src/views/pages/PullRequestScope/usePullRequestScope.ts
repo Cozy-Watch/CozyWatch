@@ -1,3 +1,4 @@
+import { repositoryKey } from "../../../shared/repositoryKey";
 import { useMemo } from "react";
 import type {
   CacheData,
@@ -37,7 +38,7 @@ const mapPullRequests = (
       return [];
     }
 
-    const repositoryName = pullRequest.head.repo.name;
+    const repositoryName = repositoryKey(pullRequest.base.repo);
     const reviewsForPullRequest =
       cache.reviewPerRepoPerPullNumber[repositoryName]?.[pullRequest.number] ??
       [];
@@ -73,7 +74,7 @@ const mapPullRequests = (
       getReviewsGroupedByUser(reviewsForPullRequest),
     );
     const mentionActivity = includeMentionActivity
-      ? Object.values(cache.mentions[pullRequest.base.repo.name] ?? {})
+      ? Object.values(cache.mentions[repositoryKey(pullRequest.base.repo)] ?? {})
           .flat()
           .filter((mention) => Number(mention.pullNumber) === pullRequest.number)
           .reduce(
@@ -159,7 +160,7 @@ export const usePullRequestScope = (
     );
     const reviewed = scopePullRequests.filter((pullRequest) => {
       const reviews =
-        cache.reviewPerRepoPerPullNumber[pullRequest.base.repo.name]?.[
+        cache.reviewPerRepoPerPullNumber[repositoryKey(pullRequest.base.repo)]?.[
           pullRequest.number
         ] ?? [];
 

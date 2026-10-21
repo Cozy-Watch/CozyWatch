@@ -21,7 +21,7 @@ test("disabled CI setting suppresses native CI messages", async () => {
       "reviewsUpdateNotification", "ciStatusNotification", "mentionsNotification",
     ].map(key => [key, { value: false }])) as never;
     const cache = structuredClone(cold.data);
-    cache.actionsPerRepo[repos[0].name][0].conclusion = "failure";
+    cache.actionsPerRepo[`${repos[0].owner}/${repos[0].name}`][0].conclusion = "failure";
     h.setCache(cache);
     repos[0].workflowRuns = 2; // Change the server response/ETag, not just the local fixture.
     h.notifications.mockClear();

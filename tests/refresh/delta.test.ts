@@ -15,13 +15,13 @@ const seededCache = (repos: RepositoryFixture[]): CacheData => {
     const pulls = Array.from({ length: repo.openPulls }, (_, i) =>
       pullFixture(repo, i + 1),
     ) as unknown as PullRequestList;
-    cache.pullRequestsPerRepo[repo.name] = {};
+    cache.pullRequestsPerRepo[`${repo.owner}/${repo.name}`] = {};
     for (let i = 0; i < pulls.length; i += 100)
-      cache.pullRequestsPerRepo[repo.name][String(i / 100 + 1)] = pulls.slice(
+      cache.pullRequestsPerRepo[`${repo.owner}/${repo.name}`][String(i / 100 + 1)] = pulls.slice(
         i,
         i + 100,
       );
-    cache.reviewPerRepoPerPullNumber[repo.name] = Object.fromEntries(
+    cache.reviewPerRepoPerPullNumber[`${repo.owner}/${repo.name}`] = Object.fromEntries(
       pulls.map((pull) => [
         pull.number,
         Array.from({ length: repo.reviewsPerPull }, (_, i) =>
@@ -70,7 +70,7 @@ const reviewCalls = (samples: MockGithub["samples"]) =>
         expect(changed.publications).toHaveLength(1);
         expect(changed.metrics.publicationLatencyMs).toBeLessThan(2000);
         expect(
-          changed.data.reviewPerRepoPerPullNumber["service-1"]["1"][0].state,
+          changed.data.reviewPerRepoPerPullNumber["synthetic-company/service-1"]["1"][0].state,
         ).toBe("APPROVED");
         expect(
           changed.data.flatPullRequests.find((pr) => pr.number === 1)
@@ -106,11 +106,11 @@ const reviewCalls = (samples: MockGithub["samples"]) =>
         const missed = await h.sweep();
         expect(reviewCalls(missed.samples)).toHaveLength(0);
         expect(
-          missed.data.reviewPerRepoPerPullNumber["service-1"]["1"][0].state,
+          missed.data.reviewPerRepoPerPullNumber["synthetic-company/service-1"]["1"][0].state,
         ).toBe("COMMENTED");
         const reconciled = await h.run("fallback/review-only-change");
         expect(
-          reconciled.data.reviewPerRepoPerPullNumber["service-1"]["1"][0].state,
+          reconciled.data.reviewPerRepoPerPullNumber["synthetic-company/service-1"]["1"][0].state,
         ).toBe("APPROVED");
       } finally {
         await h.close();
@@ -175,13 +175,13 @@ const reviewCalls = (samples: MockGithub["samples"]) =>
         const failed = await h.sweep();
         expect(failed.metrics.failures).toBe(2);
         expect(
-          failed.data.reviewPerRepoPerPullNumber["service-1"]["1"][0].state,
+          failed.data.reviewPerRepoPerPullNumber["synthetic-company/service-1"]["1"][0].state,
         ).toBe("COMMENTED");
         expect(
-          failed.data.reviewPerRepoPerPullNumber["service-2"]["1"][0].state,
+          failed.data.reviewPerRepoPerPullNumber["synthetic-company/service-2"]["1"][0].state,
         ).toBe("COMMENTED");
         expect(
-          failed.data.reviewPerRepoPerPullNumber["service-3"]["1"][0].state,
+          failed.data.reviewPerRepoPerPullNumber["synthetic-company/service-3"]["1"][0].state,
         ).toBe("APPROVED");
         const recovered = await h.sweep();
         expect(recovered.metrics.refreshedPRs).toBe(2);
@@ -209,29 +209,29 @@ const reviewCalls = (samples: MockGithub["samples"]) =>
         });
         const failed = await h.sweep();
         expect(
-          failed.data.reviewPerRepoPerPullNumber["service-1"]["1"].every(
+          failed.data.reviewPerRepoPerPullNumber["synthetic-company/service-1"]["1"].every(
             (r) => r.state === "COMMENTED",
           ),
         ).toBe(true);
         const recovered = await h.sweep();
         expect(
-          recovered.data.reviewPerRepoPerPullNumber["service-1"]["1"],
+          recovered.data.reviewPerRepoPerPullNumber["synthetic-company/service-1"]["1"],
         ).toHaveLength(101);
         expect(
-          recovered.data.reviewPerRepoPerPullNumber["service-1"]["1"].every(
+          recovered.data.reviewPerRepoPerPullNumber["synthetic-company/service-1"]["1"].every(
             (r) => r.state === "APPROVED",
           ),
         ).toBe(true);
         github.reviewStates.set("synthetic-company/service-1/1", "DISMISSED");
         github.touch(repos[0], 1, "2026-09-01T12:00:02Z");
         expect(
-          (await h.sweep()).data.reviewPerRepoPerPullNumber["service-1"]["1"][0]
+          (await h.sweep()).data.reviewPerRepoPerPullNumber["synthetic-company/service-1"]["1"][0]
             .state,
         ).toBe("DISMISSED");
         repos[0].reviewsPerPull = 0;
         github.touch(repos[0], 1, "2026-09-01T12:00:03Z");
         expect(
-          (await h.sweep()).data.reviewPerRepoPerPullNumber["service-1"]["1"],
+          (await h.sweep()).data.reviewPerRepoPerPullNumber["synthetic-company/service-1"]["1"],
         ).toEqual([]);
       } finally {
         await h.close();
@@ -334,7 +334,7 @@ const reviewCalls = (samples: MockGithub["samples"]) =>
           await import("../../src/mainProcess/api/PullRequests/queries/reviewDelta");
         const old = changed.data.flatPullRequests[0];
         const review = {
-          ...changed.data.reviewPerRepoPerPullNumber["service-1"]["1"][0],
+          ...changed.data.reviewPerRepoPerPullNumber["synthetic-company/service-1"]["1"][0],
           state: "APPROVED",
           submitted_at: "2026-09-01T12:00:02Z",
         };
@@ -404,7 +404,7 @@ const reviewCalls = (samples: MockGithub["samples"]) =>
           const sweep = await h.sweep();
           expect(sweep.publications).toHaveLength(0);
           expect(
-            sweep.data.reviewPerRepoPerPullNumber["service-1"]["1"][0].state,
+            sweep.data.reviewPerRepoPerPullNumber["synthetic-company/service-1"]["1"][0].state,
           ).toBe("COMMENTED");
         } finally {
           await h.close();
@@ -487,11 +487,11 @@ const reviewCalls = (samples: MockGithub["samples"]) =>
             .map((s) => s.status),
         ).toEqual([304, 200]);
         expect(
-          more.data.reviewPerRepoPerPullNumber["service-1"]["1"],
+          more.data.reviewPerRepoPerPullNumber["synthetic-company/service-1"]["1"],
         ).toHaveLength(102);
         repos[0].reviewsPerPull = 0;
         const empty = await h.run("pages/deleted-reviews");
-        expect(empty.data.reviewPerRepoPerPullNumber["service-1"]["1"]).toEqual(
+        expect(empty.data.reviewPerRepoPerPullNumber["synthetic-company/service-1"]["1"]).toEqual(
           [],
         );
       } finally {
@@ -499,17 +499,20 @@ const reviewCalls = (samples: MockGithub["samples"]) =>
       }
     });
 
-    test("same-named repositories from different owners are excluded from the delta's legacy cache writes", async () => {
+    test("same-named repositories remain isolated through full refresh and review sweeps", async () => {
       const repos = createProfile("small");
       repos.push({ ...repos[0], id: 2, owner: "another-owner" });
       const github = new MockGithub(repos, 0);
       const h = await createHarness(github);
       try {
-        h.setCache(seededCache(repos));
+        const cold = await h.run("identity/cold");
+        expect(Object.keys(cold.data.pullRequestsPerRepo).sort()).toEqual(["another-owner/service-1", "synthetic-company/service-1"]);
+        expect(cold.data.flatPullRequests).toHaveLength(6);
+        github.approve(repos[0], 1); github.touch(repos[0], 1);
         const sweep = await h.sweep();
-        expect(sweep.metrics.skipped).toBe("no-hydrated-repositories");
-        expect(sweep.samples).toHaveLength(0);
-        expect(sweep.publications).toHaveLength(0);
+        expect(sweep.samples.filter(sample => sample.operation === "review-delta-list")).toHaveLength(2);
+        expect(sweep.data.reviewPerRepoPerPullNumber["synthetic-company/service-1"]["1"][0].state).toBe("APPROVED");
+        expect(sweep.data.reviewPerRepoPerPullNumber["another-owner/service-1"]["1"][0].state).toBe("COMMENTED");
       } finally {
         await h.close();
       }
@@ -573,7 +576,7 @@ const reviewCalls = (samples: MockGithub["samples"]) =>
             repos[0].reviewsPerPull = count;
             const result = await h.run(`boundary/${count}`);
             expect(
-              result.data.reviewPerRepoPerPullNumber["service-1"]["1"],
+              result.data.reviewPerRepoPerPullNumber["synthetic-company/service-1"]["1"],
             ).toHaveLength(count);
             const calls = result.samples.filter(
               (s) => s.operation === "pull-listReview-requests",

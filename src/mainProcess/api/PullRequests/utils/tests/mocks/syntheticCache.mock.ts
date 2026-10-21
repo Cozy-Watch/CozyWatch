@@ -46,6 +46,7 @@ type WorkflowRunContract = {
 };
 
 export const createEmptyCache = (): CacheData => ({
+  schemaVersion: 2,
   etagPerRepo: {},
   pullRequestsPerRepo: {},
   reviewPerRepoPerPullNumber: {},

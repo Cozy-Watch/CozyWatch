@@ -1,3 +1,4 @@
+import { repositoryKey } from "../../shared/repositoryKey";
 import type { CacheData } from "./PullRequests/utils/getDefaultData";
 import type { Repository } from "../safeStorage/safeStorage.types";
 import type { Octokit } from "@octokit/rest";
@@ -11,16 +12,16 @@ export function estimateFullRefreshReserve(
   let requests = 1;
   for (const repo of repositories) {
     const pulls = Object.values(
-      cache.pullRequestsPerRepo[repo.name] || {},
+      cache.pullRequestsPerRepo[repositoryKey(repo)] || {},
     ).flat();
     requests += Math.max(1, Math.ceil(pulls.length / 100)) + 11;
     for (const pr of pulls) {
       const reviews =
-        cache.reviewPerRepoPerPullNumber[repo.name]?.[pr.number]?.length || 0;
+        cache.reviewPerRepoPerPullNumber[repositoryKey(repo)]?.[pr.number]?.length || 0;
       requests += Math.max(1, Math.ceil(reviews / 100)) + 1;
     }
     // Comments are stored in page buckets, including their PR identity.
-    const comments = Object.values(cache.mentions[repo.name] || {}).flat();
+    const comments = Object.values(cache.mentions[repositoryKey(repo)] || {}).flat();
     requests += Math.ceil(comments.length / 100);
   }
   return Math.ceil(requests * 1.25) + 100;

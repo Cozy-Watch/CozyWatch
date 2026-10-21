@@ -6,6 +6,7 @@ import type { StoreDataMap } from "../../src/mainProcess/safeStorage/safeStorage
 import type { MockGithub } from "./mock-github";
 
 export const emptyCache = (): CacheData => ({
+  schemaVersion: 2,
   etagPerRepo: {}, pullRequestsPerRepo: {}, reviewPerRepoPerPullNumber: {}, actionsPerRepo: {},
   pullRequestAddedOrRemoved: { added: [], removed: [] },
   reviewUpdateList: { newReview: [], reviewChanged: [] }, CIStatusUpdatePerRepo: {},

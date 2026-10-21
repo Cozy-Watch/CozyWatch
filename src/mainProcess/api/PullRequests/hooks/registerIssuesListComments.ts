@@ -17,7 +17,7 @@ export const registerListIssuesComments = ({
       name: operationName,
       callback: (options, page) => {
         const urlParts = options.url.split("/");
-        const repoName = urlParts[5];
+        const repoName = `${urlParts[4]}/${urlParts[5]}`.toLowerCase();
         const pullNumber = urlParts[7];
 
         if (page) {
@@ -38,7 +38,7 @@ export const registerListIssuesComments = ({
         const etag = response.headers?.etag;
         const urlParts = options.url.split("/");
 
-        const repoName = urlParts[5];
+        const repoName = `${urlParts[4]}/${urlParts[5]}`.toLowerCase();
         const pullNumber = urlParts[7];
 
         if (page) {

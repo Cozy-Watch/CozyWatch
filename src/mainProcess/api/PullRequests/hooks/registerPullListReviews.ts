@@ -24,7 +24,7 @@ export const registerPullListReviews = ({
       callback: (options, page) => {
         const urlParts = options.url.split("/");
 
-        const repoName = urlParts[5];
+        const repoName = `${urlParts[4]}/${urlParts[5]}`.toLowerCase();
         const pullNumber = urlParts[7];
 
         if (
@@ -49,7 +49,7 @@ export const registerPullListReviews = ({
 
         if (page) {
           const urlParts = options.url.split("/");
-          const repoName = urlParts[5];
+          const repoName = `${urlParts[4]}/${urlParts[5]}`.toLowerCase();
           const pullNumber = urlParts[7];
 
           if (etag) {

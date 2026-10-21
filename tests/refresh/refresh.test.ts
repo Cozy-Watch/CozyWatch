@@ -74,7 +74,7 @@ describe("production refresh with mocked HTTP (characterization, not optimized b
       github.approve(github.repositories[0], 1);
       const changed = await harness.run("reported/approval");
       reports.push(changed.metrics);
-      expect(changed.data.reviewPerRepoPerPullNumber["service-1"]["1"][0].state).toBe("APPROVED");
+      expect(changed.data.reviewPerRepoPerPullNumber["synthetic-company/service-1"]["1"][0].state).toBe("APPROVED");
       expect(changed.metrics.approvalPublishedMs).not.toBeNull();
       expect(changed.metrics.registeredHooks).toBe(isBaseline ? 24 : 0);
       expect(changed.samples.filter((entry) => entry.operation === "pull-list-requests").every((entry) => entry.status === 304)).toBe(true);
@@ -113,11 +113,11 @@ describe("production refresh with mocked HTTP (characterization, not optimized b
         ...(!isBaseline ? { "/repos/synthetic-company/service-1/pulls/comments": 1 } : {}),
       });
       // Known defects, intentionally characterized rather than fixed in package 1.
-      expect(result.data.reviewPerRepoPerPullNumber["service-1"]["1"].map((review) => review.id))
+      expect(result.data.reviewPerRepoPerPullNumber["synthetic-company/service-1"]["1"].map((review) => review.id))
         .toEqual(isBaseline ? [101] : Array.from({ length: 101 }, (_, index) => index + 1));
-      expect(Object.values(result.data.mentions["service-1"]).flat()).toHaveLength(101);
-      expect(result.data.actionsPerRepo["service-1"][0].id).toBe(isBaseline ? 100200 : 100000);
-      expect(result.data.actionsPerRepo["service-1"].some((run) => run.id === 100000)).toBe(!isBaseline);
+      expect(Object.values(result.data.mentions["synthetic-company/service-1"]).flat()).toHaveLength(101);
+      expect(result.data.actionsPerRepo["synthetic-company/service-1"][0].id).toBe(isBaseline ? 100200 : 100000);
+      expect(result.data.actionsPerRepo["synthetic-company/service-1"].some((run) => run.id === 100000)).toBe(!isBaseline);
     } finally { await harness.close(); }
   });
 
@@ -150,7 +150,7 @@ describe("production refresh with mocked HTTP (characterization, not optimized b
         const attempts = result.samples.filter((entry) => entry.path === path);
         expect(attempts[1].startedMs - attempts[0].endedMs).toBeGreaterThanOrEqual(900);
       }
-      expect(result.data.reviewPerRepoPerPullNumber["service-1"]["1"]).toHaveLength(1);
+      expect(result.data.reviewPerRepoPerPullNumber["synthetic-company/service-1"]["1"]).toHaveLength(1);
       expect(result.metrics.maxConcurrency).toBeLessThanOrEqual(10);
     } finally { await harness.close(); }
   });
@@ -186,8 +186,8 @@ describe("production refresh with mocked HTTP (characterization, not optimized b
       reports.push(result.metrics);
       expect(result.data.flatPullRequests).toHaveLength(4);
       expect(result.samples.find((entry) => entry.path === path)?.status).toBe(500);
-      expect(result.data.mentions["service-1"]["1_1"]).toBeUndefined();
-      expect(Object.values(result.data.mentions["service-2"]).flat()).toHaveLength(2);
+      expect(result.data.mentions["synthetic-company/service-1"]["1_1"]).toBeUndefined();
+      expect(Object.values(result.data.mentions["synthetic-company/service-2"]).flat()).toHaveLength(2);
     } finally { await harness.close(); }
   });
 

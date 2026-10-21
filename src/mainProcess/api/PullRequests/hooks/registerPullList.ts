@@ -17,7 +17,7 @@ export const registerPullList = ({ octokit, operationName, cache }: Args) => {
       name: operationName,
       callback: (options, page) => {
         const urlParts = options.url.split("/");
-        const repoName = urlParts[5];
+        const repoName = `${urlParts[4]}/${urlParts[5]}`.toLowerCase();
 
         if (page && cache.etagPerRepo?.[repoName]?.list?.[page]) {
           options.headers["if-none-match"] =
@@ -34,7 +34,7 @@ export const registerPullList = ({ octokit, operationName, cache }: Args) => {
 
         if (page) {
           const urlParts = options.url.split("/");
-          const repoName = urlParts[5];
+          const repoName = `${urlParts[4]}/${urlParts[5]}`.toLowerCase();
 
           if (etag) {
             cache.etagPerRepo = {

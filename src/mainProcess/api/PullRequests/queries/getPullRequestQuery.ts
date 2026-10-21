@@ -1,3 +1,4 @@
+import { repositoryKey } from "../../../../shared/repositoryKey";
 import { estimateFullRefreshReserve } from "../../githubRequestBudget";
 import { app, ipcMain } from "electron";
 import Logger from "electron-log";
@@ -238,12 +239,12 @@ export const pullRequestQuery = async (isCurrent = () => true): Promise<PullRequ
   const repositoriesWithPullRequests = repositories.reduce<
     { owner: string; repoName: string; pullNumber: string }[]
   >((acc, repo) => {
-    const hasPRs = repositoriesWithPullRequestsList.includes(repo.name);
+    const hasPRs = repositoriesWithPullRequestsList.includes(repositoryKey(repo));
     if (!hasPRs) {
       return acc;
     }
 
-    const pullNumbersList = pullRequestNumberByRepoName[repo.name] || [];
+    const pullNumbersList = pullRequestNumberByRepoName[repositoryKey(repo)] || [];
     const requestParams = pullNumbersList.map((pullNumber) => ({
       owner: repo.owner,
       repoName: repo.name,
@@ -345,7 +346,7 @@ export const pullRequestQuery = async (isCurrent = () => true): Promise<PullRequ
     removed: PullRequestList;
   }>(
     (acc, repo) => {
-      const repositoryName = repo.name;
+      const repositoryName = repositoryKey(repo);
 
       const removedOrAddedPr = getAddedRemovedPRId({
         repositoryName,
@@ -406,7 +407,7 @@ export const pullRequestQuery = async (isCurrent = () => true): Promise<PullRequ
     hasReviewUpdateNotificationEnabled ? repositories : []
   ).reduce<{ newReview: ReviewData[]; reviewChanged: ReviewData[] }>(
     (acc, repo) => {
-      const repositoryName = repo.name;
+      const repositoryName = repositoryKey(repo);
 
       const { newReview, reviewChanged } = getReviewStatusUpdate({
         repositoryName,
@@ -434,7 +435,7 @@ export const pullRequestQuery = async (isCurrent = () => true): Promise<PullRequ
   const CIStatusUpdatePerRepo = (
     hasCIStatusNotificationEnabled ? repositories : []
   ).reduce((acc: Record<string, Record<string, CIStatus>>, repo) => {
-    const repositoryName = repo.name;
+    const repositoryName = repositoryKey(repo);
     const CIStatus = getCIStatusUpdate({
       repositoryName,
       initialCache,
@@ -445,7 +446,7 @@ export const pullRequestQuery = async (isCurrent = () => true): Promise<PullRequ
     if (Object.values(CIStatus).length !== 0) {
       return {
         ...acc,
-        [repo.name]: CIStatus,
+        [repositoryKey(repo)]: CIStatus,
       };
     }
 
@@ -470,7 +471,7 @@ export const pullRequestQuery = async (isCurrent = () => true): Promise<PullRequ
       const { addedMentions, removedMentions } = getMentions({
         finalCache: cache,
         initialCache,
-        repositoryName: repo.name,
+        repositoryName: repositoryKey(repo),
         username: user.login,
       });
 
@@ -587,7 +588,7 @@ export const pullRequestQuery = async (isCurrent = () => true): Promise<PullRequ
 
   const ciStatusNotification = repositories
     .map((repo) => {
-      const repositoryName = repo.name;
+      const repositoryName = repositoryKey(repo);
       const CIStatus = CIStatusUpdatePerRepo[repositoryName] ?? {};
 
       const runNames = Object.keys(CIStatus);

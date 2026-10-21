@@ -41,6 +41,7 @@ type PullNumber = string;
 type RunName = string;
 
 export interface CacheData {
+  schemaVersion?: 2;
   etagPerRepo: {
     [key: RepositoryName]: {
       list?: Record<Page, string>;
@@ -75,7 +76,8 @@ export interface CacheData {
   flatPullRequests: PullRequestList;
 }
 
-const defaultData = {
+const defaultData: CacheData = {
+  schemaVersion: 2,
   etagPerRepo: {},
   pullRequestsPerRepo: {},
   reviewPerRepoPerPullNumber: {},
@@ -117,7 +119,7 @@ export const getCachedData = async (): Promise<CacheData> => {
 
   const storageCache = await getData("pull_requests_cache");
 
-  if (storageCache) {
+  if (storageCache?.schemaVersion === 2) {
     Logger.log("[Repositories] using storageCache");
     return {
       ...defaultData,

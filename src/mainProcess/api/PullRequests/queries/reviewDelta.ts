@@ -1,3 +1,4 @@
+import { repositoryKey } from "../../../../shared/repositoryKey";
 import { estimateFullRefreshReserve } from "../../githubRequestBudget";
 export { estimateFullRefreshReserve } from "../../githubRequestBudget";
 import { app, ipcMain } from "electron";
@@ -119,19 +120,7 @@ export async function sweepReviewDelta(): Promise<ReviewSweepResult> {
       const repositories = Object.values(repositoryCache.repositoriesByPage)
         .flat()
         .filter((repo) => repositoryCache.activeRepositories[repo.id]);
-      // The legacy cache cannot distinguish same-named repositories. Never compound
-      // that defect by publishing review data into an ambiguous cache slot.
-      const allRepositories = Object.values(
-        repositoryCache.repositoriesByPage,
-      ).flat();
-      const eligible = repositories.filter(
-        (repo) =>
-          allRepositories.filter((other) => other.name === repo.name).length ===
-            1 &&
-          Object.values(cache.pullRequestsPerRepo[repo.name] || {})
-            .flat()
-            .every((pr) => pr.base.repo.id === repo.id),
-      );
+      const eligible = repositories.filter(repo => Object.values(cache.pullRequestsPerRepo[repositoryKey(repo)] || {}).flat().every(pr => pr.base.repo.id === repo.id));
       const activeIds = new Set(eligible.map((repo) => repo.id));
       for (const id of pages.keys()) if (!activeIds.has(id)) pages.delete(id);
       for (const [key, item] of pending)
@@ -199,7 +188,7 @@ export async function sweepReviewDelta(): Promise<ReviewSweepResult> {
           Math.max(
             1,
             pages.get(repo.id)?.size ||
-              Object.keys(cache.pullRequestsPerRepo[repo.name] || {}).length,
+              Object.keys(cache.pullRequestsPerRepo[repositoryKey(repo)] || {}).length,
           ),
         0,
       );
@@ -214,15 +203,15 @@ export async function sweepReviewDelta(): Promise<ReviewSweepResult> {
             const oldPages =
               pages.get(repo.id) ||
               new Map(
-                Object.entries(cache.pullRequestsPerRepo[repo.name] || {}).map(
+                Object.entries(cache.pullRequestsPerRepo[repositoryKey(repo)] || {}).map(
                   ([number, data]) => [
                     Number(number),
                     {
                       data,
-                      etag: cache.etagPerRepo[repo.name]?.list?.[number],
+                      etag: cache.etagPerRepo[repositoryKey(repo)]?.list?.[number],
                       next:
                         Number(number) <
-                        Object.keys(cache.pullRequestsPerRepo[repo.name] || {})
+                        Object.keys(cache.pullRequestsPerRepo[repositoryKey(repo)] || {})
                           .length,
                     },
                   ],
@@ -383,7 +372,7 @@ export async function sweepReviewDelta(): Promise<ReviewSweepResult> {
         pending.delete(keyOf(pull));
         metrics.refreshedPRs++;
         const previous =
-          latest.reviewPerRepoPerPullNumber[repo.name]?.[pull.number] || [];
+          latest.reviewPerRepoPerPullNumber[repositoryKey(repo)]?.[pull.number] || [];
         // Keep membership/title/SHA reconciliation owned by the full refresh.
         const updated = reconcileRequestedReviewers(
           {
@@ -400,18 +389,18 @@ export async function sweepReviewDelta(): Promise<ReviewSweepResult> {
             JSON.stringify(updated.requested_reviewers)
         )
           continue;
-        changedRepos.add(repo.name);
+        changedRepos.add(repositoryKey(repo));
         replacements.set(keyOf(pull), {
           ...old,
           requested_reviewers: updated.requested_reviewers,
         });
-        next.reviewPerRepoPerPullNumber[repo.name] = {
-          ...next.reviewPerRepoPerPullNumber[repo.name],
+        next.reviewPerRepoPerPullNumber[repositoryKey(repo)] = {
+          ...next.reviewPerRepoPerPullNumber[repositoryKey(repo)],
           [pull.number]: reviews,
         };
         // Full REST revalidation must not reuse validators for a different review body.
-        next.etagPerRepo[repo.name] = {
-          ...next.etagPerRepo[repo.name],
+        next.etagPerRepo[repositoryKey(repo)] = {
+          ...next.etagPerRepo[repositoryKey(repo)],
           reviews: {},
         };
       }

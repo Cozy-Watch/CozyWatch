@@ -92,8 +92,8 @@ export const pullsListReviewsQuery = async ({
     // Commit only complete responses, including empty arrays and all pages.
     cache.reviewPerRepoPerPullNumber = {
       ...cache.reviewPerRepoPerPullNumber,
-      [name]: {
-        ...cache.reviewPerRepoPerPullNumber[name],
+      [`${owner}/${name}`.toLowerCase()]: {
+        ...cache.reviewPerRepoPerPullNumber[`${owner}/${name}`.toLowerCase()],
         [pullNumber]: pages.flatMap((page) => page.data),
       },
     };

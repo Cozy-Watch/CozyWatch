@@ -98,9 +98,9 @@ const pulls = [
 }));
 const cache = {
   etagPerRepo: {},
-  pullRequestsPerRepo: { "cozy-studio": { "1": pulls } },
+  pullRequestsPerRepo: { "example/cozy-studio": { "1": pulls } },
   reviewPerRepoPerPullNumber: {
-    "cozy-studio": Object.fromEntries(
+    "example/cozy-studio": Object.fromEntries(
       pulls.map((pr, i) => [
         pr.number,
         (i === 1 || i === 4)
@@ -119,7 +119,7 @@ const cache = {
     ),
   },
   actionsPerRepo: {
-    "cozy-studio": pulls.map((pr, i) => ({
+    "example/cozy-studio": pulls.map((pr, i) => ({
       id: i + 1,
       name: "Build & test",
       head_sha: pr.head.sha,
@@ -135,7 +135,7 @@ const cache = {
   reviewUpdateList: { newReview: [], reviewChanged: [] },
   CIStatusUpdatePerRepo: {},
   mentions: {
-    "cozy-studio": { "1": [
+    "example/cozy-studio": { "1": [
       { id: 501, pullNumber: 132, body: "@alex-river could you check the session expiry edge case before we merge?", user: reviewer,
         issue_url: "https://api.github.com/repos/example/cozy-studio/issues/132",
         html_url: "https://github.com/example/cozy-studio/pull/132#issuecomment-501",
