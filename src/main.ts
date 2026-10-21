@@ -816,6 +816,9 @@ ipcMain.on("dispatch-repository-update", (_, data) => {
   if (mainWindow && !mainWindow.isDestroyed()) {
     mainWindow.webContents.send("repository-update", data);
   }
+  if (menubar?.window && !menubar.window.isDestroyed()) {
+    menubar.window.webContents.send("repository-update", data);
+  }
 });
 
 // ---- Pull Requests ----
