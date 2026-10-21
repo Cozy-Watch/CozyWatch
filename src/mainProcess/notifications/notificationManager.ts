@@ -23,7 +23,7 @@ export const formatNotificationSource = (source?: NotificationRecord["source"]) 
     .filter(Boolean)
     .join(" · ");
 
-const recentNotifications = new Set<string>();
+const recentNotifications = new Map<string, number>();
 const notificationQueue: ManagedNotification[] = [];
 let isProcessingQueue = false;
 let notificationSequence = 0;
@@ -37,9 +37,10 @@ let activeNotifications: Notification[] = [];
 let historyMutation: Promise<void> = Promise.resolve();
 
 function getNotificationHash(notification: ManagedNotification): string {
-  const title = (notification.title || "").trim().toLowerCase();
-  const body = (notification.body || "").trim().toLowerCase();
-  return `${title}::${body}`;
+  return JSON.stringify([
+    notification.type, notification.source?.repository, notification.source?.pullNumber,
+    notification.source?.branch, notification.url, notification.title, notification.body,
+  ]);
 }
 
 const emitHistoryUpdate = (history: NotificationRecord[]) => {
@@ -108,8 +109,12 @@ const persistNotification = async (notification: ManagedNotification, isCurrent:
 export const batchNotificationManager = (notifications: ManagedNotification[]) => {
   notifications.forEach((notification) => {
     const hash = getNotificationHash(notification);
+    const now = Date.now();
+    for (const [key, acceptedAt] of recentNotifications) {
+      if (now - acceptedAt >= DEDUPLICATION_WINDOW) recentNotifications.delete(key);
+    }
     if (!recentNotifications.has(hash)) {
-      recentNotifications.add(hash);
+      recentNotifications.set(hash, now);
       notificationQueue.push(notification);
     }
   });
@@ -119,7 +124,6 @@ export const batchNotificationManager = (notifications: ManagedNotification[]) =
   }
 };
 
-setInterval(() => recentNotifications.clear(), DEDUPLICATION_WINDOW);
 
 function clearNotification(notification: Notification) {
   activeNotifications = activeNotifications.filter((item) => item !== notification);

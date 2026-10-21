@@ -71,3 +71,13 @@ it("cancels queued and active private alerts on sign-out", async () => {
   await jest.advanceTimersByTimeAsync(10000);
   expect(history.map(n => n.body)).toEqual(["new session"]);
 });
+
+it("deduplicates only the same source and copy within a rolling window", async () => {
+  batchNotificationManager([alert("identical", 1), alert("identical", 2), alert("identical", 1)]);
+  await jest.advanceTimersByTimeAsync(10000);
+  expect(show).toHaveBeenCalledTimes(2);
+  await jest.advanceTimersByTimeAsync(50001);
+  batchNotificationManager([alert("identical", 1)]);
+  await jest.advanceTimersByTimeAsync(10000);
+  expect(show).toHaveBeenCalledTimes(3);
+});
