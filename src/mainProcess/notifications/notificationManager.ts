@@ -54,7 +54,9 @@ const updateHistory = async (
     .catch(() => undefined)
     .then(async () => {
       const history = update(await readHistory());
-      await storeData({ name: "notification_history", data: history });
+      if (!(await storeData({ name: "notification_history", data: history }))) {
+        throw new Error("Could not save notification history. Please try again.");
+      }
       emitHistoryUpdate(history);
     });
   await historyMutation;
@@ -140,7 +142,7 @@ async function processQueue() {
     activeNotifications.push(electronNotification);
 
     electronNotification.on("click", () => {
-      void markNotificationRead(record.id);
+      void markNotificationRead(record.id).catch(() => Logger.warn("[Notifications] Could not mark alert read"));
       ipcMain.emit("dispatch-notification-click", null, record.id);
       clearNotification(electronNotification);
     });

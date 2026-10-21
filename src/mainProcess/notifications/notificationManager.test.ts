@@ -18,7 +18,9 @@ jest.mock("../safeStorage/safeStorage", () => ({
 }));
 jest.mock("../licensing/licenseState", () => ({ getLicenseState: async () => ({ status: "licensed" }) }));
 jest.useFakeTimers();
-import { batchNotificationManager, clearNotificationsOnSignOut } from "./notificationManager";
+import { storeData } from "../safeStorage/safeStorage";
+import { ipcMain } from "electron";
+import { batchNotificationManager, clearNotificationsOnSignOut, markAllNotificationsRead } from "./notificationManager";
 const alert = (body: string, pullNumber = 1) => ({ title: "Review", body, type: "review" as const, source: { repository: "org/repo", pullNumber } });
 beforeEach(async () => {
   jest.useFakeTimers(); await clearNotificationsOnSignOut(); history = []; created.length = 0; show.mockReset(); supported.mockReturnValue(true);
@@ -47,4 +49,12 @@ it("retains history when native notifications are unsupported", async () => {
   await jest.advanceTimersByTimeAsync(10000);
   expect(history).toHaveLength(1);
   expect(show).not.toHaveBeenCalled();
+});
+
+it("does not publish a successful history update when storage fails", async () => {
+  const updates = jest.fn(); ipcMain.on("dispatch-notification-update", updates);
+  jest.mocked(storeData).mockResolvedValueOnce(false);
+  await expect(markAllNotificationsRead()).rejects.toThrow("Could not save notification history");
+  expect(updates).not.toHaveBeenCalled();
+  ipcMain.removeListener("dispatch-notification-update", updates);
 });
