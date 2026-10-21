@@ -11,7 +11,6 @@ import { getGithubClient } from "../../githubClient";
 import { getUser } from "../../User/getUser";
 import { registerListIssuesComments } from "../hooks/registerIssuesListComments";
 import { registerPullActions } from "../hooks/registerPullActions";
-import { registerPullList } from "../hooks/registerPullList";
 import { getAddedRemovedPRId } from "../utils/getAddedRemovedPRId";
 import { getCIStatusUpdate } from "../utils/getCIStatusUpdate";
 import { dedupePullRequests } from "../utils/dedupePullRequests";
@@ -139,12 +138,6 @@ export const pullRequestQuery = async (isCurrent = () => true): Promise<PullRequ
 
   assertCurrent();
   const removeHooks = [
-    registerPullList({
-    cache,
-    octokit,
-    operationName: pullListOperationName,
-  }),
-
     registerPullActions({
     cache,
     octokit,
@@ -166,6 +159,7 @@ export const pullRequestQuery = async (isCurrent = () => true): Promise<PullRequ
         pullListLimit(async () => {
           return await pullsListQuery({
             name: repo.name,
+            cache,
             octokit,
             operationName: pullListOperationName,
             owner: repo.owner,
