@@ -1,7 +1,7 @@
 import { defineConfig } from "vite";
+import { cp, mkdir } from "node:fs/promises";
 
 export default defineConfig(async () => {
-  const { viteStaticCopy } = await import("vite-plugin-static-copy");
   const isOfficialBuild = process.env.COZYWATCH_OFFICIAL_BUILD === "true";
   const isDiagnosticsBuild =
     process.env.COZYWATCH_DIAGNOSTICS_BUILD === "true";
@@ -17,15 +17,13 @@ export default defineConfig(async () => {
       outDir: ".vite/build", // Specify your output directory
     },
     plugins: [
-      viteStaticCopy({
-        targets: [
-          {
-            src: "public/images",
-            dest: "",
-            rename: { stripBase: 1 },
-          },
-        ],
-      }),
+      {
+        name: "copy-existing-app-images",
+        async writeBundle() {
+          await mkdir(".vite/build", { recursive: true });
+          await cp("public/images", ".vite/build/images", { recursive: true });
+        },
+      },
     ],
   };
 });

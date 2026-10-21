@@ -4,13 +4,13 @@
   "version": "0.9.8",
   "packageManager": "npm@10.9.8",
   "description": "Github notification",
-  "main": ".vite/build/main.js",
+  "main": ".vite/build/main.cjs",
   "author": {
-    "name": "Tiago Sá",
+    "name": "Tiago S\u00e1",
     "email": "tiago@cozywatch.com"
   },
   "engines": {
-    "node": ">=22.12 <23"
+    "node": ">=22.13 <23"
   },
   "scripts": {
     "start": "electron-forge start",
@@ -29,15 +29,14 @@
     "url": "https://github.com/Cozy-Watch/CozyWatch"
   },
   "devDependencies": {
-    "@electron-forge/cli": "^7.11.2",
-    "@electron-forge/maker-deb": "^7.11.2",
-    "@electron-forge/maker-dmg": "^7.11.2",
-    "@electron-forge/maker-rpm": "^7.11.2",
-    "@electron-forge/maker-squirrel": "^7.11.2",
-    "@electron-forge/maker-zip": "^7.11.2",
-    "@electron-forge/plugin-auto-unpack-natives": "^7.11.2",
-    "@electron-forge/plugin-vite": "^7.11.2",
-    "@electron-forge/publisher-github": "^7.11.2",
+    "@electron-forge/cli": "^8.0.1",
+    "@electron-forge/maker-deb": "^8.0.1",
+    "@electron-forge/maker-rpm": "^8.0.1",
+    "@electron-forge/maker-squirrel": "^8.0.1",
+    "@electron-forge/maker-zip": "^8.0.1",
+    "@electron-forge/plugin-auto-unpack-natives": "^8.0.1",
+    "@electron-forge/plugin-vite": "^8.0.1",
+    "@electron-forge/publisher-github": "^8.0.1",
     "@electron/fuses": "^2.1.3",
     "@eslint/js": "^9.39.5",
     "@tanstack/router-plugin": "^1.168.18",
@@ -58,13 +57,16 @@
     "ts-jest": "^29.4.11",
     "ts-node": "^10.9.2",
     "typescript": "^6.0.3",
-    "vite": "^8.0.16",
-    "vite-plugin-static-copy": "^4.1.1"
+    "vite": "^8.3.5",
+    "@electron-forge/maker-base": "^8.0.1"
   },
   "keywords": [],
   "license": "MIT",
   "overrides": {
-    "@octokit/core": "^7.0.6"
+    "@octokit/core": "^7.0.6",
+    "@istanbuljs/load-nyc-config": {
+      "js-yaml": "^4.1.1"
+    }
   },
   "dependencies": {
     "@lemonsqueezy/lemonsqueezy.js": "^4.0.0",
@@ -92,5 +94,8 @@
     "react-dom": "^19.2.7",
     "update-electron-app": "^3.2.0",
     "zustand": "^5.0.14"
+  },
+  "optionalDependencies": {
+    "ds-store": "^0.1.6"
   }
 }

@@ -22,7 +22,7 @@ Cozy Watch uses GitHub's APIs and is not affiliated with or endorsed by GitHub, 
 
 ### Requirements
 
-- Node.js 22.12 or newer (but earlier than Node.js 23)
+- Node.js 22.13 or newer (but earlier than Node.js 23)
 - npm
 - A GitHub account for exercising authenticated flows
 

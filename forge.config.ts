@@ -3,9 +3,9 @@ import { MakerSquirrel } from "@electron-forge/maker-squirrel";
 import { MakerZIP } from "@electron-forge/maker-zip";
 import { MakerDeb } from "@electron-forge/maker-deb";
 import { MakerRpm } from "@electron-forge/maker-rpm";
-import { MakerDMG } from "@electron-forge/maker-dmg";
+import { CozyDmgMaker } from "./scripts/maker-dmg";
 import { VitePlugin } from "@electron-forge/plugin-vite";
-import { PublisherGithub } from "@electron-forge/publisher-github";
+import { PublisherGitHub } from "@electron-forge/publisher-github";
 import dotenv from "dotenv";
 import path from "node:path";
 
@@ -123,33 +123,14 @@ const config: ForgeConfig = {
   },
   // rebuildConfig: {},
   makers: [
-    new MakerDMG({
-      background: "./assets/dmg-background.png",
-      icon: "./assets/dmg-icon.png",
-      iconSize: 100,
-      title: "Install Cozy Watch",
-      overwrite: true,
-      contents: (options) => [
-        { x: 190, y: 265, type: "file", path: path.resolve(options.appPath), name: "Cozy Watch.app" },
-        { x: 530, y: 265, type: "link", path: "/Applications" },
-      ],
-      additionalDMGOptions: {
-        window: {
-          size: {
-            width: 720,
-            height: 480,
-          },
-        },
-      },
-      format: "UDZO",
-    }),
+    new CozyDmgMaker({}),
     new MakerZIP({}, ["darwin"]),
     new MakerSquirrel({}),
     new MakerRpm({}),
     new MakerDeb({}),
   ],
   publishers: [
-    new PublisherGithub({
+    new PublisherGitHub({
       repository: {
         owner: "Cozy-Watch",
         name: "CozyWatch",
