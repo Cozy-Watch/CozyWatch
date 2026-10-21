@@ -9,7 +9,6 @@ import type { ManagedNotification } from "../../../notifications/notificationMan
 import { storeData } from "../../../safeStorage/safeStorage";
 import { getGithubClient } from "../../githubClient";
 import { getUser } from "../../User/getUser";
-import { registerListIssuesComments } from "../hooks/registerIssuesListComments";
 import { registerPullActions } from "../hooks/registerPullActions";
 import { getAddedRemovedPRId } from "../utils/getAddedRemovedPRId";
 import { getCIStatusUpdate } from "../utils/getCIStatusUpdate";
@@ -144,12 +143,6 @@ export const pullRequestQuery = async (isCurrent = () => true): Promise<PullRequ
     operationName: pullActionsOperationName,
   }),
 
-    registerListIssuesComments({
-    cache,
-    octokit,
-    operationName: issuesListComments,
-  }),
-
   ];
   try {
 
@@ -259,6 +252,7 @@ export const pullRequestQuery = async (isCurrent = () => true): Promise<PullRequ
               name: repoName,
               octokit,
               operationName: issuesListComments,
+              cache,
               pullNumber: `${pullNumber}`,
               owner,
             }),

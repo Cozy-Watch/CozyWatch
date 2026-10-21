@@ -4,13 +4,13 @@ import { PullsList as ResponsePullList } from "../hooks/registerPullList";
 import { PullsListReview as ResponsePullsListReview } from "../hooks/registerPullListReviews";
 import { PullsActions as ResponsePullsActions } from "../hooks/registerPullActions";
 import { Endpoints } from "@octokit/types";
+import type { Octokit } from "@octokit/rest";
 
 export type PullRequestList = ResponsePullList["data"];
 export type PullListReview = ResponsePullsListReview["data"];
 export type PullsActions = ResponsePullsActions["data"]["workflow_runs"];
 
-export type ListComments =
-  Endpoints["GET /repos/{owner}/{repo}/issues/{issue_number}/comments"]["response"];
+export type ListComments = Awaited<ReturnType<Octokit["rest"]["issues"]["listComments"]>>;
 
 export type ExtendedComment = ListComments["data"][0] & { pullNumber: string };
 export type ListCommentsData = ExtendedComment[];
