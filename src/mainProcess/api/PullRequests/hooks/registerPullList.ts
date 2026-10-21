@@ -13,9 +13,7 @@ interface Args {
 }
 
 export const registerPullList = ({ octokit, operationName, cache }: Args) => {
-  octokit.hook.before(
-    "request",
-    before({
+  const beforeHook = before({
       name: operationName,
       callback: (options, page) => {
         const urlParts = options.url.split("/");
@@ -26,12 +24,10 @@ export const registerPullList = ({ octokit, operationName, cache }: Args) => {
             cache.etagPerRepo?.[repoName]?.list?.[page];
         }
       },
-    }),
-  );
+    });
+  octokit.hook.before("request", beforeHook);
 
-  octokit.hook.after(
-    "request",
-    after<PullsList["data"]>({
+  const afterHook = after<PullsList["data"]>({
       name: operationName,
       callback: (response, options, page) => {
         const etag = response.headers?.etag;
@@ -62,6 +58,10 @@ export const registerPullList = ({ octokit, operationName, cache }: Args) => {
           };
         }
       },
-    }),
-  );
+    });
+  octokit.hook.after("request", afterHook);
+  return () => {
+    octokit.hook.remove("request", beforeHook);
+    octokit.hook.remove("request", afterHook);
+  };
 };

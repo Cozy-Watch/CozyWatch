@@ -22,10 +22,9 @@ export const repositoriesQuery = async (): Promise<RepositoriesCache> => {
 
   const operationValue = "repositoriesRequest";
 
+  const removeHooks: Array<() => void> = [];
   try {
-    octokit.hook.before(
-      "request",
-      before({
+    const beforeHook = before({
         name: operationValue,
         callback: (options, page) => {
           if (page && etagPerPage[page]) {
@@ -33,12 +32,11 @@ export const repositoriesQuery = async (): Promise<RepositoriesCache> => {
             options.headers["if-none-match"] = etagPerPage[page];
           }
         },
-      }),
-    );
+      });
+    octokit.hook.before("request", beforeHook);
+    removeHooks.push(() => octokit.hook.remove("request", beforeHook));
 
-    octokit.hook.after(
-      "request",
-      after<UserReposResponse>({
+    const afterHook = after<UserReposResponse>({
         name: operationValue,
         callback: (response, _, page) => {
           Logger.log(`[Repository Query]-[Hook]-[After] New Data`);
@@ -68,8 +66,9 @@ export const repositoriesQuery = async (): Promise<RepositoriesCache> => {
             }
           }
         },
-      }),
-    );
+      });
+    octokit.hook.after("request", afterHook);
+    removeHooks.push(() => octokit.hook.remove("request", afterHook));
 
     await octokit.paginate(octokit.repos.listForAuthenticatedUser, {
       per_page: 100,
@@ -102,6 +101,8 @@ export const repositoriesQuery = async (): Promise<RepositoriesCache> => {
       Logger.log(`[RepositoryQuery] ${(err as Error).message}`);
       throw err;
     }
+  } finally {
+    removeHooks.forEach(remove => remove());
   }
 
   const allRepos: Repository[] = Object.values(repositoriesByPage).flat();

@@ -135,23 +135,27 @@ export const pullRequestQuery = async (isCurrent = () => true): Promise<PullRequ
   }
 
   assertCurrent();
-  registerPullList({
+  const removeHooks = [
+    registerPullList({
     cache,
     octokit,
     operationName: pullListOperationName,
-  });
+  }),
 
-  registerPullActions({
+    registerPullActions({
     cache,
     octokit,
     operationName: pullActionsOperationName,
-  });
+  }),
 
-  registerListIssuesComments({
+    registerListIssuesComments({
     cache,
     octokit,
     operationName: issuesListComments,
-  });
+  }),
+
+  ];
+  try {
 
   try {
     await settleRefreshWork(
@@ -203,7 +207,7 @@ export const pullRequestQuery = async (isCurrent = () => true): Promise<PullRequ
     Object.values(cache.pullRequestsPerRepo).flatMap((page) =>
       Object.values(page).flat(),
     ),
-  ).filter(pr => activeRepositories[pr.base.repo.id]).map((pr) => ({
+  ).filter(pr => activeRepositories?.[pr.base.repo.id]).map((pr) => ({
     pullNumber: pr.number,
     owner: pr.base.repo.owner.login,
     repoName: pr.base.repo.name,
@@ -711,4 +715,7 @@ export const pullRequestQuery = async (isCurrent = () => true): Promise<PullRequ
   const duration = endTime - startTime; // Calculate the duration
   Logger.info(`[PullRequests] Total Execution Time: ${duration}ms`);
   return { ...data, repositories };
+  } finally {
+    removeHooks.forEach(remove => remove());
+  }
 };

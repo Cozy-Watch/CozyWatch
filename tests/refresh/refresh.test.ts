@@ -69,14 +69,14 @@ describe("production refresh with mocked HTTP (characterization, not optimized b
       } else {
         expect(warm.metrics.notModified).toBe(428);
       }
-      expect(warm.metrics.registeredHooks).toBe(isBaseline ? 16 : 12);
+      expect(warm.metrics.registeredHooks).toBe(isBaseline ? 16 : 0);
 
       github.approve(github.repositories[0], 1);
       const changed = await harness.run("reported/approval");
       reports.push(changed.metrics);
       expect(changed.data.reviewPerRepoPerPullNumber["service-1"]["1"][0].state).toBe("APPROVED");
       expect(changed.metrics.approvalPublishedMs).not.toBeNull();
-      expect(changed.metrics.registeredHooks).toBe(isBaseline ? 24 : 18);
+      expect(changed.metrics.registeredHooks).toBe(isBaseline ? 24 : 0);
       expect(changed.samples.filter((entry) => entry.operation === "pull-list-requests").every((entry) => entry.status === 304)).toBe(true);
     } finally { await harness.close(); }
   });

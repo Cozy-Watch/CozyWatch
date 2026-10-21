@@ -17,9 +17,7 @@ export const registerPullActions = ({
   operationName,
   cache,
 }: Args) => {
-  octokit.hook.before(
-    "request",
-    before({
+  const beforeHook = before({
       name: operationName,
       callback: (options, page) => {
         const urlParts = options.url.split("/");
@@ -31,12 +29,10 @@ export const registerPullActions = ({
             cache.etagPerRepo?.[repoName]?.actions?.[page];
         }
       },
-    }),
-  );
+    });
+  octokit.hook.before("request", beforeHook);
 
-  octokit.hook.after(
-    "request",
-    after<PullsActions["data"]>({
+  const afterHook = after<PullsActions["data"]>({
       name: operationName,
       callback: (response, options, page) => {
         const etag = response.headers?.etag;
@@ -69,6 +65,10 @@ export const registerPullActions = ({
           }
         }
       },
-    }),
-  );
+    });
+  octokit.hook.after("request", afterHook);
+  return () => {
+    octokit.hook.remove("request", beforeHook);
+    octokit.hook.remove("request", afterHook);
+  };
 };
