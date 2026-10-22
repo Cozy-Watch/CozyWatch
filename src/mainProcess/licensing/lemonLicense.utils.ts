@@ -101,9 +101,10 @@ export const createLicenseStateFromLemon = ({
       ...baseState,
       status: "licensed",
       entitlement: isLifetime ? "lifetime" : "legacy",
-      legacyMigrationPending:
-        previousState.legacyMigrationPending === true ||
-        (isLegacy && previousState.legacyMigrationPending !== false),
+      legacyMigrationPending: isLifetime
+        ? false
+        : previousState.legacyMigrationPending === true ||
+          (isLegacy && previousState.legacyMigrationPending !== false),
       licenseExpiresAt: undefined,
     },
     now,

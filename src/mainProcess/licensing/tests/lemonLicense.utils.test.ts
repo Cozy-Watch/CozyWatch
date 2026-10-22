@@ -111,6 +111,29 @@ describe("Lemon Squeezy license mapping", () => {
     expect(state.status).toBe("licensed");
   });
 
+  it("does not show the legacy migration notice for a lifetime key on the reused product", () => {
+    const state = createLicenseStateFromLemon({
+      data: createResponse({ expires_at: null }),
+      config: {
+        storeId: 100,
+        productIds: [583215],
+        lifetimeProductIds: [583215],
+      },
+      previousState: {
+        schemaVersion: LICENSE_STATE_SCHEMA_VERSION,
+        status: "licensed",
+        entitlement: "legacy",
+        legacyMigrationPending: true,
+      },
+    });
+
+    expect(state).toMatchObject({
+      status: "licensed",
+      entitlement: "lifetime",
+      legacyMigrationPending: false,
+    });
+  });
+
   it("keeps legacy access protected while migration is pending", () => {
     const state = createLicenseStateFromLemon({
       data: createResponse({ expires_at: "2027-08-01T00:00:00.000Z" }),
