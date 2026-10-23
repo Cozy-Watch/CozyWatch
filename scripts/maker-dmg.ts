@@ -27,6 +27,7 @@ export class CozyDmgMaker extends Maker<Record<string, never>> {
       await mkdir(path.join(mount, ".background"));
       await cp(path.resolve("assets/dmg-background@2x.png"), path.join(mount, ".background/background.png"));
       // Optional macOS-only build dependency, never imported on other platforms.
+      // Linux/Windows omit this optional native module; macOS packaging must resolve it.
       const { default: DSStore } = await import("ds-store");
       const store = new DSStore();
       store.vSrn(1); store.setIconSize(100); store.setWindowSize(720, 480);
