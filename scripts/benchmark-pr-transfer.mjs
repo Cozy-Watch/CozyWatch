@@ -1,9 +1,9 @@
 // Controlled transfer-cost benchmark; no GitHub access or user profile required.
-const fs = require('node:fs');
-const ts = require('typescript');
-const { performance } = require('node:perf_hooks');
-const { serialize } = require('node:v8');
-const assert = require('node:assert/strict');
+import fs from 'node:fs';
+import ts from 'typescript';
+import { performance } from 'node:perf_hooks';
+import { serialize } from 'node:v8';
+import assert from 'node:assert/strict';
 const source = fs.readFileSync('src/mainProcess/api/PullRequests/utils/rendererSnapshot.ts', 'utf8');
 const compiled = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS } }).outputText;
 const exportsObject = {};
