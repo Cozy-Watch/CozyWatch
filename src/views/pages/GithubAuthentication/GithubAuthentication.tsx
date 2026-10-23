@@ -210,8 +210,9 @@ export const GithubAuthentication = () => {
                 onClick={async () => {
                   try {
                     await mutateAsync(patValue);
-                  } catch (e) {
-                    Logger.error("Error storing PAT:", e);
+                    setPatValue("");
+                  } catch {
+                    Logger.error("PAT connection failed");
                   }
                 }}
               >

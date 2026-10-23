@@ -1,6 +1,7 @@
 import { createOAuthDeviceAuth } from "@octokit/auth-oauth-device";
 import { ipcMain } from "electron";
 import Logger from "electron-log";
+import { redactDiagnosticValue } from "../../security/redactDiagnosticValue";
 import { CLIENT_ID, GITHUB_APP_CLIENT_ID } from "../../keys";
 import { getData } from "../../safeStorage/safeStorage";
 import { Octokit } from "@octokit/rest";
@@ -69,8 +70,8 @@ const performOAuthAuthentication = async (isCurrent: () => boolean): Promise<boo
     ipcMain.emit("dispatch-application-sign-user", null, true);
 
     return true;
-  } catch (err) {
-    Logger.error("Error during authentication:", err);
+  } catch {
+    Logger.error("GitHub authentication failed; credentials were not logged.");
     return false; // Authentication failed
   } finally {
     if (isCurrent()) clearAuthenticationCodeNotification();
@@ -100,14 +101,18 @@ const performPATAuthentication = async (pat: string, isCurrent: () => boolean) =
         ? (error as { status?: number; message?: string })
         : {};
 
+    const safeMessage = redactDiagnosticValue(
+      pat ? (errorDetails.message || "").replaceAll(pat, "[redacted]") : errorDetails.message || "",
+    );
+
     if (errorDetails.status === 401) {
       return {
         valid: false,
-        reason: errorDetails.message || "unauthorized",
+        reason: safeMessage || "unauthorized",
       };
     }
 
-    return { valid: false, reason: errorDetails.message || "other-error" };
+    return { valid: false, reason: safeMessage || "other-error" };
   }
 };
 
@@ -141,8 +146,8 @@ const performGitHubAppAuthentication = async (isCurrent: () => boolean): Promise
     ipcMain.emit("dispatch-application-sign-user", null, true);
 
     return true;
-  } catch (err) {
-    Logger.error("Error during GitHub App authentication:", err);
+  } catch {
+    Logger.error("GitHub App authentication failed; credentials were not logged.");
     return false;
   } finally {
     if (isCurrent()) clearAuthenticationCodeNotification();

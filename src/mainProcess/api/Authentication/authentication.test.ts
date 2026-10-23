@@ -39,3 +39,18 @@ it("blocks overlapping connection methods and ignores a cancelled device respons
   expect(await pending).toBe(false);
   expect(completeGitHubConnection).not.toHaveBeenCalled();
 });
+
+it.each([authenticateWithGitHub, authenticateWithGitHubApp])("does not log credential-bearing authentication errors", async authenticate => {
+  const Logger = (await import("electron-log")).default;
+  const error = Object.assign(new Error("Authorization: Bearer synthetic-secret"), { request: { headers: { authorization: "token synthetic-secret" } } });
+  jest.mocked(createOAuthDeviceAuth).mockReturnValueOnce(jest.fn(async () => { throw error; }) as never);
+  expect(await authenticate()).toBe(false);
+  expect(JSON.stringify(jest.mocked(Logger.error).mock.calls)).not.toContain("synthetic-secret");
+});
+
+it("removes the supplied PAT from errors before returning them to the renderer", async () => {
+  jest.mocked(completeGitHubConnection).mockRejectedValueOnce(new Error("Could not save arbitrary-legacy-token-value"));
+  const result = await authenticateWithPAT("arbitrary-legacy-token-value");
+  expect(result.valid).toBe(false);
+  expect(result.reason).not.toContain("arbitrary-legacy-token-value");
+});

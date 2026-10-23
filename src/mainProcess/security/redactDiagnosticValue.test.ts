@@ -21,3 +21,7 @@ describe("diagnostic value redaction", () => {
     expect(redactDiagnosticValue(value)).toContain("[redacted]");
   });
 });
+
+it.each(["ghp_syntheticToken123", "github_pat_syntheticToken123", "Bearer syntheticToken123", 'authorization: Bearer syntheticToken123'])('removes raw credentials from diagnostics: %s', value => {
+  expect(redactDiagnosticValue(value)).not.toContain("syntheticToken123");
+});
