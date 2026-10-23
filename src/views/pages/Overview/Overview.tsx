@@ -1,8 +1,10 @@
+import { PagedList } from "../../components/PagedList/PagedList";
 import { CalendarIcon, RocketIcon } from "@primer/octicons-react";
 import { Box, Flex, Text } from "@radix-ui/themes";
 import { PullRequestCard } from "../..//components/PullRequestsCard/PullRequestsCard";
 import { PullRequestLoading } from "../../components/PullRequestsCard/PullRequestsCard.loading";
 import { Stats } from "./components/Stats/Stats";
+import { TodayActivity } from "./components/TodayActivity/TodayActivity";
 import { WeeklyRecap } from "./components/WeeklyRecap/WeeklyRecap";
 import { useOverView } from "./useOverview";
 
@@ -37,6 +39,7 @@ export const Overview = () => {
         <Stats />
       </Flex>
 
+      <TodayActivity />
       <WeeklyRecap />
       <OverviewContent />
     </Flex>
@@ -51,7 +54,7 @@ const OverviewContent = () => {
       <Flex direction="column" gap="6" pt="4" pb="4">
         <Flex style={{ color: "var(--accent-12)" }} align="center" gap="3">
           <CalendarIcon size={16} />
-          <Text weight="bold">Today</Text>
+          <Text weight="bold">This week</Text>
         </Flex>
 
         {[1, 2, 3, 4].map((i) => (
@@ -73,11 +76,11 @@ const OverviewContent = () => {
     <Flex direction="column" gap="6" pt="4" pb="4">
       <Flex style={{ color: "var(--accent-12)" }} align="center" gap="3">
         <CalendarIcon size={16} />
-        <Text weight="bold">Today ({data.length})</Text>
+        <Text weight="bold">This week ({data.length} pull requests)</Text>
       </Flex>
 
       <Flex direction="column" gap="6">
-        {data.map(
+        <PagedList items={data} getKey={item => item.pr.id} renderItem={
           ({
             pr,
             reviewsAndWaitingReviews,
@@ -112,8 +115,8 @@ const OverviewContent = () => {
                 />
               </Box>
             );
-          },
-        )}
+          }
+        } />
       </Flex>
     </Flex>
   );

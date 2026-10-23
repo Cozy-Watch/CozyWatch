@@ -14,7 +14,7 @@ export const Stats = () => {
       <Grid
         columns="3"
         style={{ color: "var(--accent-12)" }}
-        align="center"
+        align="stretch"
         gap="2"
         width="100%"
       >
@@ -34,38 +34,42 @@ export const Stats = () => {
 
   const { waitingMyReview, waitingReview, fullyApproved, myPullRequests } =
     data;
+  const nothingToReview = waitingMyReview.length === 0;
+  const nothingAwaitingReview = waitingReview.length === 0;
 
   return (
     <>
       <Grid
         columns="3"
         style={{ color: "var(--accent-12)" }}
-        align="center"
+        align="stretch"
         gap="2"
         width="100%"
       >
         <Button
           variant="ghost"
           style={{
-            height: "auto",
+            height: "100%",
             padding: 0,
             width: "100%",
-            margin: "auto",
+            margin: 0,
           }}
           onClick={() => navigate({ to: "/teamPullRequest/pendingReviews" })}
         >
           <Card
             className="accent-shadow-low"
             style={{
-              background:
-                "linear-gradient(135deg, var(--accent-a1), var(--accent-a4), var(--accent-a1))",
+              background: nothingToReview
+                ? "linear-gradient(135deg, var(--green-a2), var(--green-a4), var(--green-a2))"
+                : "linear-gradient(135deg, var(--accent-a1), var(--accent-a4), var(--accent-a1))",
               width: "100%",
+              height: "100%",
             }}
           >
             <Flex
               justify="between"
               align="center"
-              style={{ color: "var(--accent-10)" }}
+              style={{ color: nothingToReview ? "var(--green-11)" : "var(--accent-10)" }}
             >
               <Flex direction="column">
                 <Text size="2" style={{ color: "var(--gray-11)" }}>
@@ -74,34 +78,41 @@ export const Stats = () => {
                 <Text
                   size="5"
                   weight="bold"
-                  style={{ color: "var(--accent-12)" }}
+                  style={{ color: nothingToReview ? "var(--green-12)" : "var(--accent-12)" }}
                 >
                   {waitingMyReview.length}
                 </Text>
+                {nothingToReview && (
+                  <Text size="1" style={{ color: "var(--green-11)" }}>
+                    All caught up
+                  </Text>
+                )}
               </Flex>
 
-              <AlertIcon size={20} />
+              {nothingToReview ? <CheckIcon size={20} /> : <AlertIcon size={20} />}
             </Flex>
           </Card>
         </Button>
 
         <Button
           variant="ghost"
-          style={{ height: "auto", padding: 0, width: "100%", margin: "auto" }}
+          style={{ height: "100%", padding: 0, width: "100%", margin: 0 }}
           onClick={() => navigate({ to: "/myPullRequests/pendingReviews" })}
         >
           <Card
             className="accent-shadow-low"
             style={{
-              background:
-                "linear-gradient(135deg, var(--accent-a1), var(--accent-a4), var(--accent-a1))",
+              background: nothingAwaitingReview
+                ? "linear-gradient(135deg, var(--green-a2), var(--green-a4), var(--green-a2))"
+                : "linear-gradient(135deg, var(--accent-a1), var(--accent-a4), var(--accent-a1))",
               width: "100%",
+              height: "100%",
             }}
           >
             <Flex
               justify="between"
               align="center"
-              style={{ color: "var(--accent-10)" }}
+              style={{ color: nothingAwaitingReview ? "var(--green-11)" : "var(--accent-10)" }}
             >
               <Flex direction="column">
                 <Text size="2" style={{ color: "var(--gray-11)" }}>
@@ -110,20 +121,25 @@ export const Stats = () => {
                 <Text
                   size="5"
                   weight="bold"
-                  style={{ color: "var(--accent-12)" }}
+                  style={{ color: nothingAwaitingReview ? "var(--green-12)" : "var(--accent-12)" }}
                 >
                   {waitingReview.length}
                 </Text>
+                {nothingAwaitingReview && (
+                  <Text size="1" style={{ color: "var(--green-11)" }}>
+                    No reviews outstanding
+                  </Text>
+                )}
               </Flex>
 
-              <ClockIcon size={20} />
+              {nothingAwaitingReview ? <CheckIcon size={20} /> : <ClockIcon size={20} />}
             </Flex>
           </Card>
         </Button>
 
         <Button
           variant="ghost"
-          style={{ height: "auto", padding: 0, width: "100%", margin: "auto" }}
+          style={{ height: "100%", padding: 0, width: "100%", margin: 0 }}
           onClick={() => navigate({ to: "/myPullRequests/fullyApproved" })}
         >
           <Card
@@ -131,6 +147,7 @@ export const Stats = () => {
             style={{
               background: `linear-gradient(135deg, var(--${fullyApproved.length === myPullRequests.length ? "green" : "accent"}-a1), var(--${fullyApproved.length === myPullRequests.length ? "green" : "accent"}-a4), var(--${fullyApproved.length === myPullRequests.length ? "green" : "accent"}-a1))`,
               width: "100%",
+              height: "100%",
             }}
           >
             <Flex
