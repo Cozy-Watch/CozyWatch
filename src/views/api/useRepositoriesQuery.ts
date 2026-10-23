@@ -8,7 +8,7 @@ const normalize = (data: RepositoriesCache) => ({
   activeRepositories: data.activeRepositories ?? {},
 });
 type RepositoryData = ReturnType<typeof normalize>;
-const snapshots = new WeakMap<QueryClient, { data?: RepositoryData; sequence: number }>();
+const snapshots = new WeakMap<QueryClient, { sequence: number }>();
 
 export const useRepositoriesQuery = () => {
   const queryClient = useQueryClient();
@@ -20,9 +20,8 @@ export const useRepositoriesQuery = () => {
 
   useEffect(() => {
     const handler = window.electronAPI.repository.onUpdate((data) => {
-      snapshot.data = normalize(data);
       snapshot.sequence++;
-      queryClient.setQueryData(queryKey, snapshot.data);
+      queryClient.setQueryData(queryKey, normalize(data));
     });
     return () => window.electronAPI.repository.removeOnUpdate(handler);
   }, [queryClient]);
@@ -34,7 +33,8 @@ export const useRepositoriesQuery = () => {
       const sequence = snapshot.sequence;
       const response = await window.electronAPI.repository.query();
       // A newer push wins over the earlier in-flight IPC snapshot.
-      return snapshot.sequence > sequence && snapshot.data ? snapshot.data : normalize(response);
+      const latest = queryClient.getQueryData<RepositoryData>(queryKey);
+      return snapshot.sequence > sequence && latest ? latest : normalize(response);
     },
   });
 };

@@ -1,3 +1,4 @@
+import { BoundedPageCache } from "../../utils/boundedPageCache";
 import { Octokit } from "@octokit/rest";
 import { ipcMain } from "electron";
 import Logger from "electron-log";
@@ -5,7 +6,7 @@ import { isPATAuth } from "../../githubClient";
 import type { CacheData, PullRequestList } from "../utils/getDefaultData";
 
 type PullPage = { data: PullRequestList; etag?: string; next: boolean };
-const pageCaches = new WeakMap<Octokit, Map<string, PullPage[]>>();
+const pageCaches = new WeakMap<Octokit, BoundedPageCache<PullPage[]>>();
 
 export const pullsListQuery = async ({
   name,
@@ -23,7 +24,7 @@ export const pullsListQuery = async ({
   try {
     let clientPages = pageCaches.get(octokit);
     if (!clientPages) {
-      clientPages = new Map();
+      clientPages = new BoundedPageCache();
       pageCaches.set(octokit, clientPages);
     }
     const key = `${owner}/${name}`.toLowerCase();

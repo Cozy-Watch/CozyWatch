@@ -1,4 +1,4 @@
-import { readConditionalPages } from "./conditionalPages";
+import { readConditionalPages, retainConditionalPages } from "./conditionalPages";
 const unchanged = () => Object.assign(new Error("Not modified"), { status: 304 });
 it("revalidates later pages and discards obsolete pages", async () => {
   const client = {}, key = "comments:org/repo/1";
@@ -41,4 +41,24 @@ it("does not probe beyond the service cap after an unchanged full terminal page"
   const request = jest.fn(async () => { throw unchanged(); });
   expect((await readConditionalPages({ client, key, maxPages: 1, request })).flat()).toHaveLength(100);
   expect(request).toHaveBeenCalledTimes(1);
+});
+
+it("releases inactive resources and refetches them without stale validators", async () => {
+  const client = {};
+  await readConditionalPages({ client, key: "comments:org/repo/1", request: async () => ({data: [1], headers: {etag: "old"}}) });
+  retainConditionalPages(client, new Set());
+  const request = jest.fn(async () => ({data: [2], headers: {}}));
+  expect(await readConditionalPages({client, key: "comments:org/repo/1", request})).toEqual([[2]]);
+  expect(request).toHaveBeenCalledWith(1, undefined);
+});
+it("refetches expired pages rather than reusing expired response data", async () => {
+  jest.useFakeTimers();
+  try {
+    const client = {}, key = "comments:org/repo/2";
+    await readConditionalPages({ client, key, request: async () => ({data: [1], headers: {etag: "old"}}) });
+    jest.advanceTimersByTime(16 * 60_000);
+    const request = jest.fn(async () => ({data: [2], headers: {}}));
+    expect(await readConditionalPages({client, key, request})).toEqual([[2]]);
+    expect(request).toHaveBeenCalledWith(1, undefined);
+  } finally { jest.useRealTimers(); }
 });

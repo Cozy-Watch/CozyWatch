@@ -1,3 +1,4 @@
+import { BoundedPageCache } from "../../utils/boundedPageCache";
 import { Octokit } from "@octokit/rest";
 import { ipcMain } from "electron";
 import Logger from "electron-log";
@@ -6,7 +7,7 @@ import type { CacheData, PullListReview } from "../utils/getDefaultData";
 
 type ReviewPage = { data: PullListReview; etag?: string; next: boolean };
 // Client-scoped validators prevent a new account inheriting another account's pages.
-const pageCaches = new WeakMap<Octokit, Map<string, ReviewPage[]>>();
+const pageCaches = new WeakMap<Octokit, BoundedPageCache<ReviewPage[]>>();
 
 export const retainOpenReviewPages = (
   octokit: Octokit,
@@ -40,7 +41,7 @@ export const pullsListReviewsQuery = async ({
   try {
     let clientPages = pageCaches.get(octokit);
     if (!clientPages) {
-      clientPages = new Map();
+      clientPages = new BoundedPageCache();
       pageCaches.set(octokit, clientPages);
     }
     const key = `${owner}/${name}/${pullNumber}`;

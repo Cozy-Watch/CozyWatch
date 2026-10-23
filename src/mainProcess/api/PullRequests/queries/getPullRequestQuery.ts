@@ -1,3 +1,5 @@
+import { retainActivePullData } from "../utils/retainActivePullData";
+import { retainConditionalPages } from "../../utils/conditionalPages";
 import { repositoryKey } from "../../../../shared/repositoryKey";
 import { estimateFullRefreshReserve } from "../../githubRequestBudget";
 import { app, ipcMain } from "electron";
@@ -49,8 +51,10 @@ export const pullRequestQuery = async (isCurrent = () => true): Promise<PullRequ
   const { repositoriesByPage, activeRepositories } =
     await getRepositoriesData();
 
-  const cache = await getCachedData();
-  const initialCache: CacheData = structuredClone(cache);
+  let cache = await getCachedData();
+  // Refresh writers replace top-level maps and nested records immutably.
+  // Retain the old references for comparisons without duplicating every body.
+  const initialCache: CacheData = { ...cache };
 
   const user = await getUser();
 
@@ -157,6 +161,8 @@ export const pullRequestQuery = async (isCurrent = () => true): Promise<PullRequ
     Logger.info("[PullRequests] pullsListQuery completed");
   }
 
+  cache = retainActivePullData(cache, repositories.map(repositoryKey));
+
   const flatPullRequestsAfterListRefresh = dedupePullRequests(
     Object.values(cache.pullRequestsPerRepo || {}).flatMap((value) =>
       Object.values(value).flat(),
@@ -232,6 +238,10 @@ export const pullRequestQuery = async (isCurrent = () => true): Promise<PullRequ
   }, []);
 
   retainOpenReviewPages(octokit, repositoriesWithPullRequests);
+  retainConditionalPages(octokit, new Set([
+    ...repositories.map(repo => `workflows:${repositoryKey(repo)}`),
+    ...listOfPullRequests.map(({owner, repoName, pullNumber}) => `comments:${owner}/${repoName}/${pullNumber}`.toLowerCase()),
+  ]));
 
   const commentsTask = async () => {
     try {

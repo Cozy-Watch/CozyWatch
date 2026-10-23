@@ -1,6 +1,7 @@
+import { BoundedPageCache } from "./boundedPageCache";
 type Page<T> = { data: T[]; etag?: string; next: boolean };
 type Response<T> = { data: T[]; headers: { etag?: string; link?: string } };
-const clients = new WeakMap<object, Map<string, Page<unknown>[]>>();
+const clients = new WeakMap<object, BoundedPageCache<Page<unknown>[]>>();
 
 /** A validator covers one page, never the whole collection. Commit complete sets only. */
 export const readConditionalPages = async <T>({
@@ -12,7 +13,7 @@ export const readConditionalPages = async <T>({
   maxPages?: number;
 }): Promise<T[][]> => {
   let cache = clients.get(client);
-  if (!cache) { cache = new Map(); clients.set(client, cache); }
+  if (!cache) { cache = new BoundedPageCache(); clients.set(client, cache); }
   const previous = (cache.get(key) ?? []) as Page<T>[];
   const pages: Page<T>[] = [];
   for (let page = 1; ; page++) {
@@ -35,4 +36,10 @@ export const readConditionalPages = async <T>({
   }
   cache.set(key, pages);
   return pages.map(page => page.data);
+};
+
+export const retainConditionalPages = (client: object, keys: ReadonlySet<string>) => {
+  const cache = clients.get(client);
+  if (!cache) return;
+  for (const key of cache.keys()) if (!keys.has(key)) cache.delete(key);
 };

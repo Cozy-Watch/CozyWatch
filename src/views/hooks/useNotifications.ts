@@ -3,7 +3,7 @@ import { useEffect } from "react";
 import type { NotificationRecord } from "../../mainProcess/safeStorage/safeStorage.types";
 
 export const notificationQueryKey = ["notifications"];
-const snapshots = new WeakMap<QueryClient, { sequence: number; history?: NotificationRecord[] }>();
+const snapshots = new WeakMap<QueryClient, { sequence: number }>();
 
 export const useNotifications = () => {
   const queryClient = useQueryClient();
@@ -17,7 +17,8 @@ export const useNotifications = () => {
     queryFn: async () => {
       const sequence = snapshot.sequence;
       const history = await window.electronAPI.application.getNotificationHistory();
-      return snapshot.sequence > sequence && snapshot.history ? snapshot.history : history;
+      const latest = queryClient.getQueryData<NotificationRecord[]>(notificationQueryKey);
+      return snapshot.sequence > sequence && latest ? latest : history;
     },
     staleTime: Infinity,
   });
@@ -25,7 +26,6 @@ export const useNotifications = () => {
   useEffect(() => {
     const handler = window.electronAPI.application.onNotificationUpdate((history) => {
       snapshot.sequence++;
-      snapshot.history = history;
       queryClient.setQueryData(notificationQueryKey, history);
     });
     return () => window.electronAPI.application.removeOnNotificationUpdate(handler);

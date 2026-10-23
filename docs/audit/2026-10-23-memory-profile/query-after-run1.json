@@ -1,0 +1,27 @@
+{
+  "variant": "after",
+  "workload": "100 IPC-style updates, 2000 synthetic PRs, 2048-character bodies",
+  "baselineMiB": 1716.8816146850586,
+  "samples": [
+    {
+      "cycle": 20,
+      "retainedMiB": 0.11602020263671875
+    },
+    {
+      "cycle": 40,
+      "retainedMiB": 0.132781982421875
+    },
+    {
+      "cycle": 60,
+      "retainedMiB": 0.13507843017578125
+    },
+    {
+      "cycle": 80,
+      "retainedMiB": 0.13653564453125
+    },
+    {
+      "cycle": 100,
+      "retainedMiB": 0.136932373046875
+    }
+  ]
+}

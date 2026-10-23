@@ -4,19 +4,18 @@ import { CacheData as PullRequestData } from "src/mainProcess/api/PullRequests/u
 
 export const queryKey = ["pullRequests"];
 
-const snapshots = new WeakMap<QueryClient, { data?: PullRequestData; sequence: number }>();
+const snapshots = new WeakMap<QueryClient, { sequence: number; subscribers: number; dispose?: () => void }>();
 
 export const usePullRequestQuery = () => {
   const queryClient = useQueryClient();
   let snapshot = snapshots.get(queryClient);
   if (!snapshot) {
-    snapshot = { sequence: 0 };
+    snapshot = { sequence: 0, subscribers: 0 };
     snapshots.set(queryClient, snapshot);
   }
 
   useEffect(() => {
     const handleUpdate = (data: PullRequestData) => {
-      snapshot.data = data;
       snapshot.sequence += 1;
       queryClient.setQueryData(queryKey, (oldData: PullRequestData) => {
         if (!oldData) {
@@ -30,10 +29,16 @@ export const usePullRequestQuery = () => {
       });
     };
 
-    const handler = window.electronAPI.pullRequest.onUpdate(handleUpdate);
-
+    snapshot.subscribers += 1;
+    if (!snapshot.dispose) {
+      const handler = window.electronAPI.pullRequest.onUpdate(handleUpdate);
+      snapshot.dispose = () => window.electronAPI.pullRequest.removeOnUpdate(handler);
+    }
     return () => {
-      window.electronAPI.pullRequest.removeOnUpdate(handler);
+      snapshot.subscribers -= 1;
+      if (snapshot.subscribers > 0) return;
+      snapshot.dispose?.();
+      snapshot.dispose = undefined;
     };
   }, [queryClient]);
 
@@ -46,10 +51,8 @@ export const usePullRequestQuery = () => {
 
       // A background update can arrive while the initial snapshot IPC is pending.
       // Keep that newer push instead of replacing it with the earlier snapshot.
-      return snapshot.sequence > updateSequenceAtStart &&
-        snapshot.data
-        ? snapshot.data
-        : response;
+      const latest = queryClient.getQueryData<PullRequestData>(queryKey);
+      return snapshot.sequence > updateSequenceAtStart && latest ? latest : response;
     },
   });
 };

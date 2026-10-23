@@ -1,3 +1,4 @@
+import { rendererSnapshot } from "./mainProcess/api/PullRequests/utils/rendererSnapshot";
 import { app, BrowserWindow, clipboard, ipcMain, session } from "electron";
 import type { IpcMainInvokeEvent, WebContents } from "electron";
 import log from "electron-log/main";
@@ -826,7 +827,7 @@ ipcMain.on("dispatch-repository-update", (_, data) => {
 // ---- Pull Requests ----
 handleRendererInvoke("pull-requests-query", async () => {
   log.info("[IPC] pull-requests-query cached snapshot");
-  return getPullRequestSnapshot();
+  return rendererSnapshot(await getPullRequestSnapshot());
 });
 
 handleRendererInvoke(PULL_REQUEST_MERGE_CHANNELS.options, async (_, data: unknown) => {
@@ -887,14 +888,15 @@ handleRendererInvoke(PULL_REQUEST_MERGE_CHANNELS.status, async (_, data: unknown
 
 ipcMain.on("dispatch-pull-request-update", (_, data) => {
   log.info("[IPC] pull request-update");
+  const snapshot = rendererSnapshot(data);
   if (mainWindow && !mainWindow.isDestroyed()) {
     log.info("[IPC] main window pull request-update");
-    mainWindow.webContents.send("pull-request-update", data);
+    mainWindow.webContents.send("pull-request-update", snapshot);
   }
 
   if (menubar?.window && !menubar.window.isDestroyed()) {
     log.info("[IPC] menu bar window pull request-update");
-    menubar.window.webContents.send("pull-request-update", data);
+    menubar.window.webContents.send("pull-request-update", snapshot);
   }
 });
 
