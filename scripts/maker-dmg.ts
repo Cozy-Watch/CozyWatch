@@ -25,7 +25,7 @@ export class CozyDmgMaker extends Maker<Record<string, never>> {
       await cp(path.join(dir, `${appName}.app`), path.join(mount, `${appName}.app`), { recursive: true, verbatimSymlinks: true });
       await symlink("/Applications", path.join(mount, "Applications"));
       await mkdir(path.join(mount, ".background"));
-      await cp(path.resolve("assets/dmg-background.png"), path.join(mount, ".background/background.png"));
+      await cp(path.resolve("assets/dmg-background@2x.png"), path.join(mount, ".background/background.png"));
       // Optional macOS-only build dependency, never imported on other platforms.
       const { default: DSStore } = await import("ds-store");
       const store = new DSStore();
