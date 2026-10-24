@@ -25,14 +25,22 @@ export class CozyDmgMaker extends Maker<Record<string, never>> {
       await cp(path.join(dir, `${appName}.app`), path.join(mount, `${appName}.app`), { recursive: true, verbatimSymlinks: true });
       await symlink("/Applications", path.join(mount, "Applications"));
       await mkdir(path.join(mount, ".background"));
-      await cp(path.resolve("assets/dmg-background@2x.png"), path.join(mount, ".background/background.png"));
+      // Finder needs one logical 720×480 image with 1× and Retina representations.
+      // A raw 2× PNG at 72 DPI doubles the layout and clips the artwork.
+      const background = path.join(mount, ".background/background.tiff");
+      await run("tiffutil", [
+        "-cathidpicheck",
+        path.resolve("assets/dmg-background.png"),
+        path.resolve("assets/dmg-background@2x.png"),
+        "-out", background,
+      ]);
       // Optional macOS-only build dependency, never imported on other platforms.
       // Linux/Windows omit this optional native module; macOS packaging must resolve it.
       const { default: DSStore } = await import("ds-store");
       const store = new DSStore();
       store.vSrn(1); store.setIconSize(100); store.setWindowSize(720, 480);
       store.setIconPos(`${appName}.app`, 190, 265); store.setIconPos("Applications", 530, 265);
-      store.setBackgroundPath(path.join(mount, ".background/background.png"));
+      store.setBackgroundPath(background);
       await new Promise<void>((resolve, reject) => store.write(path.join(mount, ".DS_Store"), (error: Error | null) => error ? reject(error) : resolve()));
       await run("hdiutil", ["detach", mount]); attached = false;
       await run("hdiutil", ["convert", image, "-format", "UDZO", "-o", destination, "-ov"]);
