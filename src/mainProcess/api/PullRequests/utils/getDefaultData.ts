@@ -1,14 +1,11 @@
 import Logger from "electron-log";
 import { getData } from "../../../safeStorage/safeStorage";
-import { PullsList as ResponsePullList } from "../hooks/registerPullList";
-import { PullsListReview as ResponsePullsListReview } from "../hooks/registerPullListReviews";
-import { PullsActions as ResponsePullsActions } from "../hooks/registerPullActions";
-import { Endpoints } from "@octokit/types";
+import type { Endpoints } from "@octokit/types";
 import type { Octokit } from "@octokit/rest";
 
-export type PullRequestList = ResponsePullList["data"];
-export type PullListReview = ResponsePullsListReview["data"];
-export type PullsActions = ResponsePullsActions["data"]["workflow_runs"];
+export type PullRequestList = Endpoints["GET /repos/{owner}/{repo}/pulls"]["response"]["data"];
+export type PullListReview = Endpoints["GET /repos/{owner}/{repo}/pulls/{pull_number}/reviews"]["response"]["data"];
+export type PullsActions = Endpoints["GET /repos/{owner}/{repo}/actions/runs"]["response"]["data"]["workflow_runs"];
 
 export type ListComments = Awaited<ReturnType<Octokit["rest"]["issues"]["listComments"]>>;
 
