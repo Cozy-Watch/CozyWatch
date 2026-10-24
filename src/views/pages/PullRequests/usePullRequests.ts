@@ -1,3 +1,4 @@
+import { repositoryKey } from "../../../shared/repositoryKey";
 import { useMemo } from "react";
 import { useRepositoriesQuery } from "../../api/useRepositoriesQuery";
 import { usePullRequestQuery } from "../../api/usePullRequestQuery";
@@ -23,7 +24,7 @@ export const usePullRequests = () => {
 
     const activeRepositoriesWithPullReques = onlyActiveRepositories.map(
       (repository) => {
-        const { name: repoName } = repository;
+        const repoName = repositoryKey(repository);
 
         const prData = dedupePullRequests(
           Object.values(pullRequestsPerRepo[repoName] || {}).flat(),

@@ -2,13 +2,18 @@ import { shell } from "electron";
 import type { WebContents } from "electron";
 import log from "electron-log/main";
 import { redactDiagnosticValue } from "./redactDiagnosticValue";
+import { CUSTOMER_ORDERS_URL, OPEN_SOURCE_CONTACT_URL, PURCHASE_HELP_URL, SUPPORT_EMAIL } from "../../shared/purchaseLinks";
 
 const ALLOWED_EXTERNAL_HOSTS = new Set([
   "cozywatch.com",
   "github.com",
   "www.cozywatch.com",
 ]);
-const SUPPORT_EMAIL = "tiago@cozywatch.com";
+const ALLOWED_SUPPORT_QUERIES = new Set([
+  "",
+  new URL(PURCHASE_HELP_URL).search,
+  new URL(OPEN_SOURCE_CONTACT_URL).search,
+]);
 
 export const isSafeExternalUrl = (url: unknown): url is string => {
   if (typeof url !== "string") {
@@ -18,14 +23,17 @@ export const isSafeExternalUrl = (url: unknown): url is string => {
   try {
     const parsedUrl = new URL(url);
 
+    if (parsedUrl.username || parsedUrl.password) return false;
+
     if (parsedUrl.protocol === "https:") {
-      return ALLOWED_EXTERNAL_HOSTS.has(parsedUrl.hostname.toLowerCase());
+      return ALLOWED_EXTERNAL_HOSTS.has(parsedUrl.hostname.toLowerCase()) ||
+        parsedUrl.href === CUSTOMER_ORDERS_URL;
     }
 
     return (
       parsedUrl.protocol === "mailto:" &&
       parsedUrl.pathname.toLowerCase() === SUPPORT_EMAIL &&
-      parsedUrl.search === "" &&
+      ALLOWED_SUPPORT_QUERIES.has(parsedUrl.search) &&
       parsedUrl.hash === ""
     );
   } catch {
@@ -71,6 +79,9 @@ export const isAllowedRendererUrl = (url: string, rendererUrl: string) => {
       return targetUrl.toString() === allowedUrl.toString();
     }
 
+    if (allowedUrl.protocol === "cozy-watch:") {
+      return targetUrl.protocol === allowedUrl.protocol && targetUrl.host === allowedUrl.host && targetUrl.pathname === allowedUrl.pathname && !targetUrl.username && !targetUrl.password;
+    }
     return targetUrl.origin === allowedUrl.origin;
   } catch {
     return false;

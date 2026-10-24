@@ -9,7 +9,6 @@ import {
 } from "./mainProcess/safeStorage/safeStorage.types";
 import {
   LicenseState,
-  LicenseUsage,
 } from "./mainProcess/licensing/licenseState.types";
 import type { AccentColor } from "./shared/theme";
 import type { PersonalWeeklyRecap } from "./weeklyRecap/types";
@@ -33,6 +32,8 @@ type AuthenticationCode = {
 
 declare global {
   const __COZYWATCH_OFFICIAL_BUILD__: boolean;
+  const __COZYWATCH_LICENSE_TEST_MODE__: boolean;
+  const __COZYWATCH_LIFETIME_PRODUCT_ID__: number | null;
   const __COZYWATCH_DIAGNOSTICS_BUILD__: boolean;
 
   interface Window {
@@ -185,7 +186,10 @@ declare global {
         activate: (licenseKey: string) => Promise<LicenseState>;
         getStatus: () => Promise<LicenseState>;
         validate: () => Promise<LicenseState>;
-        setUsage: (usage: LicenseUsage) => Promise<LicenseState>;
+        acceptTransition: () => Promise<LicenseState>;
+        quit: () => Promise<void>;
+        onUpdate: (callback: (state: LicenseState) => void) => IpcListener<LicenseState>;
+        removeOnUpdate: (handler: IpcListener<LicenseState>) => void;
         deactivate: () => Promise<LicenseState>;
         markExpiryReminderShown: () => Promise<LicenseState>;
       };

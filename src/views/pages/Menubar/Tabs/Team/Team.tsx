@@ -1,3 +1,4 @@
+import { PagedList } from "../../../../components/PagedList/PagedList";
 import { Flex, Spinner, Text } from "@radix-ui/themes";
 import { PullRequestList } from "src/mainProcess/api/PullRequests/utils/getDefaultData";
 import { Empty } from "../../components/Empty/Empty";
@@ -47,7 +48,7 @@ export const Team = ({ pullRequests, isCompact }: Props) => {
     >
       {data.length === 0 && <Empty />}
 
-      {data.map(({ pr, reviewsAndWaitingReviews, actionByName, pullRequestUrl, waitingReviews, assignees, latestFeedbackAt, latestMention }) => (
+      <PagedList items={data} getKey={item => item.pr.id} renderItem={({ pr, reviewsAndWaitingReviews, actionByName, pullRequestUrl, waitingReviews, assignees, latestFeedbackAt, latestMention }) => (
         <PullRequestCard
           key={pr.id}
           isCompact={isCompact}
@@ -69,7 +70,7 @@ export const Team = ({ pullRequests, isCompact }: Props) => {
           labels={pr.labels}
           assignees={assignees}
         />
-      ))}
+      )} />
     </Flex>
   );
 };

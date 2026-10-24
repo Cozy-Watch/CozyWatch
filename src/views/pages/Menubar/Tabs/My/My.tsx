@@ -1,3 +1,4 @@
+import { PagedList } from "../../../../components/PagedList/PagedList";
 import { Flex, Spinner, Switch, Text } from "@radix-ui/themes";
 
 import { useState } from "react";
@@ -75,7 +76,7 @@ export const My = ({ pullRequests, isCompact }: Props) => {
         </Empty>
       )}
 
-      {myPullRequestsCount.map(({ pr, reviewsAndWaitingReviews, actionByName, pullRequestUrl, waitingReviews, assignees, latestFeedbackAt, latestMention }) => (
+      <PagedList items={myPullRequestsCount} getKey={item => item.pr.id} renderItem={({ pr, reviewsAndWaitingReviews, actionByName, pullRequestUrl, waitingReviews, assignees, latestFeedbackAt, latestMention }) => (
         <PullRequestCard
           key={pr.id}
           isCompact={isCompact}
@@ -97,7 +98,7 @@ export const My = ({ pullRequests, isCompact }: Props) => {
           labels={pr.labels}
           assignees={assignees}
         />
-      ))}
+      )} />
     </Flex>
   );
 };

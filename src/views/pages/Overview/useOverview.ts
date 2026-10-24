@@ -1,3 +1,4 @@
+import { repositoryKey } from "../../../shared/repositoryKey";
 import dayjs from "dayjs";
 import { useMemo } from "react";
 import { PullsActions } from "src/mainProcess/api/PullRequests/utils/getDefaultData";
@@ -51,7 +52,7 @@ export const useOverView = () => {
     );
 
     const pullRequeststData = sortedPullRequests.map((pr) => {
-      const repositoryName = pr.head.repo.name;
+      const repositoryName = repositoryKey(pr.base.repo);
       const pullNumber = pr.number;
 
       const reviewsForThisPR = reviews?.[repositoryName]?.[pullNumber] || [];

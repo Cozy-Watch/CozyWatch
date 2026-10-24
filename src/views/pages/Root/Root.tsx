@@ -1,3 +1,4 @@
+import { LicenseGate } from "../../components/LicenseGate/LicenseGate";
 import { Box, Flex } from "@radix-ui/themes";
 import { Outlet, useMatchRoute } from "@tanstack/react-router";
 import { Header } from "../Header/Header";
@@ -16,7 +17,7 @@ export const Root = () => {
 
   if (isMenubar) {
     return (
-      <Box width="480px" height="640px" className="menubar-bg">
+      <Box width="100%" height="640px" style={{ maxWidth: "480px" }} className="menubar-bg">
         <Outlet />
       </Box>
     );
@@ -75,7 +76,7 @@ export const Root = () => {
         }}
         overflow="hidden"
       >
-        <Outlet />
+        {isAuthenticationRoute || isSettings ? <Outlet /> : <LicenseGate><Outlet /></LicenseGate>}
       </Flex>
     </Flex>
   );

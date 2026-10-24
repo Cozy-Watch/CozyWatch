@@ -1,3 +1,4 @@
+jest.mock("../licensing/licenseAccess", () => ({ assertMonitoringAllowed: jest.fn(async () => undefined) }));
 jest.mock("electron-log", () => ({ warn: jest.fn() }));
 jest.mock("../diagnostics/diagnostics", () => ({
   performanceDiagnostics: { record: jest.fn() },

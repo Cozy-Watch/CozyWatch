@@ -6,6 +6,7 @@ import type { StoreDataMap } from "../../src/mainProcess/safeStorage/safeStorage
 import type { MockGithub } from "./mock-github";
 
 export const emptyCache = (): CacheData => ({
+  schemaVersion: 2,
   etagPerRepo: {}, pullRequestsPerRepo: {}, reviewPerRepoPerPullNumber: {}, actionsPerRepo: {},
   pullRequestAddedOrRemoved: { added: [], removed: [] },
   reviewUpdateList: { newReview: [], reviewChanged: [] }, CIStatusUpdatePerRepo: {},
@@ -51,6 +52,7 @@ export const createHarness = async (github: MockGithub) => {
   });
   const hookBefore = jest.spyOn(client.hook, "before");
   const hookAfter = jest.spyOn(client.hook, "after");
+  const hookRemove = jest.spyOn(client.hook, "remove");
   let publications: { atMs: number; data: CacheData }[] = [];
   const onUpdate = (_event: unknown, data: CacheData) => {
     publications.push({ atMs: performance.now() - github.epoch, data: structuredClone(data) });
@@ -90,7 +92,7 @@ export const createHarness = async (github: MockGithub) => {
           firstPublishedMs: publications[0]?.atMs ?? null,
           approvalPublishedMs: approval?.atMs ?? null, durationMs,
           publications: publications.length, openPulls: data.flatPullRequests.length,
-          registeredHooks: hookBefore.mock.calls.length + hookAfter.mock.calls.length,
+          registeredHooks: hookBefore.mock.calls.length + hookAfter.mock.calls.length - hookRemove.mock.calls.length,
         },
       };
     },
@@ -101,6 +103,7 @@ export const createHarness = async (github: MockGithub) => {
       ipcMain.removeListener("dispatch-pull-request-update", onUpdate);
       hookBefore.mockRestore();
       hookAfter.mockRestore();
+      hookRemove.mockRestore();
       if (github.active !== 0 || pendingRequests !== 0) throw new Error("Harness closed with pending HTTP requests");
       if (github.unexpectedRequests.length) throw new Error(github.unexpectedRequests.join("\n"));
     },

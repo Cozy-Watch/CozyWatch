@@ -1,7 +1,9 @@
+import { refreshCoordinator } from "../../polling/refreshCoordinator";
+import { setDisabledNotificationRepositories } from "../../notifications/notificationManager";
 import { ipcMain } from "electron";
 import Logger from "electron-log";
 import { storeData } from "../../safeStorage/safeStorage";
-import { getCachedData as pullRequestCachedData } from "../PullRequests/utils/getDefaultData";
+import { getCachedData as pullRequestCachedData, setLocalCache as setPullCache } from "../PullRequests/utils/getDefaultData";
 import { dedupePullRequests } from "../PullRequests/utils/dedupePullRequests";
 import { getCachedData, setLocalCache } from "./utils/getDefaultData";
 
@@ -50,6 +52,13 @@ export const setRepositoryEnableState = async (
     throw new Error("Failed to save active repository selections.");
   }
 
+  refreshCoordinator.invalidate();
+  setDisabledNotificationRepositories(
+    Object.values(currentCache.repositoriesByPage).flat()
+      .filter(repo => !activeRepositories[repo.id])
+      .map(repo => `${repo.owner}/${repo.name}`),
+  );
+  setPullCache(pullRequestsData);
   setLocalCache(data);
   ipcMain.emit("dispatch-repository-update", null, data);
   ipcMain.emit("dispatch-pull-request-update", null, pullRequestsData);

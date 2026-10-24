@@ -15,6 +15,7 @@ import {
 } from "./storageMigration";
 import { decodeStorageValue, encodeStorageValue } from "./storageEncoding";
 import type {
+  AuthType,
   StoreDataMap,
   StoreDataName,
   StoreDataParams,
@@ -383,7 +384,8 @@ export const getData = async <T extends StoreDataName>(
     return value;
   } catch (error) {
     log.error(`Failed to get ${name}:`, error);
-    return null;
+    if (isDerivedCacheKey(name)) return null;
+    throw new Error("Unable to read secure storage. Your saved data has not been replaced. Check access to your login keychain and restart Cozy Watch.", { cause: error });
   }
 };
 
@@ -447,4 +449,41 @@ export const deleteAllData = async () => {
     log.error("Failed to delete all data:", error);
     return false;
   }
+};
+
+// Persist the key and its entitlement as a single atomic primary-storage mutation.
+export const saveLicenseActivation = async (licenseKey: string | null, licenseState: StoreDataMap["licenseState"]) => {
+  await app.whenReady();
+  assertEncryptionAvailable();
+  const storage = await getPrimaryStorage();
+  const encryptedState = safeStorage.encryptString(JSON.stringify(licenseState)).toString("base64");
+  const encryptedKey = licenseKey === null ? null : safeStorage.encryptString(JSON.stringify(licenseKey)).toString("base64");
+  await mutateStorageFile(getPrimaryStoragePath(), storage, (draft) => {
+    draft.licenseState = encryptedState;
+    if (encryptedKey === null) delete draft.licenseKey;
+    else draft.licenseKey = encryptedKey;
+  });
+};
+
+/** One atomic write: a connection is never visible without matching setup state. */
+export const saveGitHubConnection = async (
+  token: string,
+  authType: AuthType,
+  licenseState?: StoreDataMap["licenseState"],
+  isCurrent = () => true,
+) => {
+  await app.whenReady();
+  assertEncryptionAvailable();
+  const storage = await getPrimaryStorage();
+  const encrypt = (value: unknown) => safeStorage.encryptString(JSON.stringify(value)).toString("base64");
+  const values = {
+    access_token: encrypt(token),
+    auth_type: encrypt(authType),
+    authentication_notice: encrypt(null),
+    ...(licenseState ? { licenseState: encrypt(licenseState) } : {}),
+  };
+  await mutateStorageFile(getPrimaryStoragePath(), storage, draft => {
+    if (!isCurrent()) throw new Error("GitHub connection cancelled.");
+    Object.assign(draft, values);
+  });
 };

@@ -1,3 +1,4 @@
+import { PagedList } from "../../components/PagedList/PagedList";
 import { Box, Callout, Flex, VisuallyHidden } from "@radix-ui/themes";
 import { EmptyPullRequests } from "../../components/EmptyPullRequests/EmptyPullRequests";
 import { LoadingPage } from "../../components/LoadingPage/LoadingPage";
@@ -34,7 +35,7 @@ export const MentionsPage = () => {
         <EmptyPullRequests />
       ) : (
         <Flex direction="column" gap="3" p="4">
-          {data.cards.map((card) => (
+          <PagedList items={data.cards} getKey={card => card.pr.id} renderItem={card => (
             <Box key={card.pr.id} width="100%">
               <PullRequestCard
                 pullRequest={card.pr}
@@ -56,7 +57,7 @@ export const MentionsPage = () => {
                 assignees={card.assignees}
               />
             </Box>
-          ))}
+          )} />
         </Flex>
       )}
     </Flex>

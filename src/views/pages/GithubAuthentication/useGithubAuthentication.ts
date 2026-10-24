@@ -1,6 +1,6 @@
 import { useNavigate } from "@tanstack/react-router";
 import Logger from "electron-log";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useGitHubAppAuthenticationMutation } from "../../api/useGitHubAppAuthenticationMutation";
 import { useGitHubAuthenticationMutation } from "../../api/useGithubAuthenticationMutation";
 import { useQueryClient } from "@tanstack/react-query";
@@ -14,6 +14,9 @@ export const useAuthentication = () => {
   const [authData, setAuthData] = useState<AuthData | null>(null);
 
   const queryClient = useQueryClient();
+  const connecting = useRef(false);
+  const [isPending, setPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const { mutateAsync: startAuthentication } =
     useGitHubAuthenticationMutation();
@@ -36,31 +39,32 @@ export const useAuthentication = () => {
     };
   }, []);
 
-  const authenticate = async () => {
+  const connect = async (start: () => Promise<boolean>) => {
+    if (connecting.current) return;
+    connecting.current = true;
+    setPending(true);
+    setError(null);
     try {
-      await startAuthentication();
-
-      queryClient.invalidateQueries();
-      navigate({ to: "/settings", search: { tab: "license" } });
-    } catch (err) {
-      Logger.error("Error during authentication:", err);
+      if (!(await start())) throw new Error("Authentication was not completed");
+      await queryClient.invalidateQueries();
+      await navigate({ to: "/settings", search: { tab: "repositories" } });
+    } catch {
+      Logger.warn("[Authentication] Connection was not completed");
+      setAuthData(null);
+      setError("GitHub connection wasn’t completed. The code may have expired or the connection was interrupted. Please try again.");
+    } finally {
+      connecting.current = false;
+      setPending(false);
     }
   };
-
-  const authenticateGitHubApp = async () => {
-    try {
-      await startAppAuthentication();
-
-      queryClient.invalidateQueries();
-      navigate({ to: "/settings", search: { tab: "license" } });
-    } catch (err) {
-      Logger.error("Error during GitHub App authentication:", err);
-    }
-  };
+  const authenticate = () => connect(startAuthentication);
+  const authenticateGitHubApp = () => connect(startAppAuthentication);
 
   return {
     data: {
       authData,
+      isPending,
+      error,
     },
     action: {
       authenticate,

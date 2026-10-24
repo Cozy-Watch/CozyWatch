@@ -1,3 +1,6 @@
+import { repositoryKey } from "../../../../shared/repositoryKey";
+import { estimateFullRefreshReserve } from "../../githubRequestBudget";
+export { estimateFullRefreshReserve } from "../../githubRequestBudget";
 import { app, ipcMain } from "electron";
 import pLimit from "p-limit";
 import { getGithubClient, isPATAuth } from "../../githubClient";
@@ -22,7 +25,6 @@ import { dedupePullRequests } from "../utils/dedupePullRequests";
 const MAX_REVIEW_PRS = 100;
 const MAX_REVIEW_PAGES = 200;
 const CONCURRENCY = 4;
-const QUOTA_MARGIN = 100;
 type Pull = PullRequestList[number];
 type Page = { data: PullRequestList; etag?: string; next: boolean };
 type ReviewDelta = { repo: Repository; pull: Pull; reviews: PullListReview };
@@ -57,30 +59,6 @@ const fingerprint = (pr: Pull) =>
     pr.head.sha,
     (pr.requested_reviewers || []).map((user) => user.id).sort((a, b) => a - b),
   ]);
-
-// Full refresh includes list, reviews, comments and up to ten workflow pages/repo.
-// The estimate includes known detail pagination and headroom for growth/retries.
-export function estimateFullRefreshReserve(
-  cache: CacheData,
-  repositories: Repository[],
-) {
-  let requests = 1;
-  for (const repo of repositories) {
-    const pulls = Object.values(
-      cache.pullRequestsPerRepo[repo.name] || {},
-    ).flat();
-    requests += Math.max(1, Math.ceil(pulls.length / 100)) + 11;
-    for (const pr of pulls) {
-      const reviews =
-        cache.reviewPerRepoPerPullNumber[repo.name]?.[pr.number]?.length || 0;
-      requests += Math.max(1, Math.ceil(reviews / 100)) + 1;
-    }
-    // Comments are stored in page buckets, including their PR identity.
-    const comments = Object.values(cache.mentions[repo.name] || {}).flat();
-    requests += Math.ceil(comments.length / 100);
-  }
-  return Math.ceil(requests * 1.25) + QUOTA_MARGIN;
-}
 
 /** Only remove a stale request when a newly submitted review is at least as new
  * as the PR metadata. Older reviews must never erase a subsequent re-request. */
@@ -142,19 +120,7 @@ export async function sweepReviewDelta(): Promise<ReviewSweepResult> {
       const repositories = Object.values(repositoryCache.repositoriesByPage)
         .flat()
         .filter((repo) => repositoryCache.activeRepositories[repo.id]);
-      // The legacy cache cannot distinguish same-named repositories. Never compound
-      // that defect by publishing review data into an ambiguous cache slot.
-      const allRepositories = Object.values(
-        repositoryCache.repositoriesByPage,
-      ).flat();
-      const eligible = repositories.filter(
-        (repo) =>
-          allRepositories.filter((other) => other.name === repo.name).length ===
-            1 &&
-          Object.values(cache.pullRequestsPerRepo[repo.name] || {})
-            .flat()
-            .every((pr) => pr.base.repo.id === repo.id),
-      );
+      const eligible = repositories.filter(repo => Object.values(cache.pullRequestsPerRepo[repositoryKey(repo)] || {}).flat().every(pr => pr.base.repo.id === repo.id));
       const activeIds = new Set(eligible.map((repo) => repo.id));
       for (const id of pages.keys()) if (!activeIds.has(id)) pages.delete(id);
       for (const [key, item] of pending)
@@ -222,7 +188,7 @@ export async function sweepReviewDelta(): Promise<ReviewSweepResult> {
           Math.max(
             1,
             pages.get(repo.id)?.size ||
-              Object.keys(cache.pullRequestsPerRepo[repo.name] || {}).length,
+              Object.keys(cache.pullRequestsPerRepo[repositoryKey(repo)] || {}).length,
           ),
         0,
       );
@@ -237,15 +203,15 @@ export async function sweepReviewDelta(): Promise<ReviewSweepResult> {
             const oldPages =
               pages.get(repo.id) ||
               new Map(
-                Object.entries(cache.pullRequestsPerRepo[repo.name] || {}).map(
+                Object.entries(cache.pullRequestsPerRepo[repositoryKey(repo)] || {}).map(
                   ([number, data]) => [
                     Number(number),
                     {
                       data,
-                      etag: cache.etagPerRepo[repo.name]?.list?.[number],
+                      etag: cache.etagPerRepo[repositoryKey(repo)]?.list?.[number],
                       next:
                         Number(number) <
-                        Object.keys(cache.pullRequestsPerRepo[repo.name] || {})
+                        Object.keys(cache.pullRequestsPerRepo[repositoryKey(repo)] || {})
                           .length,
                     },
                   ],
@@ -406,7 +372,7 @@ export async function sweepReviewDelta(): Promise<ReviewSweepResult> {
         pending.delete(keyOf(pull));
         metrics.refreshedPRs++;
         const previous =
-          latest.reviewPerRepoPerPullNumber[repo.name]?.[pull.number] || [];
+          latest.reviewPerRepoPerPullNumber[repositoryKey(repo)]?.[pull.number] || [];
         // Keep membership/title/SHA reconciliation owned by the full refresh.
         const updated = reconcileRequestedReviewers(
           {
@@ -423,18 +389,18 @@ export async function sweepReviewDelta(): Promise<ReviewSweepResult> {
             JSON.stringify(updated.requested_reviewers)
         )
           continue;
-        changedRepos.add(repo.name);
+        changedRepos.add(repositoryKey(repo));
         replacements.set(keyOf(pull), {
           ...old,
           requested_reviewers: updated.requested_reviewers,
         });
-        next.reviewPerRepoPerPullNumber[repo.name] = {
-          ...next.reviewPerRepoPerPullNumber[repo.name],
+        next.reviewPerRepoPerPullNumber[repositoryKey(repo)] = {
+          ...next.reviewPerRepoPerPullNumber[repositoryKey(repo)],
           [pull.number]: reviews,
         };
         // Full REST revalidation must not reuse validators for a different review body.
-        next.etagPerRepo[repo.name] = {
-          ...next.etagPerRepo[repo.name],
+        next.etagPerRepo[repositoryKey(repo)] = {
+          ...next.etagPerRepo[repositoryKey(repo)],
           reviews: {},
         };
       }
@@ -470,14 +436,15 @@ export async function sweepReviewDelta(): Promise<ReviewSweepResult> {
           if (settings.reviewsUpdateNotification.value)
             next.reviewUpdateList.reviewChanged.push(...changes.reviewChanged);
         }
-        setLocalCache(next);
-        ipcMain.emit("dispatch-pull-request-update", null, next);
-        metrics.publicationLatencyMs = performance.now() - startedAt;
         const notifications = getReviewNotifications(next.reviewUpdateList);
         if (notifications.length) {
           app.setBadgeCount(notifications.length);
-          batchNotificationManager(notifications);
+          await batchNotificationManager(notifications);
         }
+        if (!isCurrent()) return metrics;
+        setLocalCache(next);
+        ipcMain.emit("dispatch-pull-request-update", null, next);
+        metrics.publicationLatencyMs = performance.now() - startedAt;
         await storeData({ name: "pull_requests_cache", data: next });
       }
       if (!budget) metrics.skipped = "quota-budget-exhausted";

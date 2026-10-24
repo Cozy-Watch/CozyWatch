@@ -2,18 +2,11 @@ import { app, nativeImage } from "electron";
 import Logger from "electron-log";
 import { menubar as baseMenubar, Menubar } from "menubar";
 import path from "path";
-import { pathToFileURL } from "node:url";
+import { APP_RENDERER_URL } from "../security/appProtocol";
 import { protectWebContents } from "../security/externalUrl";
 
 const TEMPLATE_IMAGE = "whiteArmChair.png";
-const getRendererUrl = () =>
-  MAIN_WINDOW_VITE_DEV_SERVER_URL ??
-  pathToFileURL(
-    path.join(
-      __dirname,
-      `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`,
-    ),
-  ).toString();
+const getRendererUrl = () => MAIN_WINDOW_VITE_DEV_SERVER_URL ?? APP_RENDERER_URL;
 
 function getTemplateIcon() {
   const image = nativeImage.createFromPath(
@@ -42,7 +35,7 @@ export const createMenubar = () => {
         allowRunningInsecureContent: false,
         contextIsolation: true,
         nodeIntegration: false,
-        preload: path.join(__dirname, "preload.js"),
+        preload: path.join(__dirname, "preload.cjs"),
         sandbox: true,
         webSecurity: true,
       },

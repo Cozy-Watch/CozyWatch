@@ -1,0 +1,16 @@
+{
+  "node": "v22.13.1",
+  "pulls": 2000,
+  "measuredIterations": 100,
+  "before": {
+    "serializedBytes": 4207088,
+    "medianMs": 4.164,
+    "p95Ms": 11.013
+  },
+  "after": {
+    "serializedBytes": 112967,
+    "medianMs": 1.868,
+    "p95Ms": 5.517
+  },
+  "limitation": "Node structuredClone proxy for IPC copying; not Electron IPC or UI latency. Synthetic PR-heavy workload without discussions."
+}

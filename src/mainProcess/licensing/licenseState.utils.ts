@@ -1,143 +1,143 @@
 import {
-  COMMERCIAL_TRIAL_DAYS,
-  EXPIRY_REMINDER_INTERVAL_DAYS,
+  TRIAL_DAYS,
+  TRANSITION_TRIAL_DAYS,
   LICENSE_STATE_SCHEMA_VERSION,
   LICENSE_STATUSES,
-  LicenseState,
+  type LicenseState,
 } from "./licenseState.types";
 
-const DAY_IN_MILLISECONDS = 24 * 60 * 60 * 1000;
-
+const DAY = 86_400_000;
+const validDate = (value: unknown): value is string =>
+  typeof value === "string" && Number.isFinite(Date.parse(value));
 export const createUnconfiguredLicenseState = (): LicenseState => ({
   schemaVersion: LICENSE_STATE_SCHEMA_VERSION,
   status: "unconfigured",
 });
 
-export const createPersonalLicenseState = (): LicenseState => ({
-  schemaVersion: LICENSE_STATE_SCHEMA_VERSION,
-  status: "personal",
-});
-
-export const createCommercialTrialLicenseState = (
+export const createTrialLicenseState = (
+  kind: "new" | "transition",
   now = new Date(),
+  previous = createUnconfiguredLicenseState(),
 ): LicenseState => ({
-  schemaVersion: LICENSE_STATE_SCHEMA_VERSION,
-  status: "commercial-trial",
+  ...previous,
+  status: "trial",
+  trialKind: kind,
+  transitionPending: false,
   trialStartedAt: now.toISOString(),
   trialEndsAt: new Date(
-    now.getTime() + COMMERCIAL_TRIAL_DAYS * DAY_IN_MILLISECONDS,
+    now.getTime() + (kind === "new" ? TRIAL_DAYS : TRANSITION_TRIAL_DAYS) * DAY,
   ).toISOString(),
+  ...(kind === "transition" ? { termsAcceptedAt: now.toISOString() } : {}),
 });
 
 export const isLicenseState = (value: unknown): value is LicenseState => {
-  if (!value || typeof value !== "object") {
+  if (!value || typeof value !== "object") return false;
+  const state = value as LicenseState;
+  if (
+    state.schemaVersion !== LICENSE_STATE_SCHEMA_VERSION ||
+    !LICENSE_STATUSES.includes(state.status)
+  )
     return false;
-  }
-
-  const candidate = value as Partial<LicenseState>;
-
-  return (
-    candidate.schemaVersion === LICENSE_STATE_SCHEMA_VERSION &&
-    LICENSE_STATUSES.some((status) => status === candidate.status)
-  );
+  if (
+    state.status === "licensed" &&
+    (!state.licenseInstanceId ||
+      !state.licenseProductId ||
+      !validDate(state.lastValidatedAt))
+  )
+    return false;
+  if (
+    state.status === "trial" &&
+    !state.transitionPending &&
+    (!validDate(state.trialStartedAt) || !validDate(state.trialEndsAt))
+  )
+    return false;
+  return true;
 };
 
 export const resolveTimeBasedLicenseState = (
   state: LicenseState,
   now = new Date(),
 ): LicenseState => {
-  if (state.status === "commercial-trial") {
-    if (!state.trialEndsAt) {
-      return { ...state, status: "invalid" };
-    }
-
-    const trialEndsAt = new Date(state.trialEndsAt);
-
-    if (Number.isNaN(trialEndsAt.getTime())) {
-      return { ...state, status: "invalid" };
-    }
-
-    if (trialEndsAt <= now) {
-      return { ...state, status: "expired" };
-    }
-  }
-
-  if (state.status === "commercial-active" && state.licenseExpiresAt) {
-    const licenseExpiresAt = new Date(state.licenseExpiresAt);
-
-    if (
-      Number.isNaN(licenseExpiresAt.getTime()) ||
-      licenseExpiresAt <= now
-    ) {
-      return { ...state, status: "expired" };
-    }
-  }
-
+  if (state.status !== "trial" || state.transitionPending) return state;
+  if (
+    !state.trialEndsAt ||
+    !validDate(state.trialEndsAt) ||
+    Date.parse(state.trialEndsAt) <= now.getTime()
+  )
+    return { ...state, status: "trial-ended" };
   return state;
 };
 
-export const selectPersonalUse = (state: LicenseState): LicenseState => {
-  if (
-    state.status === "commercial-active" ||
-    state.status === "lifetime-active"
-  ) {
-    return state;
-  }
-
-  return {
-    ...state,
-    status: "personal",
-    lastValidationError: undefined,
-  };
-};
-
-export const selectCommercialUse = (
-  state: LicenseState,
-  now = new Date(),
-): LicenseState => {
-  if (
-    state.status === "commercial-active" ||
-    state.status === "lifetime-active" ||
-    state.status === "commercial-trial"
-  ) {
-    return resolveTimeBasedLicenseState(state, now);
-  }
-
-  if (state.trialStartedAt && state.trialEndsAt) {
-    return resolveTimeBasedLicenseState(
-      { ...state, status: "commercial-trial" },
-      now,
-    );
-  }
-
-  if (state.status === "expired") {
-    return state;
-  }
-
-  return createCommercialTrialLicenseState(now);
-};
-
-export const isCommercialUseLicensed = (state: LicenseState) =>
-  state.status === "commercial-trial" ||
-  state.status === "commercial-active" ||
-  state.status === "lifetime-active";
-
+export const canUseDesktop = (state: LicenseState, now = new Date()) =>
+  ["community", "licensed", "trial"].includes(
+    resolveTimeBasedLicenseState(state, now).status,
+  );
 export const shouldShowExpiryReminder = (
   state: LicenseState,
   now = new Date(),
 ) => {
-  if (state.status !== "expired" || !state.lastExpiryReminderAt) {
-    return state.status === "expired";
-  }
-
-  const lastReminderAt = new Date(state.lastExpiryReminderAt);
-
-  if (Number.isNaN(lastReminderAt.getTime())) {
-    return true;
-  }
-
+  if (state.status !== "trial" || !state.trialEndsAt || state.transitionPending)
+    return false;
+  const remaining = Date.parse(state.trialEndsAt) - now.getTime();
+  if (remaining <= 0 || remaining > 3 * DAY) return false;
   return (
-    now.getTime() - lastReminderAt.getTime() >=
-    EXPIRY_REMINDER_INTERVAL_DAYS * DAY_IN_MILLISECONDS
+    !state.lastExpiryReminderAt ||
+    now.getTime() - Date.parse(state.lastExpiryReminderAt) >= DAY
   );
+};
+
+// Never infer a new trial for an existing installation or discard a paid entitlement on update.
+export const migrateLicenseState = (
+  stored: unknown,
+  hasExistingAccount: boolean,
+): LicenseState => {
+  if (isLicenseState(stored)) return resolveTimeBasedLicenseState(stored);
+  const previous =
+    stored && typeof stored === "object"
+      ? (stored as Record<string, unknown>)
+      : {};
+  if (
+    previous.schemaVersion === 1 &&
+    ["commercial-active", "lifetime-active"].includes(
+      String(previous.status),
+    ) &&
+    previous.licenseInstanceId &&
+    previous.licenseProductId &&
+    validDate(previous.lastValidatedAt)
+  ) {
+    return {
+      ...previous,
+      schemaVersion: LICENSE_STATE_SCHEMA_VERSION,
+      status: "licensed",
+      entitlement:
+        previous.status === "lifetime-active" ? "lifetime" : "legacy",
+      legacyMigrationPending: previous.status === "commercial-active",
+    } as LicenseState;
+  }
+  const existing =
+    hasExistingAccount ||
+    (previous.schemaVersion === 1 && previous.status !== "unconfigured");
+  if (existing)
+    return {
+      ...createUnconfiguredLicenseState(),
+      status: "trial",
+      trialKind: "transition",
+      transitionPending: true,
+    };
+  return createUnconfiguredLicenseState();
+};
+
+export const withoutActivation = (state: LicenseState): LicenseState => {
+  // Preserve trial eligibility and transition consent when transferring a device.
+  const next: LicenseState = {
+    schemaVersion: LICENSE_STATE_SCHEMA_VERSION,
+    status: "trial-ended",
+    trialKind: state.trialKind,
+    trialStartedAt: state.trialStartedAt,
+    trialEndsAt: state.trialEndsAt,
+    termsAcceptedAt: state.termsAcceptedAt,
+    transitionPending: state.transitionPending,
+  };
+  if (next.transitionPending || next.trialEndsAt) next.status = "trial";
+  return resolveTimeBasedLicenseState(next);
 };

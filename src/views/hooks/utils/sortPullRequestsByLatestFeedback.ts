@@ -1,3 +1,4 @@
+import { repositoryKey } from "../../../shared/repositoryKey";
 import type {
   CacheData,
   PullRequestList,
@@ -38,7 +39,7 @@ export const orderPullRequestsByLatestFeedback = (
 
   const latestFeedbackAtByPullRequest = new Map(
     pullRequests.map((pr) => {
-      const repository = pr.base.repo.name;
+      const repository = repositoryKey(pr.base.repo);
       const key = `${repository}/${pr.number}`;
       const reviews = cache.reviewPerRepoPerPullNumber[repository]?.[pr.number] ?? [];
       const feedbackAt = reviews.reduce(

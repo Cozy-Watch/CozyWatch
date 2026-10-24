@@ -1,4 +1,3 @@
-import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useRouter } from "@tanstack/react-router";
 import Logger from "electron-log";
 import { useLicenseStatusQuery } from "../../api/useLicenseStatusQuery";
@@ -8,8 +7,6 @@ import { useEffect, useState } from "react";
 export const useHeader = () => {
   const router = useRouter();
   const navigate = useNavigate();
-
-  const queryClient = useQueryClient();
 
   const licenseQueryInfo = useLicenseStatusQuery();
 
@@ -38,8 +35,6 @@ export const useHeader = () => {
   const onSignOut = async () => {
     try {
       await window.electronAPI.application.signUser(false);
-
-      await queryClient.invalidateQueries();
 
       router.invalidate().finally(() => {
         navigate({ to: "/" });

@@ -8,6 +8,9 @@ export const usePATauthenticationMutation = () => {
   const navigate = useNavigate({ from: "/" });
 
   return useMutation({
+    // Mutation variables include the PAT; discard inactive mutations immediately.
+    gcTime: 0,
+    retry: false,
     mutationFn: async (value: string) => {
       try {
         const response =
@@ -19,14 +22,14 @@ export const usePATauthenticationMutation = () => {
 
         return response;
       } catch (err) {
-        Logger.error("storePAT failed:", err);
+        Logger.error("PAT connection failed");
         throw err;
       }
     },
     onSuccess: () => {
       queryClient.invalidateQueries();
 
-      navigate({ to: "/settings", search: { tab: "license" } });
+      navigate({ to: "/settings", search: { tab: "repositories" } });
     },
   });
 };

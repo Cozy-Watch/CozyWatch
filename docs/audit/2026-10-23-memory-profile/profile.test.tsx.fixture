@@ -1,0 +1,32 @@
+/** @jest-environment jsdom */
+import { act } from 'react';
+import { createRoot } from 'react-dom/client';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { writeFileSync } from 'node:fs';
+import { usePullRequestQuery, queryKey } from './variant';
+
+it('profiles retained heap after repeated synthetic PR updates', async () => {
+  Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
+  const gc = (globalThis as unknown as {gc:()=>void}).gc;
+  expect(gc).toBeDefined();
+  let receive: (data: unknown) => void = () => undefined;
+  const payload = JSON.stringify({flatPullRequests:Array.from({length:2000},(_,i)=>({id:i,title:`PR ${i}`,body:String(i).padEnd(2048,'x')}))});
+  Object.assign(window,{electronAPI:{pullRequest:{onUpdate:(fn:typeof receive)=>{receive=fn;return fn;},removeOnUpdate:jest.fn(),query:async()=>JSON.parse(payload)}}});
+  const client=new QueryClient();
+  const root=createRoot(document.createElement('div'));
+  const Probe=()=>{const query=usePullRequestQuery();return <span>{query.data?.flatPullRequests.length}</span>};
+  const settle=async()=>{await new Promise(resolve=>setTimeout(resolve,0));gc();gc();};
+  try{
+    await act(async()=>{root.render(<QueryClientProvider client={client}><Probe/></QueryClientProvider>);});
+    await act(async()=>{await new Promise(resolve=>setTimeout(resolve,0));});
+    await settle();
+    const baseline=process.memoryUsage().heapUsed;
+    const samples=[];
+    for(let cycle=1;cycle<=100;cycle++){
+      await act(async()=>{receive(JSON.parse(payload));});
+      if(cycle%20===0){await settle();samples.push({cycle,retainedMiB:(process.memoryUsage().heapUsed-baseline)/1024/1024});}
+    }
+    expect(client.getQueryData<{flatPullRequests:unknown[]}>(queryKey)?.flatPullRequests).toHaveLength(2000);
+    writeFileSync(`/private/tmp/cozy-overview-preview/query-memory-${process.env.COZY_MEMORY_VARIANT}.json`,JSON.stringify({variant:process.env.COZY_MEMORY_VARIANT,workload:'100 IPC-style updates, 2000 synthetic PRs, 2048-character bodies',baselineMiB:baseline/1024/1024,samples},null,2));
+  }finally{await act(async()=>root.unmount());client.clear();}
+},60000);

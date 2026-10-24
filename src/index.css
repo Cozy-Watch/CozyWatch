@@ -157,6 +157,59 @@
 
 /* MENU BAR */
 
+.menubar-header {
+  width: 100%;
+  min-width: 0;
+  gap: var(--space-3);
+}
+
+.menubar-dashboard-link {
+  min-width: 0;
+  max-width: 100%;
+  margin: 0;
+  padding-inline: 0;
+  color: var(--accent-12);
+  font-weight: 600;
+}
+
+.menubar-dashboard-link img,
+.menubar-header-actions {
+  flex-shrink: 0;
+}
+
+.menubar-dashboard-link span,
+.menubar-menu-account,
+.menubar-tab-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.menubar-menu-account {
+  max-width: 200px;
+}
+
+.menubar-header .rt-IconButton {
+  margin: 0;
+  color: var(--accent-12);
+}
+
+.menubar-notifications-button {
+  position: relative;
+}
+
+.menubar-unread-dot {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--red-9);
+  box-shadow: 0 0 0 2px var(--color-background);
+}
+
 .menubar-classic-tabs {
   --menubar-tabs-inset: var(--space-3);
   width: calc(100% + 2 * var(--menubar-tabs-inset));
@@ -171,10 +224,25 @@
 }
 
 .menubar-classic-tab {
+  flex: 1 1 0;
+  min-width: 0;
+  max-width: 50%;
+  overflow: hidden;
   border: 1px solid transparent;
   border-bottom: 0;
   border-radius: var(--radius-3) var(--radius-3) 0 0;
   color: var(--gray-11);
+}
+
+.menubar-classic-tab .rt-BaseTabListTriggerInner {
+  display: flex;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.menubar-classic-tab .rt-Badge {
+  flex-shrink: 0;
 }
 
 .menubar-classic-tab[data-state="active"] {
@@ -208,6 +276,10 @@
 }
 
 :is(.light, .light-theme) .menubar-classic-tab {
+  flex: 1 1 0;
+  min-width: 0;
+  max-width: 50%;
+  overflow: hidden;
   color: var(--gray-12);
 }
 
@@ -306,7 +378,7 @@
 .settings-section-panel .rt-Card {
   --card-background-color: color-mix(
     in srgb,
-    var(--accent-5) 30%,
+    var(--gray-5) 30%,
     var(--color-panel-solid)
   ) !important;
   --card-border-width: 0px;
@@ -319,7 +391,7 @@
 :is(.light, .light-theme) .settings-section-panel .rt-Card {
   --card-background-color: color-mix(
     in srgb,
-    var(--accent-5) 40%,
+    var(--gray-5) 40%,
     var(--color-panel-solid)
   ) !important;
 }
@@ -967,4 +1039,34 @@
 }
 .pr-branch-copy:hover {
   background: var(--gray-a4);
+}
+
+.license-details {
+  font-size: var(--font-size-2);
+  color: var(--gray-11);
+}
+
+.license-details summary {
+  cursor: pointer;
+  width: fit-content;
+}
+
+.license-details summary:focus-visible {
+  outline: 2px solid var(--focus-8);
+  outline-offset: 4px;
+  border-radius: var(--radius-1);
+}
+
+.welcome-screen {
+  background: radial-gradient(ellipse at 50% 38%, var(--accent-a3), transparent 64%), var(--gray-1);
+}
+
+.welcome-brand-icon {
+  width: 80px;
+  height: 80px;
+  border-radius: 24px;
+  color: var(--accent-11);
+  background: var(--accent-a3);
+  border: 1px solid var(--accent-a4);
+  box-shadow: 0 8px 28px var(--accent-a3);
 }

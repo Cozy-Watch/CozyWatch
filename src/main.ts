@@ -1,17 +1,21 @@
+import { rendererSnapshot } from "./mainProcess/api/PullRequests/utils/rendererSnapshot";
 import { app, BrowserWindow, clipboard, ipcMain, session } from "electron";
 import type { IpcMainInvokeEvent, WebContents } from "electron";
 import log from "electron-log/main";
 import started from "electron-squirrel-startup";
 import { Menubar } from "menubar";
 import path from "node:path";
-import { pathToFileURL } from "node:url";
+import { APP_RENDERER_URL, registerAppScheme, installAppProtocol } from "./mainProcess/security/appProtocol";
 import "./background";
 import {
   authenticateWithGitHub,
   authenticateWithGitHubApp,
   authenticateWithPAT,
+  cancelAuthentication,
   hasLocalAccessToken,
 } from "./mainProcess/api/Authentication/authentication";
+import { canUseDesktop } from "./mainProcess/licensing/licenseState.utils";
+import type { LicenseState } from "./mainProcess/licensing/licenseState.types";
 import { signOut } from "./mainProcess/api/githubClient";
 import { activateLicense } from "./mainProcess/api/LemonSqueezy/activateLicense";
 import { deactivateLicense } from "./mainProcess/api/LemonSqueezy/deactivateLicense";
@@ -19,7 +23,7 @@ import { validateLicense } from "./mainProcess/api/LemonSqueezy/validateLicense"
 import {
   getLicenseState,
   markExpiryReminderShown,
-  setLicenseUsage,
+  acceptTransitionTerms,
 } from "./mainProcess/licensing/licenseState";
 import {
   getPullRequests,
@@ -76,6 +80,7 @@ import {
   markAllNotificationsRead,
   markNotificationRead,
   clearNotificationsOnSignOut,
+  cancelPendingNotifications,
 } from "./mainProcess/notifications/notificationManager";
 import {
   isAllowedRendererUrl,
@@ -122,11 +127,8 @@ type MainWindowNavigation = {
 let pendingMainWindowNavigation: MainWindowNavigation | null = null;
 const isDevelopment = !app.isPackaged;
 
-const getRendererUrl = () =>
-  MAIN_WINDOW_VITE_DEV_SERVER_URL ??
-  pathToFileURL(
-    path.join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`),
-  ).toString();
+registerAppScheme();
+const getRendererUrl = () => MAIN_WINDOW_VITE_DEV_SERVER_URL ?? APP_RENDERER_URL;
 
 const rendererFailureUrl = `data:text/html;charset=utf-8,${encodeURIComponent(`
   <!doctype html>
@@ -326,17 +328,49 @@ const startBackgroundTasks = () => {
     });
 };
 
-const startAuthenticatedBackgroundTasks = () => {
-  if (!rendererReady || backgroundTasksStarted) {
+let backgroundGeneration = 0;
+const startAuthenticatedBackgroundTasks = async () => {
+  if (!rendererReady || backgroundTasksStarted) return;
+  backgroundTasksStarted = true;
+  const generation = backgroundGeneration;
+  try {
+    const [state, authenticated] = await Promise.all([getLicenseState(), hasLocalAccessToken()]);
+    if (generation !== backgroundGeneration) return;
+    if (!authenticated || !canUseDesktop(state)) {
+      backgroundTasksStarted = false;
+      return;
+    }
+    void getRepositories().catch((error) => log.error("[Repositories] background refresh failed", error));
+    startPolling();
+    diagnostics.record("background-tasks-ready", { authenticated: true });
+  } catch (error) {
+    if (generation === backgroundGeneration) backgroundTasksStarted = false;
+    log.error("[App] Could not start monitoring", error);
+  }
+};
+
+ipcMain.on("dispatch-license-state", (_, state: LicenseState) => {
+  for (const contents of getTrustedWebContents()) contents.send("license-updated", state);
+  if (!canUseDesktop(state)) {
+    backgroundGeneration += 1;
+    backgroundTasksStarted = false;
+    stopPolling();
     return;
   }
-  backgroundTasksStarted = true;
-  void getRepositories().catch((error) => {
-    log.error("[Repositories] background refresh failed", error);
-  });
-  startPolling();
-  diagnostics.record("background-tasks-ready", { authenticated: true });
-};
+  void startAuthenticatedBackgroundTasks();
+});
+
+// Local expiry is enforced even if the Settings screen is never opened.
+let lastLicenseCheck = Date.now();
+const licenseTimer = setInterval(() => {
+  if (!rendererReady) return;
+  void getLicenseState().catch((error) => log.warn("[License] Local status unavailable", error));
+  if (Date.now() - lastLicenseCheck >= 6 * 60 * 60 * 1000) {
+    lastLicenseCheck = Date.now();
+    void validateLicense().catch((error) => log.warn("[License] Retry deferred", error));
+  }
+}, 30_000);
+licenseTimer.unref();
 
 appUpdate();
 
@@ -368,7 +402,7 @@ export const createWindow = () => {
       allowRunningInsecureContent: false,
       contextIsolation: true,
       nodeIntegration: false,
-      preload: path.join(__dirname, "preload.js"),
+      preload: path.join(__dirname, "preload.cjs"),
       sandbox: true,
       webSecurity: true,
     },
@@ -436,7 +470,10 @@ export const createWindow = () => {
     // main-process transport. Reporting that output here creates a duplicate
     // log entry whose source is electron-log.js (and object arguments become
     // "[object Object]").
-    if (sourceId.includes("electron-log")) {
+    if (
+      sourceId.includes("electron-log") ||
+      (sourceId.includes("/@vite/client") && /\[Renderer\] console (warning|error)/.test(message))
+    ) {
       return;
     }
 
@@ -481,13 +518,7 @@ export const createWindow = () => {
     }
   });
 
-  if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
-    mainWindow.loadURL(MAIN_WINDOW_VITE_DEV_SERVER_URL);
-  } else {
-    mainWindow.loadFile(
-      path.join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`),
-    );
-  }
+  void mainWindow.loadURL(getRendererUrl()).catch(() => showRendererFailure());
 
   createMenu();
   log.info("[Menu] created");
@@ -523,6 +554,7 @@ app.on("did-become-active", () => {
 });
 
 app.whenReady().then(() => {
+  if (app.isPackaged) installAppProtocol(path.join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}`));
   log.info("[App] ready");
   diagnostics.record("app-ready");
   diagnostics.startMetricsCollection();
@@ -585,6 +617,9 @@ app.on("activate", () => {
 // ---- EVENTS ----
 
 const stopAuthenticatedBackgroundTasks = () => {
+  cancelAuthentication();
+  cancelPendingNotifications();
+  backgroundGeneration += 1;
   backgroundTasksStarted = false;
   stopPolling();
   disableDerivedCacheWrites();
@@ -596,7 +631,7 @@ export const performSignOut = async () => {
   stopAuthenticatedBackgroundTasks();
   const signedOut = await signOut();
   if (signedOut) {
-    await clearNotificationsOnSignOut();
+    ipcMain.emit("dispatch-application-sign-user", null, false);
   }
   if (!signedOut) {
     enableDerivedCacheWrites();
@@ -629,6 +664,7 @@ handleRendererInvoke(
 );
 
 ipcMain.on("dispatch-application-sign-user", (_, isSignIn) => {
+  if (!isSignIn) void clearNotificationsOnSignOut().catch(() => log.warn("[Notifications] Could not clear signed-out history"));
   log.info("[IPC] dispatch-application-sign-user");
 
   if (mainWindow && !mainWindow.isDestroyed()) {
@@ -783,12 +819,15 @@ ipcMain.on("dispatch-repository-update", (_, data) => {
   if (mainWindow && !mainWindow.isDestroyed()) {
     mainWindow.webContents.send("repository-update", data);
   }
+  if (menubar?.window && !menubar.window.isDestroyed()) {
+    menubar.window.webContents.send("repository-update", data);
+  }
 });
 
 // ---- Pull Requests ----
 handleRendererInvoke("pull-requests-query", async () => {
   log.info("[IPC] pull-requests-query cached snapshot");
-  return getPullRequestSnapshot();
+  return rendererSnapshot(await getPullRequestSnapshot());
 });
 
 handleRendererInvoke(PULL_REQUEST_MERGE_CHANNELS.options, async (_, data: unknown) => {
@@ -849,14 +888,15 @@ handleRendererInvoke(PULL_REQUEST_MERGE_CHANNELS.status, async (_, data: unknown
 
 ipcMain.on("dispatch-pull-request-update", (_, data) => {
   log.info("[IPC] pull request-update");
+  const snapshot = rendererSnapshot(data);
   if (mainWindow && !mainWindow.isDestroyed()) {
     log.info("[IPC] main window pull request-update");
-    mainWindow.webContents.send("pull-request-update", data);
+    mainWindow.webContents.send("pull-request-update", snapshot);
   }
 
   if (menubar?.window && !menubar.window.isDestroyed()) {
     log.info("[IPC] menu bar window pull request-update");
-    menubar.window.webContents.send("pull-request-update", data);
+    menubar.window.webContents.send("pull-request-update", snapshot);
   }
 });
 
@@ -900,15 +940,8 @@ handleRendererInvoke("license-validate", async () => {
   return validateLicense();
 });
 
-handleRendererInvoke("license-set-usage", async (_, usage: unknown) => {
-  log.info("[IPC] license-set-usage", { usage });
-
-  if (usage !== "personal" && usage !== "commercial") {
-    throw new Error("Invalid license usage selection.");
-  }
-
-  return setLicenseUsage(usage);
-});
+handleRendererInvoke("license-accept-transition", () => acceptTransitionTerms());
+handleRendererInvoke("license-quit", () => app.quit());
 
 handleRendererInvoke("license-deactivate", async () => {
   log.info("[IPC] license-deactivate");
@@ -990,8 +1023,8 @@ handleRendererInvoke("mark-all-notifications-read", () => markAllNotificationsRe
 handleRendererInvoke("clear-notification-history", () => clearNotificationHistory());
 
 ipcMain.on("dispatch-notification-update", (_, data) => {
-  if (mainWindow && !mainWindow.isDestroyed()) {
-    mainWindow.webContents.send("notification-update", data);
+  for (const contents of getTrustedWebContents()) {
+    contents.send("notification-update", data);
   }
 });
 
@@ -1177,6 +1210,7 @@ handleRendererInvoke("on-application-navigate-to-route", async (_, route) => {
 });
 
 app.on("before-quit", () => {
+  clearInterval(licenseTimer);
   log.info("[App] stopping polling before quit");
   diagnostics.record("app-before-quit");
   diagnostics.stopMetricsCollection();

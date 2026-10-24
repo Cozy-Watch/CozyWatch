@@ -8,6 +8,8 @@ import { useMenubarDensityQuery } from "../AppSettings/api/useMenubarDensityQuer
 import { Menubar } from "./Menubar";
 import { useMenubar } from "./useMenubar";
 
+jest.mock("../../components/LicenseGate/LicenseGate", () => ({ LicenseGate: ({ children }: { children: import("react").ReactNode }) => <>{children}</> }));
+
 jest.mock("../../components/AuthenticationNotice/AuthenticationNotice", () => ({
   AuthenticationNotice: () => null,
 }));
@@ -125,9 +127,9 @@ describe("Menubar tabs", () => {
       container.querySelectorAll('[role="tab"]'),
     );
 
-    expect(mineTab.textContent).toContain("My Pull Requests");
+    expect(mineTab.textContent).toContain("My PRs");
     expect(mineTab.textContent).toContain("99+");
-    expect(teamTab.textContent).toContain("Relevant Pull Requests");
+    expect(teamTab.textContent).toContain("Team PRs");
     expect(teamTab.textContent).toContain("2");
     expect(mineTab.classList.contains("menubar-classic-tab")).toBe(true);
     expect(teamTab.classList.contains("menubar-classic-tab")).toBe(true);

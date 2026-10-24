@@ -1,3 +1,4 @@
+import { repositoryKey } from "../../shared/repositoryKey";
 import { useMemo } from "react";
 import { useUserQuery } from "../api/useUserQuery";
 import { usePullRequestQuery } from "../api/usePullRequestQuery";
@@ -57,7 +58,7 @@ export const usePullRequest = () => {
         return pr?.requested_reviewers && pr.requested_reviewers.length === 0;
       })
       .filter((pr) => {
-        const repositoryName = pr.head.repo?.name;
+        const repositoryName = repositoryKey(pr.base.repo);
         if (!repositoryName) return false;
         const pullNumber = pr.number;
 
@@ -83,7 +84,7 @@ export const usePullRequest = () => {
         return pr?.requested_reviewers && pr.requested_reviewers.length === 0;
       })
       .filter((pr) => {
-        const repositoryName = pr.head.repo?.name;
+        const repositoryName = repositoryKey(pr.base.repo);
         if (!repositoryName) return false;
         const pullNumber = pr.number;
 

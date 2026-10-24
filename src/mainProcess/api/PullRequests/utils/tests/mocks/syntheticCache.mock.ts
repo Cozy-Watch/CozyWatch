@@ -11,6 +11,7 @@ export const SYNTHETIC_USER_ID = 7;
 export const SYNTHETIC_USERNAME = "synthetic-user";
 
 type PullRequestContract = {
+  head: { sha: string };
   base: {
     repo: {
       name: string;
@@ -37,6 +38,7 @@ type ReviewContract = {
 };
 
 type WorkflowRunContract = {
+  head_sha: string;
   id: number;
   name: string | null;
   conclusion: "failure" | "success";
@@ -46,6 +48,7 @@ type WorkflowRunContract = {
 };
 
 export const createEmptyCache = (): CacheData => ({
+  schemaVersion: 2,
   etagPerRepo: {},
   pullRequestsPerRepo: {},
   reviewPerRepoPerPullNumber: {},
@@ -72,6 +75,7 @@ const createPullRequest = ({
   requestedReviewerIds?: number[];
 }) => {
   const pullRequest = {
+    head: { sha: `sha-${id}` },
     base: {
       repo: {
         name: SYNTHETIC_REPOSITORY_NAME,
@@ -132,6 +136,7 @@ const createWorkflowRun = ({
   updatedAt: string;
 }) => {
   const run = {
+    head_sha: `sha-${pullRequestId}`,
     id,
     name,
     conclusion,

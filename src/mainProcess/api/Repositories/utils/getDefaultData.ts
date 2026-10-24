@@ -19,7 +19,7 @@ export const getCachedData = async (): Promise<Required<RepositoriesCache>> => {
   if (localCache !== null) {
     Logger.log("[Repositories] using localCache");
     return {
-      ...defaultData,
+      ...structuredClone(defaultData),
       ...localCache,
     };
   }
@@ -32,7 +32,7 @@ export const getCachedData = async (): Promise<Required<RepositoriesCache>> => {
   if (storageCache) {
     Logger.log("[Repositories] using storageCache");
     return {
-      ...defaultData,
+      ...structuredClone(defaultData),
       ...storageCache,
       ...(activeRepositories ? { activeRepositories } : {}),
     };
@@ -40,11 +40,11 @@ export const getCachedData = async (): Promise<Required<RepositoriesCache>> => {
 
   if (activeRepositories) {
     return {
-      ...defaultData,
+      ...structuredClone(defaultData),
       activeRepositories,
     };
   }
 
   Logger.log("[Repositories] no cache using defaults");
-  return defaultData;
+  return structuredClone(defaultData);
 };

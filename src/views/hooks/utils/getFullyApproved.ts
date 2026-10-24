@@ -1,3 +1,4 @@
+import { repositoryKey } from "../../../shared/repositoryKey";
 import {
   PullRequestList,
   PullListReview,
@@ -18,7 +19,7 @@ export const getFullyApproved = ({
     if (pr.state !== "open") {
       return false;
     }
-    const repositoryName = pr.head.repo?.name ?? pr.base.repo.name;
+    const repositoryName = repositoryKey(pr.base.repo);
     const pullNumber = pr.number;
 
     const reviewsForThisPR = reviews?.[repositoryName]?.[pullNumber] || [];

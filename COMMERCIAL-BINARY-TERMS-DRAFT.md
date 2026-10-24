@@ -24,7 +24,7 @@ The MIT License permits both personal and commercial use of the source code. No 
 
 A paid license may be offered for a separately supplied official Cozy Watch distribution and its associated activation service, support, update channel, or other proprietary service. Any checkout flow and final agreement must identify those paid benefits without suggesting that payment is required for rights already granted by the MIT License.
 
-The official distribution may offer a limited trial of those paid benefits. The current product behavior describes a 30-day trial, but trial eligibility, duration, and availability would be controlled by the applicable product or checkout terms.
+The proposed official distribution offers a 14-day full-feature trial starting at the first successful GitHub connection. Existing free users receive a fresh 30-day transition trial after reviewing the changed terms. When a trial ends, monitoring and notifications pause while accounts, preferences, and cached data are retained.
 
 ## 4. Commercial license grant
 
@@ -54,7 +54,7 @@ Reverse engineering restrictions, if any, would apply only to components not gov
 
 ## 7. Fees, renewals, refunds, and taxes
 
-Prices, billing frequency, renewal behavior, seat or device limits, refunds, taxes, and payment processing would be stated in the applicable checkout flow or order confirmation. **[Confirm whether commercial licenses are subscriptions, perpetual licenses, or both, and add the governing refund and renewal terms.]**
+Prices, billing frequency, renewal behavior, seat or device limits, refunds, taxes, and payment processing would be stated in the applicable checkout flow or order confirmation. The proposed desktop product is a one-time lifetime purchase for one person on two Macs, for personal and commercial use, including all features and future desktop updates. Proposed founding price: $29, later $49. The new product must not renew automatically. Future hosted services are priced separately. Existing paying customers are intended to receive lifetime desktop access without another payment; cancellation of their existing renewals must be confirmed separately. **[Complete refund policy, applicable consumer terms, and final checkout wording before launch.]**
 
 ## 8. Support and updates
 

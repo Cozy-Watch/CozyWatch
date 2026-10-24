@@ -1,3 +1,4 @@
+import { LicenseGate } from "../../components/LicenseGate/LicenseGate";
 import { MarkGithubIcon } from "@primer/octicons-react";
 import {
   Badge,
@@ -111,6 +112,7 @@ export const Menubar = () => {
   const { avatarUrl, name, login } = headerData;
 
   return (
+    <LicenseGate>
     <Tabs.Root
       value={selectedTab}
       onValueChange={(value) => {
@@ -142,8 +144,9 @@ export const Menubar = () => {
             <Tabs.Trigger
               className="menubar-classic-tab"
               value="mine"
+              aria-label={`My Pull Requests, ${myPullRequests.length}`}
             >
-              My Pull Requests
+              <span className="menubar-tab-label">My PRs</span>
               <Badge ml="1" size="1">
                 {myPullRequests.length > 99 ? "99+" : myPullRequests.length}
               </Badge>
@@ -151,8 +154,9 @@ export const Menubar = () => {
             <Tabs.Trigger
               className="menubar-classic-tab"
               value="team"
+              aria-label={`Relevant team pull requests, ${teamPullRequests.length}`}
             >
-              Relevant Pull Requests
+              <span className="menubar-tab-label">Team PRs</span>
               <Badge ml="1" size="1">
                 {teamPullRequests.length > 99 ? "99+" : teamPullRequests.length}
               </Badge>
@@ -190,5 +194,6 @@ export const Menubar = () => {
         </Tabs.Content>
       </Flex>
     </Tabs.Root>
+    </LicenseGate>
   );
 };

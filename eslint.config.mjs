@@ -30,6 +30,11 @@ export default [
     },
   },
   {
+    files: ["scripts/maker-dmg.ts"],
+    // npm omits this optional native build dependency on Linux and Windows.
+    rules: { "import/no-unresolved": ["error", { ignore: ["^ds-store$"] }] },
+  },
+  {
     ignores: ["node_modules/**", ".vite/**", "out/**", "patches/**"],
   },
 ];

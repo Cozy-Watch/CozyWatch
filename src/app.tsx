@@ -1,7 +1,7 @@
 import ReactDOM from "react-dom/client";
 import { Router } from "./views/Router";
 import "./index.css";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { AccountQueryProvider } from "./views/api/AccountQueryProvider";
 
 const start =
   (window as Window & { __APP_START?: number }).__APP_START ??
@@ -10,10 +10,8 @@ const start =
 
 const root = ReactDOM.createRoot(document.getElementById("app") as HTMLElement);
 
-const queryClient = new QueryClient();
-
 root.render(
-  <QueryClientProvider client={queryClient}>
+  <AccountQueryProvider>
     <Router />
-  </QueryClientProvider>
+  </AccountQueryProvider>
 );

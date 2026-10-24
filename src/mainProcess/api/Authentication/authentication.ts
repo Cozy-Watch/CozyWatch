@@ -1,31 +1,55 @@
 import { createOAuthDeviceAuth } from "@octokit/auth-oauth-device";
 import { ipcMain } from "electron";
 import Logger from "electron-log";
+import { redactDiagnosticValue } from "../../security/redactDiagnosticValue";
 import { CLIENT_ID, GITHUB_APP_CLIENT_ID } from "../../keys";
-import { getData, storeData } from "../../safeStorage/safeStorage";
+import { getData } from "../../safeStorage/safeStorage";
 import { Octokit } from "@octokit/rest";
 import { tryOpenExternalUrl } from "../../security/externalUrl";
-import { batchNotificationManager } from "../../notifications/notificationManager";
+import { completeGitHubConnection } from "../../licensing/licenseState";
+import { clearAuthenticationCodeNotification, showAuthenticationCodeNotification } from "./authenticationCodeNotification";
 
-export const authenticateWithGitHub = async (): Promise<boolean> => {
+let attemptGeneration = 0;
+let activeAttempt: object | undefined;
+const cancelled = () => new Error("GitHub connection cancelled. Please try again.");
+
+export const cancelAuthentication = () => {
+  attemptGeneration++;
+  activeAttempt = undefined;
+  clearAuthenticationCodeNotification();
+};
+
+const runAuthentication = async <T>(work: (isCurrent: () => boolean) => Promise<T>, busy: T): Promise<T> => {
+  if (activeAttempt) return busy;
+  const attempt = {};
+  activeAttempt = attempt;
+  const generation = attemptGeneration;
+  try { return await work(() => generation === attemptGeneration); }
+  finally { if (activeAttempt === attempt) activeAttempt = undefined; }
+};
+
+export const authenticateWithGitHub = () => runAuthentication(performOAuthAuthentication, false);
+export const authenticateWithGitHubApp = () => runAuthentication(performGitHubAppAuthentication, false);
+export const authenticateWithPAT = (pat: string) => runAuthentication(
+  current => performPATAuthentication(pat, current),
+  { valid: false, reason: "Another GitHub connection is already in progress." },
+);
+
+const performOAuthAuthentication = async (isCurrent: () => boolean): Promise<boolean> => {
   try {
     const auth = createOAuthDeviceAuth({
       clientType: "oauth-app",
       clientId: CLIENT_ID,
       scopes: ["repo", "notifications"],
       onVerification: ({ verification_uri, user_code }) => {
+        if (!isCurrent()) return;
         ipcMain.emit("dispatch-authentication-auth-code", null, {
           verification_uri,
           user_code,
         });
 
+        showAuthenticationCodeNotification(user_code, verification_uri);
         tryOpenExternalUrl(verification_uri);
-
-        batchNotificationManager([{
-          title: "GitHub Authentication",
-          body: `Your auth code is: ${user_code}. Enter it at the opened URL.`,
-          type: "system",
-        }]);
       },
     });
 
@@ -35,11 +59,9 @@ export const authenticateWithGitHub = async (): Promise<boolean> => {
       throw new Error("No token received");
     }
 
-    // Store the token securely
-    await storeData({ name: "access_token", data: token });
-    await storeData({ name: "auth_type", data: "oauth" });
-
-    await storeData({ name: "authentication_notice", data: null });
+    if (!isCurrent()) throw cancelled();
+    await completeGitHubConnection(token, "oauth", isCurrent);
+    if (!isCurrent()) throw cancelled();
 
     // Important to inicialize GitHub client
     ipcMain.emit("github-token-ready");
@@ -48,23 +70,23 @@ export const authenticateWithGitHub = async (): Promise<boolean> => {
     ipcMain.emit("dispatch-application-sign-user", null, true);
 
     return true;
-  } catch (err) {
-    Logger.error("Error during authentication:", err);
+  } catch {
+    Logger.error("GitHub authentication failed; credentials were not logged.");
     return false; // Authentication failed
+  } finally {
+    if (isCurrent()) clearAuthenticationCodeNotification();
   }
 };
 
-export const authenticateWithPAT = async (pat: string) => {
+const performPATAuthentication = async (pat: string, isCurrent: () => boolean) => {
   const octokit = new Octokit({ auth: pat });
 
   try {
     await octokit.request("GET /user");
 
-    // Store the token securely
-    await storeData({ name: "access_token", data: pat });
-    await storeData({ name: "auth_type", data: "pat" });
-
-    await storeData({ name: "authentication_notice", data: null });
+    if (!isCurrent()) throw cancelled();
+    await completeGitHubConnection(pat, "pat", isCurrent);
+    if (!isCurrent()) throw cancelled();
 
     // Important to initialize GitHub client
     ipcMain.emit("github-token-ready");
@@ -79,35 +101,35 @@ export const authenticateWithPAT = async (pat: string) => {
         ? (error as { status?: number; message?: string })
         : {};
 
+    const safeMessage = redactDiagnosticValue(
+      pat ? (errorDetails.message || "").replaceAll(pat, "[redacted]") : errorDetails.message || "",
+    );
+
     if (errorDetails.status === 401) {
       return {
         valid: false,
-        reason: errorDetails.message || "unauthorized",
+        reason: safeMessage || "unauthorized",
       };
     }
 
-    return { valid: false, reason: errorDetails.message || "other-error" };
+    return { valid: false, reason: safeMessage || "other-error" };
   }
 };
 
-export const authenticateWithGitHubApp = async (): Promise<boolean> => {
+const performGitHubAppAuthentication = async (isCurrent: () => boolean): Promise<boolean> => {
   try {
     const auth = createOAuthDeviceAuth({
       clientType: "github-app",
       clientId: GITHUB_APP_CLIENT_ID,
       onVerification: ({ verification_uri, user_code }) => {
+        if (!isCurrent()) return;
         ipcMain.emit("dispatch-authentication-auth-code", null, {
           verification_uri,
           user_code,
         });
 
+        showAuthenticationCodeNotification(user_code, verification_uri);
         tryOpenExternalUrl(verification_uri);
-
-        batchNotificationManager([{
-          title: "GitHub Authentication",
-          body: `Your auth code is: ${user_code}. Enter it at the opened URL.`,
-          type: "system",
-        }]);
       },
     });
 
@@ -117,18 +139,18 @@ export const authenticateWithGitHubApp = async (): Promise<boolean> => {
       throw new Error("No token received");
     }
 
-    await storeData({ name: "access_token", data: token });
-    await storeData({ name: "auth_type", data: "github-app" });
-
-    await storeData({ name: "authentication_notice", data: null });
-
+    if (!isCurrent()) throw cancelled();
+    await completeGitHubConnection(token, "github-app", isCurrent);
+    if (!isCurrent()) throw cancelled();
     ipcMain.emit("github-token-ready");
     ipcMain.emit("dispatch-application-sign-user", null, true);
 
     return true;
-  } catch (err) {
-    Logger.error("Error during GitHub App authentication:", err);
+  } catch {
+    Logger.error("GitHub App authentication failed; credentials were not logged.");
     return false;
+  } finally {
+    if (isCurrent()) clearAuthenticationCodeNotification();
   }
 };
 
