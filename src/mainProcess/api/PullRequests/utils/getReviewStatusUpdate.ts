@@ -44,6 +44,8 @@ export const getReviewStatusUpdate = ({
 
   const reviewsUpdate = finalPullRequestNumberList.reduce<ReviewStatusUpdate>(
     (acc, prNumber) => {
+      // Failed/first hydration must not replay historical reviews on recovery.
+      if (!Object.hasOwn(initialCacheReviews, prNumber)) return acc;
       const finalReviews = finalCacheReviews[prNumber] || [];
       const initialReviews = initialCacheReviews[prNumber] || [];
 

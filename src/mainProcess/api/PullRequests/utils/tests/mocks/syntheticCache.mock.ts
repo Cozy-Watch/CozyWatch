@@ -393,6 +393,7 @@ export const createSyntheticCacheFixture = () => {
       reviews.initialReviewer20Latest,
       reviews.unchangedReviewer50Initial,
     ],
+    "2": [], // Successfully observed with no reviews.
     "5": [],
   };
   initialCache.actionsPerRepo[SYNTHETIC_REPOSITORY_NAME] = [
@@ -402,6 +403,7 @@ export const createSyntheticCacheFixture = () => {
   ];
   initialCache.mentions[SYNTHETIC_REPOSITORY_NAME] = {
     "1": [comments.existing],
+    "2_1": [], // Successfully observed with no comments.
   };
 
   const finalCache = createEmptyCache();

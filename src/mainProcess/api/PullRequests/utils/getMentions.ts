@@ -41,11 +41,14 @@ export const getMentions = ({
     [],
   );
 
+  // Even a successful empty response retains a page; absent pages mean no baseline.
+  const observedPulls = new Set(Object.keys(initialCache.mentions?.[repositoryName] ?? {})
+    .map(page => page.split("_")[0]));
   const initialIds = new Set(initialMentions.map((m) => m.id));
   const finalIds = new Set(finalMentions.map((m) => m.id));
 
   const addedMentions = finalMentions.filter(
-    (mention) => !initialIds.has(mention.id)
+    (mention) => observedPulls.has(String(mention.pullNumber)) && !initialIds.has(mention.id)
   );
 
   const removedMentions = initialMentions.filter(

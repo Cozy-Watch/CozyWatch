@@ -54,6 +54,7 @@ describe("getMentions", () => {
   ])("matches username boundaries in %p", (body, shouldMatch) => {
     const initialCache = createEmptyCache();
     const finalCache = createEmptyCache();
+    initialCache.mentions[SYNTHETIC_REPOSITORY_NAME] = { "1_1": [] };
     finalCache.mentions[SYNTHETIC_REPOSITORY_NAME] = {
       "1": [
         createSyntheticComment({

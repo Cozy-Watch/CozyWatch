@@ -14,6 +14,10 @@ export const getAddedRemovedPRId = ({
   initialCache,
   userId,
 }: Params) => {
+  // A missing repository is an unknown baseline, not an observed empty list.
+  if (!Object.hasOwn(initialCache.pullRequestsPerRepo, repositoryName)) {
+    return { added: [], removed: [] };
+  }
   const allInitial = dedupePullRequests(
     Object.values(initialCache.pullRequestsPerRepo[repositoryName] || {}).flat(),
   );
