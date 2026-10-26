@@ -61,7 +61,7 @@ export const LicenseModal = ({ isOpen, onClose }: Props) => {
         }}
       >
         <Dialog.Title className="inverse-accent-text-shadow">
-          Official Distribution License
+          Activate Cozy Watch
         </Dialog.Title>
 
         {error && (
@@ -72,9 +72,9 @@ export const LicenseModal = ({ isOpen, onClose }: Props) => {
 
         <Flex direction="column" gap="6" mt="4">
           <Text weight="light" size="2" className="inverse-accent-text-shadow">
-            Cozy Watch source code is MIT licensed, including for commercial
-            use. This optional license covers the official distribution and
-            its associated licensing service and support.
+            One purchase for personal and commercial use on two Macs. Includes
+            all features and future desktop updates. Online activation is required
+            once; your lifetime license then works offline.
           </Text>
 
           <Flex direction={"column"} gap="2">
@@ -107,7 +107,7 @@ export const LicenseModal = ({ isOpen, onClose }: Props) => {
             }}
             size="3"
           >
-            Buy an official distribution license
+            Buy Cozy Watch · $29 once
           </Button>
         </Flex>
 

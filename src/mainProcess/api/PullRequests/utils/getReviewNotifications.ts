@@ -13,6 +13,7 @@ export const getReviewNotifications = (
 ) => [
   ...changes.newReview.map((review) => ({
     title: "New Review",
+    setting: "newReviewsNotification" as const,
     type: "review" as const,
     tone: toneForReview(review.state),
     body: `${review.userType === "Bot" ? "bot" : review.login} reviewed "${review.pullRequestData?.title}" and ${review.state === "APPROVED" ? "approved it" : review.state === "COMMENTED" ? "left a comment" : review.state === "DISMISSED" ? "had their review dismissed" : "requested some changes"}.`,
@@ -28,6 +29,7 @@ export const getReviewNotifications = (
   })),
   ...changes.reviewChanged.map((review) => ({
     title: "Updated Review",
+    setting: "reviewsUpdateNotification" as const,
     type: "review" as const,
     tone: toneForReview(review.state),
     body:

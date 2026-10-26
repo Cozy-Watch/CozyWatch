@@ -26,9 +26,8 @@ const expectedFuseStates = new Map([
   [FuseV1Options.EnableEmbeddedAsarIntegrityValidation, FuseState.ENABLE],
   [FuseV1Options.OnlyLoadAppFromAsar, FuseState.ENABLE],
   [FuseV1Options.LoadBrowserProcessSpecificV8Snapshot, FuseState.DISABLE],
-  // The renderer is loaded from the packaged app's file:// URL. Electron
-  // requires this privilege for file:// resources inside an ASAR archive.
-  [FuseV1Options.GrantFileProtocolExtraPrivileges, FuseState.ENABLE],
+  // The renderer uses a constrained secure app protocol.
+  [FuseV1Options.GrantFileProtocolExtraPrivileges, FuseState.DISABLE],
   [FuseV1Options.WasmTrapHandlers, FuseState.ENABLE],
 ]);
 

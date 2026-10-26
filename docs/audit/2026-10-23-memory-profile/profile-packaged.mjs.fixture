@@ -1,0 +1,17 @@
+import {spawn,execFileSync} from 'node:child_process';
+import {mkdtemp,writeFile,rm} from 'node:fs/promises';
+const profile=await mkdtemp('/private/tmp/cozy-memory-');
+const binary=process.cwd()+'/out/Cozy Watch-darwin-arm64/Cozy Watch.app/Contents/MacOS/Cozy Watch';
+const child=spawn(binary,[`--user-data-dir=${profile}`],{env:{...process.env,COZYWATCH_RELEASE_SMOKE_TEST:'true'},stdio:['ignore','pipe','pipe']});
+let ready=false;child.stdout.on('data',data=>{if(data.toString().includes('COZYWATCH_RELEASE_SMOKE_RENDERER_READY'))ready=true;});child.stderr.resume();
+const samples=[];
+try{
+for(let i=0;i<7;i++){
+await new Promise(r=>setTimeout(r,15000));
+const rows=execFileSync('ps',['-axo','pid,ppid,rss'],{encoding:'utf8'}).trim().split('\n').slice(1).map(line=>line.trim().split(/\s+/).map(Number));
+const ids=new Set([child.pid]);for(let pass=0;pass<4;pass++)for(const [pid,ppid]of rows)if(ids.has(ppid))ids.add(pid);
+const processes=rows.filter(([pid])=>ids.has(pid));
+const sample={seconds:(i+1)*15,rendererReady:ready,processCount:processes.length,rssMiB:Math.round(processes.reduce((sum,row)=>sum+row[2],0)/1024*10)/10};samples.push(sample);console.log(JSON.stringify(sample));
+}
+await writeFile('/private/tmp/cozy-overview-preview/packaged-memory.json',JSON.stringify({kind:'isolated unsigned contributor diagnostic build; unauthenticated idle',samples},null,2));
+}finally{child.kill('SIGTERM');await new Promise(r=>child.once('exit',r));await rm(profile,{recursive:true,force:true});}

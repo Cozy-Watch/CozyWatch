@@ -57,7 +57,7 @@ describe("credential storage cleanup", () => {
   it("keeps the legacy copy if writing current storage fails", async () => {
     await writeFile(legacyPath, JSON.stringify({ access_token: encryptedToken }));
     await writeFile(path.join(directory, "current"), "blocks directory creation");
-    expect(await storage.getData("access_token")).toBeNull();
+    await expect(storage.getData("access_token")).rejects.toThrow("Unable to read secure storage");
     await expect(access(legacyPath)).resolves.toBeUndefined();
   });
 
@@ -99,8 +99,61 @@ describe("credential storage cleanup", () => {
     await writeFile(legacyPath, JSON.stringify({ access_token: encryptedToken }));
     await mkdir(path.dirname(primaryPath), { recursive: true });
     await writeFile(primaryPath, "corrupt");
-    expect(await storage.getData("access_token")).toBeNull();
+    await expect(storage.getData("access_token")).rejects.toThrow("saved data has not been replaced");
+    expect(await readFile(primaryPath, "utf8")).toBe("corrupt");
     await expect(access(legacyPath)).resolves.toBeUndefined();
+  });
+
+  it("keeps GitHub credentials and preferences across license activation, deactivation, and restart", async () => {
+    await storage.storeData({ name: "access_token", data: "test-token" });
+    await storage.storeData({ name: "auth_type", data: "pat" });
+    await storage.storeData({ name: "active_repositories", data: { 100: true, 200: false } });
+    await storage.storeData({ name: "accentColor", data: "green" });
+
+    await storage.saveLicenseActivation("synthetic-license-key", {
+      schemaVersion: 2,
+      status: "licensed",
+      entitlement: "lifetime",
+      licenseInstanceId: "synthetic-device",
+      licenseProductId: 400,
+      lastValidatedAt: "2026-10-21T00:00:00Z",
+    });
+    expect(await storage.getData("access_token")).toBe("test-token");
+    await storage.saveLicenseActivation(null, { schemaVersion: 2, status: "trial-ended" });
+
+    jest.resetModules();
+    const { app } = await import("electron");
+    (app.getPath as jest.Mock).mockReturnValue(path.join(directory, "current"));
+    const restarted = await import("./safeStorage");
+    expect(await restarted.getData("access_token")).toBe("test-token");
+    expect(await restarted.getData("auth_type")).toBe("pat");
+    expect(await restarted.getData("active_repositories")).toEqual({ 100: true, 200: false });
+    expect(await restarted.getData("accentColor")).toBe("green");
+    expect(await restarted.getData("licenseKey")).toBeNull();
+  });
+
+  it("atomically stores the connection and trial and preserves the previous connection on disk failure", async () => {
+    const previous = { schemaVersion: 2 as const, status: "licensed" as const, entitlement: "lifetime" as const };
+    await storage.saveGitHubConnection("old-token", "oauth", previous);
+    const before = await readFile(primaryPath, "utf8");
+    const fs = jest.requireActual<typeof import("node:fs/promises")>("node:fs/promises");
+    const failure = jest.spyOn(fs, "rename").mockRejectedValueOnce(new Error("Disk full"));
+    await expect(storage.saveGitHubConnection("new-token", "pat", { schemaVersion: 2, status: "trial" })).rejects.toThrow("Disk full");
+    failure.mockRestore();
+    expect(await readFile(primaryPath, "utf8")).toBe(before);
+    expect(await storage.getData("access_token")).toBe("old-token");
+    expect(await storage.getData("auth_type")).toBe("oauth");
+    expect(await storage.getData("licenseState")).toEqual(previous);
+    await storage.saveGitHubConnection("new-token", "pat", { schemaVersion: 2, status: "trial" });
+    expect(await storage.getData("access_token")).toBe("new-token");
+    expect(await storage.getData("auth_type")).toBe("pat");
+    expect((await storage.getData("licenseState"))?.status).toBe("trial");
+    expect(await storage.getData("authentication_notice")).toBeNull();
+  });
+  it("does not commit a connection cancelled while waiting for storage", async () => {
+    await storage.saveGitHubConnection("old-token", "oauth");
+    await expect(storage.saveGitHubConnection("cancelled-token", "pat", undefined, () => false)).rejects.toThrow("cancelled");
+    expect(await storage.getData("access_token")).toBe("old-token");
   });
 
 });

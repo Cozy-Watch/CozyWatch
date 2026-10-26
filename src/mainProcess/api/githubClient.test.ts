@@ -61,7 +61,7 @@ describe("rejected credential recovery", () => {
     hookError.mockReset();
     (Octokit as unknown as jest.Mock).mockImplementation(() => ({
       users: { getAuthenticated: validate },
-      hook: { error: hookError },
+      hook: { error: hookError, before: jest.fn(), after: jest.fn() },
     }));
     jest.spyOn(ipcMain, "emit");
   });
@@ -95,7 +95,7 @@ describe("rejected credential recovery", () => {
 
   it("notifies the UI when a running request rejects the PAT but ignores permission failures", async () => {
     await initGithubClient();
-    const onError = hookError.mock.calls[0][1];
+    const onError = hookError.mock.calls.at(-1)![1];
     await expect(onError({ status: 403 })).rejects.toEqual({ status: 403 });
     expect(storeData).not.toHaveBeenCalled();
     await expect(onError({ status: 401 })).rejects.toThrow("Authentication failed");

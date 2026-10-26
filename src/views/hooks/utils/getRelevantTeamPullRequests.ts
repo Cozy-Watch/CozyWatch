@@ -1,3 +1,4 @@
+import { repositoryKey } from "../../../shared/repositoryKey";
 import type {
   ListCommentsData,
   PullListReview,
@@ -50,7 +51,7 @@ export const getRelevantTeamPullRequests = ({
       return true;
     }
 
-    const repositoryName = pullRequest.base.repo.name;
+    const repositoryName = repositoryKey(pullRequest.base.repo);
     const reviewsForPullRequest =
       reviews[repositoryName]?.[pullRequest.number] ?? [];
 

@@ -1,3 +1,4 @@
+import type { LicenseState } from "./mainProcess/licensing/licenseState.types";
 // See the Electron documentation for details on how to use preload scripts:
 // https://www.electronjs.org/docs/latest/tutorial/process-model#preload-scripts
 
@@ -227,9 +228,14 @@ contextBridge.exposeInMainWorld("electronAPI", {
     validate: () => {
       return ipcRenderer.invoke("license-validate");
     },
-    setUsage: (usage: "personal" | "commercial") => {
-      return ipcRenderer.invoke("license-set-usage", usage);
+    acceptTransition: () => ipcRenderer.invoke("license-accept-transition"),
+    quit: () => ipcRenderer.invoke("license-quit"),
+    onUpdate: (callback: (state: LicenseState) => void) => {
+      const handler: IpcListener<LicenseState> = (_event, state) => callback(state);
+      ipcRenderer.on("license-updated", handler);
+      return handler;
     },
+    removeOnUpdate: (handler: IpcListener<LicenseState>) => ipcRenderer.removeListener("license-updated", handler),
     deactivate: () => {
       return ipcRenderer.invoke("license-deactivate");
     },

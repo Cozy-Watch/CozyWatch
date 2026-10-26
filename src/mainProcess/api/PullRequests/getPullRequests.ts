@@ -1,3 +1,4 @@
+import { assertMonitoringAllowed } from "../../licensing/licenseAccess";
 import Logger from "electron-log";
 import {
   pullRequestQuery,
@@ -17,5 +18,6 @@ export const getPullRequestSnapshot = async (): Promise<CacheData> => {
 };
 
 export const getPullRequests = async (): Promise<PullRequestQueryResult> => {
+  await assertMonitoringAllowed();
   return refreshCoordinator.runFull((isCurrent) => pullRequestQuery(isCurrent));
 };

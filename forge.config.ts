@@ -3,15 +3,22 @@ import { MakerSquirrel } from "@electron-forge/maker-squirrel";
 import { MakerZIP } from "@electron-forge/maker-zip";
 import { MakerDeb } from "@electron-forge/maker-deb";
 import { MakerRpm } from "@electron-forge/maker-rpm";
-import { MakerDMG } from "@electron-forge/maker-dmg";
+import { CozyDmgMaker } from "./scripts/maker-dmg";
 import { VitePlugin } from "@electron-forge/plugin-vite";
-import { PublisherGithub } from "@electron-forge/publisher-github";
+import { PublisherGitHub } from "@electron-forge/publisher-github";
 import dotenv from "dotenv";
 import path from "node:path";
 
 dotenv.config();
 
 const isOfficialBuild = process.env.COZYWATCH_OFFICIAL_BUILD === "true";
+if (isOfficialBuild && (!Number.isSafeInteger(Number(process.env.COZYWATCH_LIFETIME_PRODUCT_ID)) || Number(process.env.COZYWATCH_LIFETIME_PRODUCT_ID) <= 0)) {
+  throw new Error("Set COZYWATCH_LIFETIME_PRODUCT_ID to the verified lifetime product before building the official paid release.");
+}
+if (isOfficialBuild && process.env.COZYWATCH_LICENSE_TEST_MODE === "true" && process.env.COZYWATCH_DIAGNOSTICS_BUILD !== "true") {
+  throw new Error("Test license keys must not be accepted by a production release.");
+}
+
 const appleCredentials = {
   appleId: process.env.APPLE_ID,
   appleIdPassword: process.env.APPLE_PASSWORD,
@@ -74,7 +81,7 @@ const config: ForgeConfig = {
         [FuseV1Options.EnableEmbeddedAsarIntegrityValidation]: true,
         [FuseV1Options.OnlyLoadAppFromAsar]: true,
         [FuseV1Options.LoadBrowserProcessSpecificV8Snapshot]: false,
-        [FuseV1Options.GrantFileProtocolExtraPrivileges]: true,
+        [FuseV1Options.GrantFileProtocolExtraPrivileges]: false,
         [FuseV1Options.WasmTrapHandlers]: true,
       });
     },
@@ -116,29 +123,14 @@ const config: ForgeConfig = {
   },
   // rebuildConfig: {},
   makers: [
-    new MakerDMG({
-      background: "./assets/dmg-background.png",
-      icon: "./assets/dmg-icon.png",
-      iconSize: 100,
-      title: "CozyWatchInstaller",
-      overwrite: true,
-      additionalDMGOptions: {
-        window: {
-          size: {
-            width: 658,
-            height: 498,
-          },
-        },
-      },
-      format: "UDZO",
-    }),
+    new CozyDmgMaker({}),
     new MakerZIP({}, ["darwin"]),
     new MakerSquirrel({}),
     new MakerRpm({}),
     new MakerDeb({}),
   ],
   publishers: [
-    new PublisherGithub({
+    new PublisherGitHub({
       repository: {
         owner: "Cozy-Watch",
         name: "CozyWatch",

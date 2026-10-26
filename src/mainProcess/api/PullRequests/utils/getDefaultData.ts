@@ -1,16 +1,13 @@
 import Logger from "electron-log";
 import { getData } from "../../../safeStorage/safeStorage";
-import { PullsList as ResponsePullList } from "../hooks/registerPullList";
-import { PullsListReview as ResponsePullsListReview } from "../hooks/registerPullListReviews";
-import { PullsActions as ResponsePullsActions } from "../hooks/registerPullActions";
-import { Endpoints } from "@octokit/types";
+import type { Endpoints } from "@octokit/types";
+import type { Octokit } from "@octokit/rest";
 
-export type PullRequestList = ResponsePullList["data"];
-export type PullListReview = ResponsePullsListReview["data"];
-export type PullsActions = ResponsePullsActions["data"]["workflow_runs"];
+export type PullRequestList = Endpoints["GET /repos/{owner}/{repo}/pulls"]["response"]["data"];
+export type PullListReview = Endpoints["GET /repos/{owner}/{repo}/pulls/{pull_number}/reviews"]["response"]["data"];
+export type PullsActions = Endpoints["GET /repos/{owner}/{repo}/actions/runs"]["response"]["data"]["workflow_runs"];
 
-export type ListComments =
-  Endpoints["GET /repos/{owner}/{repo}/issues/{issue_number}/comments"]["response"];
+export type ListComments = Awaited<ReturnType<Octokit["rest"]["issues"]["listComments"]>>;
 
 export type ExtendedComment = ListComments["data"][0] & { pullNumber: string };
 export type ListCommentsData = ExtendedComment[];
@@ -31,6 +28,7 @@ export interface ReviewData {
 }
 
 export interface CIStatus {
+  pullRequestId: number;
   initialRun: PullsActions[0];
   finalRun: PullsActions[0];
 }
@@ -41,6 +39,7 @@ type PullNumber = string;
 type RunName = string;
 
 export interface CacheData {
+  schemaVersion?: 2;
   etagPerRepo: {
     [key: RepositoryName]: {
       list?: Record<Page, string>;
@@ -75,7 +74,8 @@ export interface CacheData {
   flatPullRequests: PullRequestList;
 }
 
-const defaultData = {
+const defaultData: CacheData = {
+  schemaVersion: 2,
   etagPerRepo: {},
   pullRequestsPerRepo: {},
   reviewPerRepoPerPullNumber: {},
@@ -110,21 +110,21 @@ export const getCachedData = async (): Promise<CacheData> => {
   if (localCache !== null) {
     Logger.log("[Repositories] using localCache");
     return {
-      ...defaultData,
+      ...structuredClone(defaultData),
       ...localCache,
     };
   }
 
   const storageCache = await getData("pull_requests_cache");
 
-  if (storageCache) {
+  if (storageCache?.schemaVersion === 2) {
     Logger.log("[Repositories] using storageCache");
     return {
-      ...defaultData,
+      ...structuredClone(defaultData),
       ...storageCache,
     };
   }
 
   Logger.log("[Repositories] no cache using defaults");
-  return defaultData;
+  return structuredClone(defaultData);
 };

@@ -1,74 +1,19 @@
-import { GearIcon, RocketIcon, SyncIcon } from "@primer/octicons-react";
-import { Avatar, Button, Flex } from "@radix-ui/themes";
+import { GearIcon } from "@primer/octicons-react";
+import { Flex, IconButton, Tooltip } from "@radix-ui/themes";
+import { DashboardButton } from "./DashboardButton";
 
-interface Props {
-  isCompact: boolean;
-}
-
-export const HeaderEmpty = ({ isCompact }: Props) => {
-  return (
-    <Flex align="center" justify="between">
-      <Flex
-        width={isCompact ? "25px" : "40px"}
-        height={isCompact ? "25px" : "40px"}
-        style={
-          isCompact
-            ? {
-                borderRadius: "var(--radius-4)",
-                border: "1px solid var(--white-a12)",
-                background: "var(--white-a10)",
-                padding: "1px",
-              }
-            : {}
-        }
-        align="center"
-        justify="center"
+export const HeaderEmpty = ({ isCompact }: { isCompact: boolean }) => (
+  <Flex className="menubar-header" align="center" justify="between">
+    <DashboardButton isCompact={isCompact} />
+    <Tooltip content="Settings">
+      <IconButton
+        variant="ghost"
+        size={isCompact ? "1" : "2"}
+        aria-label="Settings"
+        onClick={() => window.electronAPI.application.navigateToRoute("settings")}
       >
-        <img
-          src={`./images/armchair.png`}
-          width={isCompact ? "20px" : "40px"}
-          height={isCompact ? "20px" : "40px"}
-          style={{ borderRadius: isCompact ? 5 : 10 }}
-        />
-      </Flex>
-
-      <Flex align="center" gap={isCompact ? "1" : "2"}>
-        <Button
-          variant="outline"
-          aria-label="Open dashboard"
-          title="Open dashboard"
-          style={{ boxShadow: "none", color: "var(--accent-12)" }}
-          onClick={() => window.electronAPI.application.navigateToRoute("overview")}
-        >
-          <RocketIcon size={16} />
-          Dashboard
-        </Button>
-        <Button
-          variant="outline"
-          style={{ boxShadow: "none", color: "var(--accent-12)" }}
-          onClick={() => {
-            window.electronAPI.application.navigateToRoute("settings");
-          }}
-        >
-          <GearIcon size={16} />
-        </Button>
-
-        <Button
-          variant="outline"
-          style={{ boxShadow: "none", color: "var(--accent-12)" }}
-          onClick={() => {}}
-        >
-          <SyncIcon size={16} />
-        </Button>
-
-        <Avatar
-          ml="2"
-          src="./images/catSittingAvatar.png"
-          size={isCompact ? "1" : "3"}
-          radius="full"
-          fallback={"Coz"}
-        />
-      </Flex>
-    </Flex>
-  );
-};
+        <GearIcon size={18} />
+      </IconButton>
+    </Tooltip>
+  </Flex>
+);

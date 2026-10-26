@@ -1,0 +1,93 @@
+{
+  "source": "working-tree",
+  "commit": "15962b29d2c8020249794417f2429fd1ed048dd3",
+  "productionDiffSha256": "ef66ee2a8d909008e257205ee93a9e9e25bdbb3eab9ed1ae2251d004ca5d9275",
+  "lockfileSha256": "132aa13c1861612eb5f465c2785841c4ee972592ccf4657c2e2f3f65fc3d6bfc",
+  "node": "v22.13.1",
+  "platform": "darwin",
+  "arch": "arm64",
+  "latencyMs": 20,
+  "reports": [
+    {
+      "label": "reported/cold",
+      "requests": 445,
+      "requestsByOperation": {
+        "/rate_limit": 1,
+        "pull-list-requests": 7,
+        "issues-list-comments": 208,
+        "pull-listReview-requests": 208,
+        "pull-actions-requests": 15,
+        "/repos/synthetic-company/service-1/pulls/comments": 1,
+        "/repos/synthetic-company/service-2/pulls/comments": 1,
+        "/repos/synthetic-company/service-3/pulls/comments": 1,
+        "/repos/synthetic-company/service-4/pulls/comments": 1,
+        "/repos/synthetic-company/service-5/pulls/comments": 1,
+        "/repos/synthetic-company/service-6/pulls/comments": 1
+      },
+      "maxConcurrency": 9,
+      "conditionalRequests": 0,
+      "notModified": 0,
+      "responseBytes": 6815212,
+      "firstPublishedMs": 138.78916700000002,
+      "approvalPublishedMs": null,
+      "durationMs": 1467.353,
+      "publications": 2,
+      "openPulls": 208,
+      "registeredHooks": 6
+    },
+    {
+      "label": "reported/unchanged",
+      "requests": 435,
+      "requestsByOperation": {
+        "/rate_limit": 1,
+        "pull-list-requests": 6,
+        "issues-list-comments": 208,
+        "pull-listReview-requests": 208,
+        "pull-actions-requests": 6,
+        "/repos/synthetic-company/service-1/pulls/comments": 1,
+        "/repos/synthetic-company/service-2/pulls/comments": 1,
+        "/repos/synthetic-company/service-3/pulls/comments": 1,
+        "/repos/synthetic-company/service-4/pulls/comments": 1,
+        "/repos/synthetic-company/service-5/pulls/comments": 1,
+        "/repos/synthetic-company/service-6/pulls/comments": 1
+      },
+      "maxConcurrency": 9,
+      "conditionalRequests": 428,
+      "notModified": 428,
+      "responseBytes": 161,
+      "firstPublishedMs": 84.43949999999995,
+      "approvalPublishedMs": null,
+      "durationMs": 1368.1267910000001,
+      "publications": 2,
+      "openPulls": 208,
+      "registeredHooks": 12
+    },
+    {
+      "label": "reported/approval",
+      "requests": 435,
+      "requestsByOperation": {
+        "/rate_limit": 1,
+        "pull-list-requests": 6,
+        "issues-list-comments": 208,
+        "pull-listReview-requests": 208,
+        "pull-actions-requests": 6,
+        "/repos/synthetic-company/service-1/pulls/comments": 1,
+        "/repos/synthetic-company/service-2/pulls/comments": 1,
+        "/repos/synthetic-company/service-3/pulls/comments": 1,
+        "/repos/synthetic-company/service-4/pulls/comments": 1,
+        "/repos/synthetic-company/service-5/pulls/comments": 1,
+        "/repos/synthetic-company/service-6/pulls/comments": 1
+      },
+      "maxConcurrency": 9,
+      "conditionalRequests": 428,
+      "notModified": 427,
+      "responseBytes": 1572,
+      "firstPublishedMs": 84.88766699999996,
+      "approvalPublishedMs": 1410.570084,
+      "durationMs": 1422.0890419999996,
+      "publications": 2,
+      "openPulls": 208,
+      "registeredHooks": 18
+    }
+  ]
+}

@@ -1,3 +1,7 @@
+import { retainActivePullData } from "../utils/retainActivePullData";
+import { retainConditionalPages } from "../../utils/conditionalPages";
+import { repositoryKey } from "../../../../shared/repositoryKey";
+import { estimateFullRefreshReserve } from "../../githubRequestBudget";
 import { app, ipcMain } from "electron";
 import Logger from "electron-log";
 import pLimit from "p-limit";
@@ -7,9 +11,6 @@ import type { ManagedNotification } from "../../../notifications/notificationMan
 import { storeData } from "../../../safeStorage/safeStorage";
 import { getGithubClient } from "../../githubClient";
 import { getUser } from "../../User/getUser";
-import { registerListIssuesComments } from "../hooks/registerIssuesListComments";
-import { registerPullActions } from "../hooks/registerPullActions";
-import { registerPullList } from "../hooks/registerPullList";
 import { getAddedRemovedPRId } from "../utils/getAddedRemovedPRId";
 import { getCIStatusUpdate } from "../utils/getCIStatusUpdate";
 import { dedupePullRequests } from "../utils/dedupePullRequests";
@@ -22,6 +23,7 @@ import {
   ReviewData,
   setLocalCache,
 } from "../utils/getDefaultData";
+import { getInlineMentionNotifications } from "../utils/getInlineMentionNotifications";
 import { getMentions } from "../utils/getMentions";
 import { getRepositoriesData } from "../utils/getRepositoriesData";
 import { getReviewStatusUpdate } from "../utils/getReviewStatusUpdate";
@@ -49,8 +51,10 @@ export const pullRequestQuery = async (isCurrent = () => true): Promise<PullRequ
   const { repositoriesByPage, activeRepositories } =
     await getRepositoriesData();
 
-  const cache = await getCachedData();
-  const initialCache: CacheData = structuredClone(cache);
+  let cache = await getCachedData();
+  // Refresh writers replace top-level maps and nested records immutably.
+  // Retain the old references for comparisons without duplicating every body.
+  const initialCache: CacheData = { ...cache };
 
   const user = await getUser();
 
@@ -77,9 +81,9 @@ export const pullRequestQuery = async (isCurrent = () => true): Promise<PullRequ
     );
 
     // Rough estimate: 1 repo = ~4 requests (list, actions, reviews per PR, comments per PR)
-    const estimatedRequests = repositories.length * 5;
+    const estimatedRequests = estimateFullRefreshReserve(cache, repositories);
 
-    if (rateLimit.rate.remaining < Math.max(estimatedRequests + 50, 100)) {
+    if (rateLimit.rate.remaining < estimatedRequests) {
       const resetTime = new Date(rateLimit.rate.reset * 1000);
       const waitMinutes = Math.ceil((resetTime.getTime() - Date.now()) / 60000);
 
@@ -87,7 +91,7 @@ export const pullRequestQuery = async (isCurrent = () => true): Promise<PullRequ
         `[PullRequests] Rate limit low (${rateLimit.rate.remaining} remaining, need ~${estimatedRequests}), skipping poll. Resets in ${waitMinutes} minutes.`,
       );
 
-      batchNotificationManager([
+      await batchNotificationManager([
         {
           title: "GitHub Rate Limit Reached",
           body: `Pull request updates are paused due to low rate limit. Resets in approximately ${waitMinutes} minutes.`,
@@ -135,23 +139,6 @@ export const pullRequestQuery = async (isCurrent = () => true): Promise<PullRequ
   }
 
   assertCurrent();
-  registerPullList({
-    cache,
-    octokit,
-    operationName: pullListOperationName,
-  });
-
-  registerPullActions({
-    cache,
-    octokit,
-    operationName: pullActionsOperationName,
-  });
-
-  registerListIssuesComments({
-    cache,
-    octokit,
-    operationName: issuesListComments,
-  });
 
   try {
     await settleRefreshWork(
@@ -159,6 +146,7 @@ export const pullRequestQuery = async (isCurrent = () => true): Promise<PullRequ
         pullListLimit(async () => {
           return await pullsListQuery({
             name: repo.name,
+            cache,
             octokit,
             operationName: pullListOperationName,
             owner: repo.owner,
@@ -172,6 +160,8 @@ export const pullRequestQuery = async (isCurrent = () => true): Promise<PullRequ
   } finally {
     Logger.info("[PullRequests] pullsListQuery completed");
   }
+
+  cache = retainActivePullData(cache, repositories.map(repositoryKey));
 
   const flatPullRequestsAfterListRefresh = dedupePullRequests(
     Object.values(cache.pullRequestsPerRepo || {}).flatMap((value) =>
@@ -203,7 +193,7 @@ export const pullRequestQuery = async (isCurrent = () => true): Promise<PullRequ
     Object.values(cache.pullRequestsPerRepo).flatMap((page) =>
       Object.values(page).flat(),
     ),
-  ).map((pr) => ({
+  ).filter(pr => activeRepositories?.[pr.base.repo.id]).map((pr) => ({
     pullNumber: pr.number,
     owner: pr.base.repo.owner.login,
     repoName: pr.base.repo.name,
@@ -232,12 +222,12 @@ export const pullRequestQuery = async (isCurrent = () => true): Promise<PullRequ
   const repositoriesWithPullRequests = repositories.reduce<
     { owner: string; repoName: string; pullNumber: string }[]
   >((acc, repo) => {
-    const hasPRs = repositoriesWithPullRequestsList.includes(repo.name);
+    const hasPRs = repositoriesWithPullRequestsList.includes(repositoryKey(repo));
     if (!hasPRs) {
       return acc;
     }
 
-    const pullNumbersList = pullRequestNumberByRepoName[repo.name] || [];
+    const pullNumbersList = pullRequestNumberByRepoName[repositoryKey(repo)] || [];
     const requestParams = pullNumbersList.map((pullNumber) => ({
       owner: repo.owner,
       repoName: repo.name,
@@ -248,6 +238,10 @@ export const pullRequestQuery = async (isCurrent = () => true): Promise<PullRequ
   }, []);
 
   retainOpenReviewPages(octokit, repositoriesWithPullRequests);
+  retainConditionalPages(octokit, new Set([
+    ...repositories.map(repo => `workflows:${repositoryKey(repo)}`),
+    ...listOfPullRequests.map(({owner, repoName, pullNumber}) => `comments:${owner}/${repoName}/${pullNumber}`.toLowerCase()),
+  ]));
 
   const commentsTask = async () => {
     try {
@@ -258,6 +252,7 @@ export const pullRequestQuery = async (isCurrent = () => true): Promise<PullRequ
               name: repoName,
               octokit,
               operationName: issuesListComments,
+              cache,
               pullNumber: `${pullNumber}`,
               owner,
             }),
@@ -310,6 +305,7 @@ export const pullRequestQuery = async (isCurrent = () => true): Promise<PullRequ
               name: repo.name,
               octokit,
               operationName: pullActionsOperationName,
+              cache,
               owner: repo.owner,
             }),
           ),
@@ -339,7 +335,7 @@ export const pullRequestQuery = async (isCurrent = () => true): Promise<PullRequ
     removed: PullRequestList;
   }>(
     (acc, repo) => {
-      const repositoryName = repo.name;
+      const repositoryName = repositoryKey(repo);
 
       const removedOrAddedPr = getAddedRemovedPRId({
         repositoryName,
@@ -400,7 +396,7 @@ export const pullRequestQuery = async (isCurrent = () => true): Promise<PullRequ
     hasReviewUpdateNotificationEnabled ? repositories : []
   ).reduce<{ newReview: ReviewData[]; reviewChanged: ReviewData[] }>(
     (acc, repo) => {
-      const repositoryName = repo.name;
+      const repositoryName = repositoryKey(repo);
 
       const { newReview, reviewChanged } = getReviewStatusUpdate({
         repositoryName,
@@ -428,7 +424,7 @@ export const pullRequestQuery = async (isCurrent = () => true): Promise<PullRequ
   const CIStatusUpdatePerRepo = (
     hasCIStatusNotificationEnabled ? repositories : []
   ).reduce((acc: Record<string, Record<string, CIStatus>>, repo) => {
-    const repositoryName = repo.name;
+    const repositoryName = repositoryKey(repo);
     const CIStatus = getCIStatusUpdate({
       repositoryName,
       initialCache,
@@ -439,7 +435,7 @@ export const pullRequestQuery = async (isCurrent = () => true): Promise<PullRequ
     if (Object.values(CIStatus).length !== 0) {
       return {
         ...acc,
-        [repo.name]: CIStatus,
+        [repositoryKey(repo)]: CIStatus,
       };
     }
 
@@ -464,7 +460,7 @@ export const pullRequestQuery = async (isCurrent = () => true): Promise<PullRequ
       const { addedMentions, removedMentions } = getMentions({
         finalCache: cache,
         initialCache,
-        repositoryName: repo.name,
+        repositoryName: repositoryKey(repo),
         username: user.login,
       });
 
@@ -479,6 +475,8 @@ export const pullRequestQuery = async (isCurrent = () => true): Promise<PullRequ
       removedMentions: [],
     },
   );
+
+  const inlineMentions = notificationsSettings.mentionsNotification.value ? getInlineMentionNotifications(initialCache, cache, user) : [];
 
   const amountOfPullRequestAdded = pullRequestAddedOrRemoved.added.length;
   const amountOfPullRequestRemoved = pullRequestAddedOrRemoved.removed.length;
@@ -501,7 +499,7 @@ export const pullRequestQuery = async (isCurrent = () => true): Promise<PullRequ
     amountOfNewReviews +
     amountOfUpdatedReviews +
     amountOfCiUpdates +
-    amountOfAddedMentions;
+    amountOfAddedMentions + inlineMentions.length;
 
   app.setBadgeCount(totalChanges);
 
@@ -579,36 +577,19 @@ export const pullRequestQuery = async (isCurrent = () => true): Promise<PullRequ
 
   const ciStatusNotification = repositories
     .map((repo) => {
-      const repositoryName = repo.name;
-      const CIStatus = getCIStatusUpdate({
-        repositoryName,
-        initialCache,
-        finalCache: cache,
-        userId: user.id,
-      });
+      const repositoryName = repositoryKey(repo);
+      const CIStatus = CIStatusUpdatePerRepo[repositoryName] ?? {};
 
       const runNames = Object.keys(CIStatus);
 
       const runUpdates = runNames.map((runName) => {
-        const { finalRun, initialRun } = CIStatus[runName];
+        const { finalRun, initialRun, pullRequestId } = CIStatus[runName];
 
         const pullRequestList = Object.values(
           cache.pullRequestsPerRepo[repositoryName] || {},
         ).flat();
 
-        const linkedPullRequests = finalRun.pull_requests ?? [];
-        const pullRequestData =
-          pullRequestList.find((pr) =>
-            linkedPullRequests.some(
-              (linkedPr) => linkedPr.number === pr.number || linkedPr.id === pr.id,
-            ),
-          ) ??
-          (finalRun.head_sha
-            ? pullRequestList.find((pr) => pr.head.sha === finalRun.head_sha)
-            : undefined) ??
-          (finalRun.head_branch
-            ? pullRequestList.find((pr) => pr.head.ref === finalRun.head_branch)
-            : undefined);
+        const pullRequestData = pullRequestList.find(pr => pr.id === pullRequestId);
 
         const title = pullRequestData?.title;
         const pullNumber = pullRequestData?.number ?? finalRun.pull_requests?.[0]?.number;
@@ -624,7 +605,7 @@ export const pullRequestQuery = async (isCurrent = () => true): Promise<PullRequ
 
         if (finalRun.conclusion === "success") {
           return {
-            title: `CI "${runName}" Status Update`,
+            title: `CI "${finalRun.name}" Status Update`,
             body: `${subject} successfully passed the checks.`,
             type: "ci",
             tone: "success",
@@ -633,7 +614,7 @@ export const pullRequestQuery = async (isCurrent = () => true): Promise<PullRequ
           };
         }
         return {
-          title: `CI "${runName}" Status Update`,
+          title: `CI "${finalRun.name}" Status Update`,
           body: `${subject} status changed from ${initialRun.conclusion} to ${finalRun.conclusion}.`,
           type: "ci",
           tone: ["failure", "timed_out", "startup_failure", "action_required"].includes(finalRun.conclusion ?? "")
@@ -675,13 +656,15 @@ export const pullRequestQuery = async (isCurrent = () => true): Promise<PullRequ
     };
   });
 
-  batchNotificationManager([
-    ...pullRequestsAddedNotification,
-    ...pullRequestsRemovedNotification,
+  await batchNotificationManager([
+    ...pullRequestsAddedNotification.map(item => ({ ...item, setting: "pullRequestsAddedNotification" })),
+    ...pullRequestsRemovedNotification.map(item => ({ ...item, setting: "pullRequestsRemovedNotification" })),
     ...reviewNotifications,
-    ...ciStatusNotification,
-    ...mentionNotifications,
+    ...inlineMentions,
+    ...ciStatusNotification.map(item => ({ ...item, setting: "ciStatusNotification" })),
+    ...mentionNotifications.map(item => ({ ...item, setting: "mentionsNotification" })),
   ] as ManagedNotification[]);
+  assertCurrent();
 
   const flatPullRequests = dedupePullRequests(
     Object.values(cache.pullRequestsPerRepo || {}).flatMap((value) =>

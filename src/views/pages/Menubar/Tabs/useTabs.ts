@@ -1,3 +1,4 @@
+import { repositoryKey } from "../../../../shared/repositoryKey";
 import { useMemo } from "react";
 import {
   PullRequestList,
@@ -32,7 +33,7 @@ export const useTabs = (pullRequests: PullRequestList) => {
     );
 
     const pullRequeststData = sortedPullRequests.map((pr) => {
-      const repositoryName = pr.head.repo.name;
+      const repositoryName = repositoryKey(pr.base.repo);
       const pullNumber = pr.number;
 
       const reviewsForThisPR = reviews?.[repositoryName]?.[pullNumber] || [];

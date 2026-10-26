@@ -1,3 +1,4 @@
+import { installGithubRequestBudget } from "./githubRequestBudget";
 import { ipcMain } from "electron";
 import { Octokit as OctokitCore } from "@octokit/rest";
 import { throttling } from "@octokit/plugin-throttling";
@@ -107,6 +108,8 @@ export async function initGithubClient(): Promise<
             },
           },
         });
+
+        installGithubRequestBudget(client);
 
         // Hook into request errors to handle 401 Bad Credentials globally
         client.hook.error("request", async (error) => {

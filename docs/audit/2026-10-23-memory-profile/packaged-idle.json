@@ -1,0 +1,47 @@
+{
+  "kind": "isolated unsigned contributor diagnostic build; unauthenticated idle",
+  "samples": [
+    {
+      "seconds": 15,
+      "rendererReady": true,
+      "processCount": 4,
+      "rssMiB": 460
+    },
+    {
+      "seconds": 30,
+      "rendererReady": true,
+      "processCount": 4,
+      "rssMiB": 457.2
+    },
+    {
+      "seconds": 45,
+      "rendererReady": true,
+      "processCount": 4,
+      "rssMiB": 417.7
+    },
+    {
+      "seconds": 60,
+      "rendererReady": true,
+      "processCount": 4,
+      "rssMiB": 365.4
+    },
+    {
+      "seconds": 75,
+      "rendererReady": true,
+      "processCount": 4,
+      "rssMiB": 369.2
+    },
+    {
+      "seconds": 90,
+      "rendererReady": true,
+      "processCount": 4,
+      "rssMiB": 369.2
+    },
+    {
+      "seconds": 105,
+      "rendererReady": true,
+      "processCount": 4,
+      "rssMiB": 370.3
+    }
+  ]
+}

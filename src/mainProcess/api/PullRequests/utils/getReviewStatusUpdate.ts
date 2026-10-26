@@ -1,7 +1,6 @@
-import { PullsListReview as ResponsePullsListReview } from "../hooks/registerPullListReviews";
-import { CacheData, ReviewData } from "./getDefaultData";
+import type { CacheData, ReviewData, PullListReview } from "./getDefaultData";
 
-type LatestAcc = ResponsePullsListReview["data"]["0"];
+type LatestAcc = PullListReview[number];
 
 const sortReviewsByDate = (a: LatestAcc, b: LatestAcc) => {
   if (a.submitted_at && b.submitted_at) {

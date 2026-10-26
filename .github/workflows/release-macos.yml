@@ -125,6 +125,7 @@ jobs:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          COZYWATCH_LIFETIME_PRODUCT_ID: ${{ vars.COZYWATCH_LIFETIME_PRODUCT_ID }}
           COZYWATCH_DIAGNOSTICS_BUILD: ${{ github.event_name == 'workflow_dispatch' && 'true' || 'false' }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         shell: bash
