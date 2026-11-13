@@ -1,0 +1,38 @@
+{
+  "manifest_version": 3,
+  "name": "Cozy Watch \u2014 GitHub at a glance",
+  "version": "0.1.0",
+  "description": "GitHub pull requests, reviews and recent conversations in your toolbar. 14-day trial; paid lifetime license thereafter.",
+  "minimum_chrome_version": "123",
+  "permissions": [
+    "storage",
+    "alarms",
+    "notifications"
+  ],
+  "host_permissions": [
+    "https://api.github.com/*",
+    "https://github.com/login/*",
+    "https://api.lemonsqueezy.com/*"
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Cozy Watch",
+    "default_icon": {
+      "16": "icon16.png",
+      "32": "icon32.png"
+    }
+  },
+  "background": {
+    "service_worker": "worker.js",
+    "type": "module"
+  },
+  "icons": {
+    "16": "icon16.png",
+    "32": "icon32.png",
+    "48": "icon48.png",
+    "128": "icon128.png"
+  },
+  "content_security_policy": {
+    "extension_pages": "default-src 'self'; script-src 'self'; object-src 'none'; connect-src https://api.github.com https://github.com https://api.lemonsqueezy.com; base-uri 'none'; frame-src 'none'; form-action 'none'"
+  }
+}

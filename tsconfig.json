@@ -2,7 +2,10 @@
   "compilerOptions": {
     "target": "ESNext",
     "module": "ESNext",
-    "types": ["jest", "node"],
+    "types": [
+      "jest",
+      "node"
+    ],
     "allowJs": true,
     "skipLibCheck": true,
     "esModuleInterop": true,
@@ -15,5 +18,10 @@
     "resolveJsonModule": true,
     "jsx": "react-jsx",
     "strictNullChecks": true
-  }
+  },
+  "exclude": [
+    "node_modules",
+    "out",
+    ".vite"
+  ]
 }
