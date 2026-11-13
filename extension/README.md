@@ -54,11 +54,13 @@ Network access is limited to GitHub APIs/device auth and Lemon Squeezy licensing
 
 ## Release checklist
 
+The **Package Chrome extension** workflow runs the extension tests and produces `cozy-watch-chrome.zip` as a GitHub Actions artifact. Use the artifact from the commit you intend to release. Chrome Web Store uploads are manual, and each update requires a manifest version higher than the previously uploaded version.
+
 Automated tests cover vault encryption/restart/tamper/key loss; auth polling/backoff/refresh; license identity and lifetime checks; request size limits; cache/trial/account transitions; cancellation; and sender restrictions. Build enforces a 50 KB uncompressed JavaScript budget.
 
 Before publishing, run authenticated end-to-end checks in Chrome on Windows, macOS, and Linux with real OAuth/App/PAT accounts: organization approval, permissions, browser restart, extension update with stable ID, expired/rotated tokens, license purchase/validation/revocation/outage, trial expiry, popup closure during authorization, badge and OS notification permission denial, keyboard use and zoom. Unit tests do not establish cross-OS browser certification.
 
-Protect publisher and GitHub accounts with hardware-backed two-factor authentication, least-privilege release access, reviewed changes, pinned lockfile installs, and no remotely loaded code. Review the final extension package and store permissions before release. A Chrome Web Store listing/publication has not been performed by this implementation.
+Protect publisher and GitHub accounts with hardware-backed two-factor authentication, least-privilege release access, reviewed changes, pinned lockfile installs, and no remotely loaded code. Review the final extension package and store permissions before release.
 
 Icons reuse the desktop’s GitHub Octicons as static paths (MIT license in icons.LICENSE). Run `node scripts/sync-extension-icons.mjs` to regenerate them; no React runtime is shipped. Chrome owns the popup window; CSS translucent layers blend inside it, without a guarantee of native window transparency or backdrop blur.
 

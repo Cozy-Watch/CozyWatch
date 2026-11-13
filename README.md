@@ -6,6 +6,8 @@ Cozy Watch is a desktop companion for GitHub. It keeps an eye on the pull reques
 
 ![Cozy Watch desktop app and menu-bar notification](docs/images/cozy-watch-desktop-light.png)
 
+Cozy Watch for Chrome brings your GitHub pull requests, review requests, and mentions to the browser toolbar. See the [Chrome extension guide](extension/README.md) for setup, development, and release packaging.
+
 ## Features
 
 - GitHub authentication through OAuth, a personal access token, or a GitHub App
@@ -73,6 +75,7 @@ Copy `.env.example` to `.env` only when you need to configure an official signed
 
 - `src/mainProcess` contains the Electron main-process code, GitHub API integration, polling, notifications, storage, and licensing.
 - `src/views` contains the React renderer and application screens.
+- `extension` contains the standalone Chrome extension, its tests, and its build configuration.
 - `forge.config.ts` contains Electron Forge packaging configuration.
 - `.github/workflows` contains CI and macOS release workflows.
 

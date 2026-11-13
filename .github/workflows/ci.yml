@@ -72,8 +72,5 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Build Chrome extension
-        run: npm run build:extension
-
       - name: Verify contributor package
         run: npm run package
