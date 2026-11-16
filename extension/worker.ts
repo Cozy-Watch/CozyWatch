@@ -1,7 +1,7 @@
 import { notificationBatch, type NotificationBaseline } from './notification-baseline';
 import { UserFacingError, HttpError } from './network';
 /// <reference types="chrome" />
-import { type Command, type Diagnostic, type PublicState, type Reply, type Snapshot } from './model';
+import { isGitHubLogin, type Command, type Diagnostic, type PublicState, type Reply, type Snapshot } from './model';
 import { fetchSnapshot, github } from './github';
 import { fetchPullDetails } from './pull-details';
 import { readSecret, removeSecret, resetVault, writeSecret } from './vault';
@@ -80,8 +80,8 @@ async function resumeAuthorization() {
   await chrome.alarms.create(AUTH_EXPIRY, { when: Math.max(Date.now() + 30000, flow.expiresAt) });
 }
 async function commitCredential(credential: Credential, epoch: number, signal: AbortSignal) {
-  const identity = await github<{ login: string }>(credential.token, '/user', signal);
-  if (!/^[a-z\d-]+$/i.test(identity.login)) throw new UserFacingError('Unexpected GitHub identity.');
+  const identity = await github<{ login?: unknown } | null>(credential.token, '/user', signal);
+  if (!isGitHubLogin(identity?.login)) throw new UserFacingError('Unexpected GitHub identity.');
   current(epoch);
   await writeSecret('github', credential); current(epoch);
   await clearAuthorization();

@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Cozy Watch \u2014 GitHub at a glance",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "GitHub pull requests, reviews and recent conversations in your toolbar. 14-day trial; paid lifetime license thereafter.",
   "minimum_chrome_version": "123",
   "permissions": [

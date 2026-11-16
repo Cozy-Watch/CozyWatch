@@ -45,8 +45,9 @@ async function setup() {
   return { local, session, notify, listener, send, connect, rotate, fetchPullDetails, startDevice, pollDevice, DeviceAuthorizationEnded, fetchSnapshot, github, readSecret, writeSecret, validateLicense };
 }
 
-it('keeps credentials private and refuses accidental account replacement', async () => {
-  const { local, session, notify, send, readSecret } = await setup();
+it.each(['developer', 'developer_acme'])('keeps credentials private and refuses accidental account replacement for %s', async login => {
+  const { local, session, notify, send, readSecret, github } = await setup();
+  jest.mocked(github).mockResolvedValue({ login });
   const connected = await send({ type: 'connect', token: 'synthetic_token_not_a_real_secret' });
   expect(connected.ok).toBe(true); expect(JSON.stringify(connected)).not.toContain('synthetic_token');
   expect((await local.get('token')).token).toBeUndefined(); expect((await session.get('token')).token).toBeUndefined();

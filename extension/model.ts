@@ -23,6 +23,9 @@ export type Command = { type: 'state' | 'refresh' | 'disconnect' | 'cancel-auth'
   { type: 'connect'; token: string } | { type: 'start-auth'; method: 'oauth' | 'github-app' } |
   { type: 'pull-details'; id: number } | { type: 'license'; key: string } | { type: 'notifications'; enabled: boolean };
 export type Reply = { ok: true; state: PublicState } | { ok: false; error: string };
+export function isGitHubLogin(value: unknown): value is string {
+  return typeof value === 'string' && /^[a-z\d-]+(?:_[a-z\d]+)?$/i.test(value);
+}
 export function githubUrl(value: string): string | null {
   try {
     const url = new URL(value);

@@ -1,4 +1,4 @@
-import { githubUrl, type Activity, type PullSummary, type Snapshot } from './model';
+import { githubUrl, isGitHubLogin, type Activity, type PullSummary, type Snapshot } from './model';
 import { jsonRequest, UserFacingError } from './network';
 type Issue = { id: number; number: number; title: string; html_url: string; repository_url: string; updated_at: string; draft?: boolean; user?: { login: string }; comments?: number; labels?: { name: string }[] };
 type Comment = { id: number; body: string; html_url: string; created_at: string; updated_at?: string; issue_url?: string; user: { login: string } | null; in_reply_to_id?: number };
@@ -10,8 +10,9 @@ const pull = (issue: Issue): PullSummary => ({ id: issue.id, number: issue.numbe
   repository: issue.repository_url.split('/').slice(-2).join('/'), url: githubUrl(issue.html_url) ?? 'https://github.com', updatedAt: issue.updated_at, draft: issue.draft ?? false, author: issue.user?.login?.slice(0, 100), comments: issue.comments, labels: issue.labels?.slice(0, 3).map(label => label.name.slice(0, 60)) });
 export async function fetchSnapshot(token: string, signal?: AbortSignal, publishQueues?: (snapshot: Snapshot) => Promise<void>): Promise<Snapshot> {
   signal = signal ? AbortSignal.any([signal, AbortSignal.timeout(30000)]) : AbortSignal.timeout(30000);
-  const { login } = await github<{ login: string }>(token, '/user', signal);
-  if (!/^[a-z\d-]+$/i.test(login)) throw new UserFacingError('Unexpected GitHub account response.');
+  const identity = await github<{ login?: unknown } | null>(token, '/user', signal);
+  const login = identity?.login;
+  if (!isGitHubLogin(login)) throw new UserFacingError('Unexpected GitHub account response.');
   type Search = { items: Issue[]; total_count: number; incomplete_results: boolean };
   const search = (query: string) => github<Search>(token, `/search/issues?q=${encodeURIComponent(query)}&sort=updated&per_page=50`, signal);
   const [mine, reviews, mentioned] = await Promise.all([
@@ -40,7 +41,7 @@ export async function fetchSnapshot(token: string, signal?: AbortSignal, publish
       const ownIds = new Set(result.value.filter(comment => comment.user?.login === login).map(comment => comment.id));
       for (const comment of result.value) {
         if (comment.user?.login === login || !githubUrl(comment.html_url)) continue;
-        const mention = new RegExp(`(^|[^a-z\\d-])@${login}(?![a-z\\d-])`, 'i').test(comment.body);
+        const mention = new RegExp(`(^|[^a-z\\d_-])@${login}(?![a-z\\d_-])`, 'i').test(comment.body);
         const reply = comment.in_reply_to_id && ownIds.has(comment.in_reply_to_id);
         if (!mention && !reply && !mine.items.some(item => item.id === issue.id)) continue;
         const vercelAuthorization = mention && comment.user?.login === 'vercel[bot]' &&

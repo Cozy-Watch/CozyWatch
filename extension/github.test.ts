@@ -1,16 +1,17 @@
 import { fetchSnapshot, github } from './github';
 const original = globalThis.fetch;
 afterEach(() => { globalThis.fetch = original; });
-it('uses bounded PR/comment endpoints for every auth method, returns explicit activity without leaking comment bodies', async () => {
+it.each(['developer', 'developer_acme'])('uses bounded PR/comment endpoints and keeps comment bodies private for %s', async login => {
   const fetchMock = jest.fn(async (input: string | URL | Request) => {
     const url = String(input);
-    const data = url.endsWith('/user') ? { login: 'developer' } : url.includes('/comments?') ? [{
-      id: 4, body: 'private context @developer please look', html_url: 'https://github.com/org/repo/pull/7#issuecomment-4', created_at: '2026-11-09T10:00:00Z', user: { login: 'teammate' },
+    const data = url.endsWith('/user') ? { login } : url.includes('/comments?') ? [{
+      id: 4, body: `private context @${login} please look`, html_url: 'https://github.com/org/repo/pull/7#issuecomment-4', created_at: '2026-11-09T10:00:00Z', user: { login: 'teammate' },
     }] : { total_count: 150, incomplete_results: false, items: [{ id: 1, number: 7, title: 'Improve loading', html_url: 'https://github.com/org/repo/pull/7', repository_url: 'https://api.github.com/repos/org/repo', updated_at: '2026-11-09T10:00:00Z', body: 'Must not reach the popup' }] };
     return new Response(JSON.stringify(data));
   });
   globalThis.fetch = fetchMock;
   const result = await fetchSnapshot('synthetic-secret');
+  expect(result.login).toBe(login);
   expect(result.mine[0].repository).toBe('org/repo');
   expect(result.activity[0].reason).toBe('mention');
   expect(result.activity).toHaveLength(1);
